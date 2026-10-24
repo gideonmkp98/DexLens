@@ -326,3 +326,29 @@ async def test_cache_supports_sets_and_search_keys():
         cache._store[("card", "tcgdex", "en", "base1")].details
         != cache._store[("set", "tcgdex", "en", "base1")].details
     )
+
+
+@pytest.mark.asyncio
+async def test_empty_collection_cached_as_available():
+    cache = DetailCache(failed_cooldown_seconds=60)
+    empty_search_fetcher = AsyncMock(return_value=[])
+
+    res = await cache.get_or_fetch(
+        "tcgdex", "en", "empty-search", empty_search_fetcher, resource="search"
+    )
+    assert res.status == "available"
+    assert res.details == []
+    assert empty_search_fetcher.call_count == 1
+
+    # Verify no failed cooldown was set and entry is cached
+    key = ("search", "tcgdex", "en", "empty-search")
+    assert not cache._is_failed_cooldown_active(key)
+    assert key in cache._store
+
+    # Second call hits cache without calling fetcher again
+    res2 = await cache.get_or_fetch(
+        "tcgdex", "en", "empty-search", empty_search_fetcher, resource="search"
+    )
+    assert res2.status == "available"
+    assert res2.details == []
+    assert empty_search_fetcher.call_count == 1

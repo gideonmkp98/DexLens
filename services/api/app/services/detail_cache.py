@@ -192,7 +192,7 @@ class DetailCache:
         # 4. Fetch leader performs network call
         try:
             fetched_data = await fetcher()
-            if fetched_data:
+            if fetched_data is not None:
                 fetch_time = self._now()
                 self._put_entry(key, fetched_data, fetch_time)
                 future.set_result(fetched_data)
@@ -203,7 +203,7 @@ class DetailCache:
                     details=fetched_data,
                 )
             else:
-                # Provider returned 404 or empty
+                # Provider returned 404 or None
                 self._set_failed_cooldown(key)
                 future.set_result(None)
                 if entry:
@@ -250,6 +250,11 @@ class DetailCache:
                 details=None,
             )
         finally:
+            if future.done() and not future.cancelled():
+                try:
+                    future.exception()
+                except Exception:
+                    pass
             async with self._lock:
                 self._in_flight.pop(key, None)
 
