@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CacheEntry:
-    details: dict[str, Any]
+    details: Any
     fetched_at: datetime
 
 
@@ -23,17 +23,17 @@ class DetailLookupResult:
     status: str  # "available", "stale", "unavailable"
     source: str
     fetched_at: datetime | None
-    details: dict[str, Any] | None
+    details: Any | None
 
 
 class DetailCache:
-    """In-memory bounded LRU cache for card details.
+    """In-memory bounded LRU cache for catalog resources (cards, sets, search queries).
 
     Features:
     - Bounded entries with LRU eviction.
     - Configurable fresh TTL (default 6h) and stale fallback (up to 24h).
     - Failed lookup cooldown to avoid hammering the provider.
-    - Deduplication of concurrent fetches for the same card key without global lock.
+    - Deduplication of concurrent fetches for the same resource key without global lock.
     """
 
     def __init__(
@@ -66,15 +66,15 @@ class DetailCache:
         )
         self._clock = clock or (lambda: datetime.now(UTC))
 
-        self._store: OrderedDict[tuple[str, str, str], CacheEntry] = OrderedDict()
-        self._failed_cooldowns: dict[tuple[str, str, str], float] = {}
-        self._in_flight: dict[tuple[str, str, str], asyncio.Future[Any]] = {}
+        self._store: OrderedDict[tuple[str, str, str, str], CacheEntry] = OrderedDict()
+        self._failed_cooldowns: dict[tuple[str, str, str, str], float] = {}
+        self._in_flight: dict[tuple[str, str, str, str], asyncio.Future[Any]] = {}
         self._lock = asyncio.Lock()
 
     def _now(self) -> datetime:
         return self._clock()
 
-    def _is_failed_cooldown_active(self, key: tuple[str, str, str]) -> bool:
+    def _is_failed_cooldown_active(self, key: tuple[str, str, str, str]) -> bool:
         if key in self._failed_cooldowns:
             cooldown_expiry = self._failed_cooldowns[key]
             if time.monotonic() < cooldown_expiry:
@@ -82,10 +82,10 @@ class DetailCache:
             del self._failed_cooldowns[key]
         return False
 
-    def _set_failed_cooldown(self, key: tuple[str, str, str]) -> None:
+    def _set_failed_cooldown(self, key: tuple[str, str, str, str]) -> None:
         self._failed_cooldowns[key] = time.monotonic() + self.failed_cooldown_seconds
 
-    def _get_entry(self, key: tuple[str, str, str]) -> CacheEntry | None:
+    def _get_entry(self, key: tuple[str, str, str, str]) -> CacheEntry | None:
         if key in self._store:
             entry = self._store[key]
             self._store.move_to_end(key)
@@ -93,7 +93,7 @@ class DetailCache:
         return None
 
     def _put_entry(
-        self, key: tuple[str, str, str], details: dict[str, Any], fetched_at: datetime
+        self, key: tuple[str, str, str, str], details: Any, fetched_at: datetime
     ) -> None:
         if key in self._store:
             self._store.move_to_end(key)
@@ -112,8 +112,9 @@ class DetailCache:
         language: str,
         external_id: str,
         fetcher: Callable[[], Any],
+        resource: str = "card",
     ) -> DetailLookupResult:
-        key = (source, language, external_id)
+        key = (resource, source, language, external_id)
         now = self._now()
 
         # 1. Quick check: do we have a fresh cached item?
@@ -159,7 +160,7 @@ class DetailCache:
                 fetch_leader = True
 
         if not fetch_leader:
-            # Another task is currently fetching this exact card
+            # Another task is currently fetching this exact resource
             try:
                 await future
             except Exception:
@@ -222,7 +223,10 @@ class DetailCache:
                 )
         except Exception as err:
             logger.warning(
-                "Error fetching card details for %s from provider: %s", key, err
+                "Error fetching %s details for %s from provider: %s",
+                resource,
+                key,
+                err,
             )
             self._set_failed_cooldown(key)
             if not future.done():
@@ -252,6 +256,7 @@ class DetailCache:
 
 # Global process-level detail cache instance
 detail_cache = DetailCache()
+catalog_cache = detail_cache
 
 
 def map_card_details(raw: dict[str, Any]) -> dict[str, Any]:

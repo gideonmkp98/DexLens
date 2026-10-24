@@ -10,7 +10,12 @@ from app.api.v1.cards import get_tcgdex_client
 from app.main import app
 from app.models.card import Card
 from app.models.set import Set
-from app.services.detail_cache import DetailCache, map_card_details
+from app.services.detail_cache import (
+    DetailCache,
+    catalog_cache,
+    detail_cache,
+    map_card_details,
+)
 from app.services.tcgdex import TcgdexClient
 
 
@@ -130,9 +135,9 @@ async def test_cache_size_bound_lru_eviction():
     # Adding c3 evicts c1 (the least recently used)
     await cache.get_or_fetch("tcgdex", "en", "c3", fetcher)
     assert len(cache._store) == 2
-    assert ("tcgdex", "en", "c1") not in cache._store
-    assert ("tcgdex", "en", "c2") in cache._store
-    assert ("tcgdex", "en", "c3") in cache._store
+    assert ("card", "tcgdex", "en", "c1") not in cache._store
+    assert ("card", "tcgdex", "en", "c2") in cache._store
+    assert ("card", "tcgdex", "en", "c3") in cache._store
 
 
 @pytest.mark.asyncio
@@ -244,3 +249,80 @@ def test_card_details_api_success_enrichment(
         assert "pricing" not in data["details"]
     finally:
         app.dependency_overrides.pop(get_tcgdex_client, None)
+
+
+@pytest.mark.asyncio
+async def test_cache_supports_sets_and_search_keys():
+    # Verify module alias
+    assert catalog_cache is detail_cache
+
+    cache = DetailCache(fresh_ttl_seconds=3600)
+
+    sets_fetcher = AsyncMock(return_value=[{"id": "base1", "name": "Base Set"}])
+    set_fetcher = AsyncMock(
+        return_value={"id": "base1", "name": "Base Set", "card_count": 102}
+    )
+    search_fetcher = AsyncMock(return_value=[{"id": "base1-4", "name": "Charizard"}])
+    card_fetcher = AsyncMock(
+        return_value={"id": "base1-4", "name": "Charizard", "hp": 120}
+    )
+
+    # 1. Fetch sets list (resource="sets", external_id="all")
+    res_sets = await cache.get_or_fetch(
+        "tcgdex", "en", "all", sets_fetcher, resource="sets"
+    )
+    assert res_sets.status == "available"
+    assert res_sets.details == [{"id": "base1", "name": "Base Set"}]
+    assert sets_fetcher.call_count == 1
+    assert ("sets", "tcgdex", "en", "all") in cache._store
+
+    # Cache hit for sets
+    res_sets_hit = await cache.get_or_fetch(
+        "tcgdex", "en", "all", sets_fetcher, resource="sets"
+    )
+    assert res_sets_hit.status == "available"
+    assert sets_fetcher.call_count == 1
+
+    # 2. Fetch single set (resource="set", external_id="base1")
+    res_set = await cache.get_or_fetch(
+        "tcgdex", "en", "base1", set_fetcher, resource="set"
+    )
+    assert res_set.status == "available"
+    assert res_set.details == {"id": "base1", "name": "Base Set", "card_count": 102}
+    assert set_fetcher.call_count == 1
+    assert ("set", "tcgdex", "en", "base1") in cache._store
+
+    # 3. Fetch search query (resource="search", external_id="charizard")
+    res_search = await cache.get_or_fetch(
+        "tcgdex", "en", "charizard", search_fetcher, resource="search"
+    )
+    assert res_search.status == "available"
+    assert res_search.details == [{"id": "base1-4", "name": "Charizard"}]
+    assert search_fetcher.call_count == 1
+    assert ("search", "tcgdex", "en", "charizard") in cache._store
+
+    # 4. Fetch card detail with default resource="card"
+    res_card = await cache.get_or_fetch("tcgdex", "en", "base1-4", card_fetcher)
+    assert res_card.status == "available"
+    assert res_card.details == {"id": "base1-4", "name": "Charizard", "hp": 120}
+    assert card_fetcher.call_count == 1
+    assert ("card", "tcgdex", "en", "base1-4") in cache._store
+
+    # 5. Verify resource namespace isolation:
+    # A card with external_id="base1" must NOT collide with set external_id="base1"
+    card_base1_fetcher = AsyncMock(return_value={"id": "base1", "type": "card_not_set"})
+    res_card_collision_check = await cache.get_or_fetch(
+        "tcgdex", "en", "base1", card_base1_fetcher, resource="card"
+    )
+    assert res_card_collision_check.status == "available"
+    assert res_card_collision_check.details == {
+        "id": "base1",
+        "type": "card_not_set",
+    }
+    assert card_base1_fetcher.call_count == 1
+    assert ("card", "tcgdex", "en", "base1") in cache._store
+    assert ("set", "tcgdex", "en", "base1") in cache._store
+    assert (
+        cache._store[("card", "tcgdex", "en", "base1")].details
+        != cache._store[("set", "tcgdex", "en", "base1")].details
+    )
