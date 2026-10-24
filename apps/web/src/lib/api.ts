@@ -4,20 +4,21 @@ export interface HealthResponse {
 }
 
 export interface SetSummary {
-  id: number;
-  source: string;
+  id?: string | number | null;
+  source?: string;
   external_id: string;
   name: string;
-  language: string;
-  series: string | null;
-  logo_url: string | null;
-  symbol_url: string | null;
-  release_date: string | null;
-  printed_total: number | null;
-  total: number | null;
-  local_card_count: number;
-  created_at: string;
-  updated_at: string;
+  language?: string;
+  series?: string | null;
+  logo_url?: string | null;
+  symbol_url?: string | null;
+  release_date?: string | null;
+  printed_total?: number | null;
+  total?: number | null;
+  card_count: number;
+  local_card_count?: number;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface SetDetail extends SetSummary {}
@@ -27,49 +28,27 @@ export interface PaginatedSetsResponse {
   total: number;
   page: number;
   page_size: number;
+  has_more?: boolean;
 }
 
 export interface CardSetBrief {
-  id: number;
+  id?: string | number | null;
   external_id: string;
   name: string;
 }
 
 export interface CardListItem {
-  id: number;
-  source: string;
+  id?: string | number | null;
+  source?: string;
   external_id: string;
-  set_id: number;
+  set_id: string;
   local_id: string;
   name: string;
   language: string;
-  image_base_url: string | null;
+  image_base_url?: string | null;
   small_image_url: string | null;
   large_image_url: string | null;
-  set_name: string | null;
-}
-
-export interface CardDetail {
-  id: number;
-  source: string;
-  external_id: string;
-  set_id: number;
-  local_id: string;
-  name: string;
-  language: string;
-  image_base_url: string | null;
-  small_image_url: string | null;
-  large_image_url: string | null;
-  set: CardSetBrief;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PaginatedCardsResponse {
-  items: CardListItem[];
-  total: number;
-  page: number;
-  page_size: number;
+  set_name?: string | null;
 }
 
 export interface CardAttack {
@@ -85,16 +64,51 @@ export interface CardAbility {
   effect?: string;
 }
 
+export interface CardDetail {
+  id?: string | number | null;
+  source?: string;
+  external_id: string;
+  set_id?: string | null;
+  local_id: string;
+  name: string;
+  language: string;
+  image_base_url?: string | null;
+  small_image_url: string | null;
+  large_image_url: string | null;
+  set?: CardSetBrief | null;
+  category?: string | null;
+  illustrator?: string | null;
+  rarity?: string | null;
+  hp?: number | null;
+  types?: string[] | null;
+  regulation_mark?: string | null;
+  regulationMark?: string | null;
+  variants?: Record<string, boolean> | null;
+  attacks?: CardAttack[] | null;
+  abilities?: CardAbility[] | null;
+  status?: "available" | "stale" | "unavailable" | string;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface PaginatedCardsResponse {
+  items: CardListItem[];
+  total: number | null;
+  page: number;
+  page_size: number;
+  has_more?: boolean;
+}
+
 export interface CardEnrichmentDetails {
-  category?: string;
-  illustrator?: string;
-  rarity?: string;
-  hp?: number;
-  types?: string[];
-  regulationMark?: string;
-  variants?: Record<string, boolean>;
-  attacks?: CardAttack[];
-  abilities?: CardAbility[];
+  category?: string | null;
+  illustrator?: string | null;
+  rarity?: string | null;
+  hp?: number | null;
+  types?: string[] | null;
+  regulationMark?: string | null;
+  variants?: Record<string, boolean> | null;
+  attacks?: CardAttack[] | null;
+  abilities?: CardAbility[] | null;
 }
 
 export interface CardEnrichmentResponse {
@@ -164,14 +178,17 @@ export async function getSets(params?: {
 }
 
 /**
- * Fetch a single set's local metadata and card count from /api/v1/sets/{id}.
+ * Fetch a single set's metadata and card count from /api/v1/sets/{id}.
  */
-export async function getSet(id: number): Promise<SetDetail> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/sets/${id}`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+export async function getSet(id: string): Promise<SetDetail> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/sets/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to fetch set ${id}: HTTP ${res.status}`);
@@ -186,7 +203,7 @@ export async function getSet(id: number): Promise<SetDetail> {
 export async function getCards(params?: {
   name?: string;
   number?: string;
-  set_id?: number;
+  set_id?: string;
   language?: string;
   page?: number;
   page_size?: number;
@@ -194,7 +211,7 @@ export async function getCards(params?: {
   const searchParams = new URLSearchParams();
   if (params?.name) searchParams.set("name", params.name);
   if (params?.number) searchParams.set("number", params.number);
-  if (params?.set_id) searchParams.set("set_id", params.set_id.toString());
+  if (params?.set_id) searchParams.set("set_id", params.set_id);
   if (params?.language) searchParams.set("language", params.language);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
@@ -217,14 +234,17 @@ export async function getCards(params?: {
 }
 
 /**
- * Fetch basic local card metadata and set information from /api/v1/cards/{id}.
+ * Fetch card metadata from /api/v1/cards/{id}.
  */
-export async function getCard(id: number): Promise<CardDetail> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/cards/${id}`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+export async function getCard(id: string): Promise<CardDetail> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/cards/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to fetch card ${id}: HTTP ${res.status}`);
@@ -237,13 +257,16 @@ export async function getCard(id: number): Promise<CardDetail> {
  * Fetch on-demand remote enrichment details from /api/v1/cards/{id}/details.
  */
 export async function getCardDetails(
-  id: number
+  id: string
 ): Promise<CardEnrichmentResponse> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/cards/${id}/details`, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/cards/${encodeURIComponent(id)}/details`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
 
   if (!res.ok) {
     throw new Error(
