@@ -24,6 +24,7 @@ class DetailLookupResult:
     source: str
     fetched_at: datetime | None
     details: Any | None
+    error: Exception | None = None
 
 
 class DetailCache:
@@ -68,6 +69,7 @@ class DetailCache:
 
         self._store: OrderedDict[tuple[str, str, str, str], CacheEntry] = OrderedDict()
         self._failed_cooldowns: dict[tuple[str, str, str, str], float] = {}
+        self._failed_errors: dict[tuple[str, str, str, str], Exception | None] = {}
         self._in_flight: dict[tuple[str, str, str, str], asyncio.Future[Any]] = {}
         self._lock = asyncio.Lock()
 
@@ -80,10 +82,17 @@ class DetailCache:
             if time.monotonic() < cooldown_expiry:
                 return True
             del self._failed_cooldowns[key]
+            self._failed_errors.pop(key, None)
         return False
 
-    def _set_failed_cooldown(self, key: tuple[str, str, str, str]) -> None:
+    def _set_failed_cooldown(
+        self, key: tuple[str, str, str, str], error: Exception | None = None
+    ) -> None:
         self._failed_cooldowns[key] = time.monotonic() + self.failed_cooldown_seconds
+        if error is not None:
+            self._failed_errors[key] = error
+        else:
+            self._failed_errors.pop(key, None)
 
     def _get_entry(self, key: tuple[str, str, str, str]) -> CacheEntry | None:
         if key in self._store:
@@ -105,6 +114,7 @@ class DetailCache:
 
         # Clear any failed cooldown if fetch succeeded
         self._failed_cooldowns.pop(key, None)
+        self._failed_errors.pop(key, None)
 
     async def get_or_fetch(
         self,
@@ -146,6 +156,7 @@ class DetailCache:
                 source=source,
                 fetched_at=None,
                 details=None,
+                error=self._failed_errors.get(key),
             )
 
         # 3. Deduplicate concurrent fetches using Future per key
@@ -161,10 +172,11 @@ class DetailCache:
 
         if not fetch_leader:
             # Another task is currently fetching this exact resource
+            leader_error = None
             try:
                 await future
-            except Exception:
-                pass  # Fall through to check cache/stale below
+            except Exception as err:
+                leader_error = err
             fresh_entry = self._get_entry(key)
             if fresh_entry:
                 age = (self._now() - fresh_entry.fetched_at).total_seconds()
@@ -187,6 +199,7 @@ class DetailCache:
                 source=source,
                 fetched_at=None,
                 details=None,
+                error=leader_error or self._failed_errors.get(key),
             )
 
         # 4. Fetch leader performs network call
@@ -204,7 +217,7 @@ class DetailCache:
                 )
             else:
                 # Provider returned 404 or None
-                self._set_failed_cooldown(key)
+                self._set_failed_cooldown(key, error=None)
                 future.set_result(None)
                 if entry:
                     age_seconds = (now - entry.fetched_at).total_seconds()
@@ -220,6 +233,7 @@ class DetailCache:
                     source=source,
                     fetched_at=None,
                     details=None,
+                    error=None,
                 )
         except Exception as err:
             logger.warning(
@@ -228,7 +242,7 @@ class DetailCache:
                 key,
                 err,
             )
-            self._set_failed_cooldown(key)
+            self._set_failed_cooldown(key, error=err)
             if not future.done():
                 future.set_exception(err)
 
@@ -248,6 +262,7 @@ class DetailCache:
                 source=source,
                 fetched_at=None,
                 details=None,
+                error=err,
             )
         finally:
             if future.done() and not future.cancelled():

@@ -1,104 +1,166 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.models.card import Card
-from app.models.set import Set
 from app.schemas.set import PaginatedSetsResponse, SetDetailResponse, SetSummaryResponse
+from app.services.detail_cache import catalog_cache
+from app.services.tcgdex import TcgdexClient, is_digital_set
 
 router = APIRouter(prefix="/sets", tags=["Sets"])
 
+# Reusable client for catalog requests in API process
+_tcgdex_client = TcgdexClient()
+
+
+def get_tcgdex_client() -> TcgdexClient:
+    return _tcgdex_client
+
 
 @router.get("", response_model=PaginatedSetsResponse)
-def list_sets(
+async def list_sets(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(24, ge=1, le=100, description="Items per page"),
-    language: str | None = Query(None, description="Optional language filter"),
-    db: Session = Depends(get_db),
+    language: str = Query("en", description="Language code filter"),
+    client: TcgdexClient = Depends(get_tcgdex_client),
 ) -> PaginatedSetsResponse:
-    """Retrieve paginated list of locally imported sets with local card counts."""
-    base_query = select(Set)
-    if language:
-        base_query = base_query.where(Set.language == language.lower().strip())
+    """Retrieve paginated list of physical sets from TCGdex catalog cache."""
+    clean_lang = language.lower().strip()
 
-    total_query = select(func.count()).select_from(base_query.subquery())
-    total = db.scalar(total_query) or 0
+    async def fetch_sets() -> list[dict]:
+        return await client.get_sets(language=clean_lang)
 
-    stmt = select(Set, func.count(Card.id).label("local_card_count")).outerjoin(
-        Card, Card.set_id == Set.id
-    )
-    if language:
-        stmt = stmt.where(Set.language == language.lower().strip())
-
-    stmt = (
-        stmt.group_by(Set.id)
-        .order_by(
-            Set.release_date.is_(None),
-            Set.release_date.desc(),
-            Set.name.asc(),
-            Set.id.asc(),
-        )
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+    result = await catalog_cache.get_or_fetch(
+        resource="sets",
+        source="tcgdex",
+        language=clean_lang,
+        external_id="all",
+        fetcher=fetch_sets,
     )
 
-    rows = db.execute(stmt).all()
-    items = [
-        SetSummaryResponse(
-            id=s.id,
-            source=s.source,
-            external_id=s.external_id,
-            name=s.name,
-            language=s.language,
-            series=s.series,
-            logo_url=s.logo_url,
-            symbol_url=s.symbol_url,
-            release_date=s.release_date,
-            printed_total=s.printed_total,
-            total=s.total,
-            local_card_count=count,
-            created_at=s.created_at,
-            updated_at=s.updated_at,
+    if result.status == "unavailable" or result.details is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Sets catalog temporarily unavailable",
         )
-        for s, count in rows
-    ]
+
+    raw_sets = result.details
+    if not isinstance(raw_sets, list):
+        raise HTTPException(
+            status_code=503,
+            detail="Sets catalog temporarily unavailable",
+        )
+
+    # Filter out digital sets
+    physical_sets = [s for s in raw_sets if not is_digital_set(s)]
+
+    # Map each physical set to SetSummaryResponse
+    items: list[SetSummaryResponse] = []
+    for s in physical_sets:
+        card_count_dict = (
+            s.get("cardCount") if isinstance(s.get("cardCount"), dict) else {}
+        )
+        printed_total = card_count_dict.get("official")
+        total = card_count_dict.get("total")
+        card_count = total or 0
+        series_name = (
+            s.get("serie", {}).get("name") if isinstance(s.get("serie"), dict) else None
+        )
+        items.append(
+            SetSummaryResponse(
+                id=s.get("id"),
+                source="tcgdex",
+                external_id=s.get("id", ""),
+                name=s.get("name", ""),
+                language=clean_lang,
+                series=series_name,
+                logo_url=s.get("logo"),
+                symbol_url=s.get("symbol"),
+                release_date=s.get("releaseDate"),
+                printed_total=printed_total,
+                total=total,
+                card_count=card_count,
+                local_card_count=card_count,
+            )
+        )
+
+    total_count = len(items)
+    start_idx = (page - 1) * page_size
+    end_idx = page * page_size
+    paginated_items = items[start_idx:end_idx]
+    has_more = end_idx < total_count
 
     return PaginatedSetsResponse(
-        items=items,
-        total=total,
+        items=paginated_items,
+        total=total_count,
         page=page,
         page_size=page_size,
+        has_more=has_more,
     )
 
 
-@router.get("/{id}", response_model=SetDetailResponse)
-def get_set(id: int, db: Session = Depends(get_db)) -> SetDetailResponse:
-    """Retrieve metadata and local card count for an individual imported set."""
-    stmt = (
-        select(Set, func.count(Card.id).label("local_card_count"))
-        .outerjoin(Card, Card.set_id == Set.id)
-        .where(Set.id == id)
-        .group_by(Set.id)
+@router.get("/{external_id}", response_model=SetDetailResponse)
+async def get_set(
+    external_id: str,
+    language: str = Query("en", description="Language code"),
+    client: TcgdexClient = Depends(get_tcgdex_client),
+) -> SetDetailResponse:
+    """Retrieve detailed set metadata including card count from catalog cache."""
+    clean_lang = language.lower().strip()
+
+    async def fetch_set() -> dict | None:
+        return await client.get_set(external_id, language=clean_lang)
+
+    result = await catalog_cache.get_or_fetch(
+        resource="set",
+        source="tcgdex",
+        language=clean_lang,
+        external_id=external_id,
+        fetcher=fetch_set,
     )
-    row = db.execute(stmt).first()
-    if not row:
+
+    if result.status == "unavailable" or result.details is None:
+        if result.error is not None:
+            raise HTTPException(
+                status_code=503,
+                detail="Set details temporarily unavailable",
+            )
         raise HTTPException(status_code=404, detail="Set not found")
 
-    s, count = row
+    set_data = result.details
+    if not isinstance(set_data, dict):
+        raise HTTPException(status_code=404, detail="Set not found")
+
+    if is_digital_set(set_data):
+        raise HTTPException(status_code=404, detail="Set not found")
+
+    card_count_dict = (
+        set_data.get("cardCount") if isinstance(set_data.get("cardCount"), dict) else {}
+    )
+    printed_total = card_count_dict.get("official")
+    total = card_count_dict.get("total")
+
+    cards_list = set_data.get("cards")
+    if isinstance(cards_list, list) and cards_list:
+        card_count = len(cards_list)
+    else:
+        card_count = total or 0
+
+    series_name = (
+        set_data.get("serie", {}).get("name")
+        if isinstance(set_data.get("serie"), dict)
+        else None
+    )
+
     return SetDetailResponse(
-        id=s.id,
-        source=s.source,
-        external_id=s.external_id,
-        name=s.name,
-        language=s.language,
-        series=s.series,
-        logo_url=s.logo_url,
-        symbol_url=s.symbol_url,
-        release_date=s.release_date,
-        printed_total=s.printed_total,
-        total=s.total,
-        local_card_count=count,
-        created_at=s.created_at,
-        updated_at=s.updated_at,
+        id=set_data.get("id") or external_id,
+        source="tcgdex",
+        external_id=set_data.get("id") or external_id,
+        name=set_data.get("name", ""),
+        language=clean_lang,
+        series=series_name,
+        logo_url=set_data.get("logo"),
+        symbol_url=set_data.get("symbol"),
+        release_date=set_data.get("releaseDate"),
+        printed_total=printed_total,
+        total=total,
+        card_count=card_count,
+        local_card_count=card_count,
     )
