@@ -60,12 +60,10 @@ function CardsSearch() {
     setLoading(true);
     setError(null);
 
-    const parsedSetId = currentSetId ? parseInt(currentSetId, 10) : undefined;
-
     getCards({
       name: currentName || undefined,
       number: currentNumber || undefined,
-      set_id: parsedSetId && !isNaN(parsedSetId) ? parsedSetId : undefined,
+      set_id: currentSetId || undefined,
       page: currentPage,
       page_size: 24,
     })
@@ -122,7 +120,11 @@ function CardsSearch() {
   };
 
   const totalPages = cardData
-    ? Math.max(1, Math.ceil(cardData.total / cardData.page_size))
+    ? cardData.total !== null
+      ? Math.max(1, Math.ceil(cardData.total / cardData.page_size))
+      : cardData.has_more
+        ? currentPage + 1
+        : currentPage
     : 1;
 
   return (
@@ -133,7 +135,7 @@ function CardsSearch() {
             Card Catalog
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Search locally imported Pokémon cards by name, number, and set.
+            Search Pokémon cards by name, number, and set.
           </p>
         </div>
         <Link
@@ -197,10 +199,11 @@ function CardsSearch() {
               onChange={(e) => setSetIdInput(e.target.value)}
               className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none"
             >
-              <option value="">All Imported Sets</option>
+              <option value="">All Sets</option>
               {sets.map((s) => (
-                <option key={s.id} value={s.id.toString()}>
-                  {s.name} ({s.local_card_count} cards)
+                <option key={s.external_id} value={s.external_id}>
+                  {s.name} ({s.card_count}{" "}
+                  {s.card_count === 1 ? "card" : "cards"})
                 </option>
               ))}
             </select>
@@ -231,13 +234,23 @@ function CardsSearch() {
             {loading ? (
               "Loading cards..."
             ) : cardData ? (
-              <>
-                Found{" "}
-                <span className="font-bold text-slate-900">
-                  {cardData.total}
-                </span>{" "}
-                card{cardData.total === 1 ? "" : "s"}
-              </>
+              cardData.total !== null ? (
+                <>
+                  Found{" "}
+                  <span className="font-bold text-slate-900">
+                    {cardData.total}
+                  </span>{" "}
+                  card{cardData.total === 1 ? "" : "s"}
+                </>
+              ) : (
+                <>
+                  Showing{" "}
+                  <span className="font-bold text-slate-900">
+                    {cardData.items.length}
+                  </span>{" "}
+                  card{cardData.items.length === 1 ? "" : "s"}
+                </>
+              )
             ) : null}
           </span>
         </div>
@@ -275,8 +288,7 @@ function CardsSearch() {
               No cards found
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Try adjusting your search criteria or clear filters to view all
-              imported cards.
+              Try adjusting your search criteria or clear filters to view cards.
             </p>
             <button
               type="button"
@@ -291,8 +303,8 @@ function CardsSearch() {
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {cardData.items.map((card: CardListItem) => (
                 <Link
-                  key={card.id}
-                  href={`/cards/${card.id}`}
+                  key={card.external_id}
+                  href={`/cards/${card.external_id}`}
                   className="group flex flex-col rounded-xl border border-slate-200 bg-white p-2.5 transition hover:border-slate-400 hover:shadow-md"
                 >
                   <CardImage src={card.small_image_url} alt={card.name} />

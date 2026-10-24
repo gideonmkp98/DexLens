@@ -43,10 +43,10 @@ export default function SetsPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Imported Sets
+            Card Sets
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Browse all Pokémon card sets imported into the local database index.
+            Browse physical Pokémon card sets directly from the catalog.
           </p>
         </div>
         <Link
@@ -74,76 +74,78 @@ export default function SetsPage() {
         <div className="mt-12 rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <span className="text-4xl">📦</span>
           <h3 className="mt-3 text-lg font-bold text-slate-900">
-            No sets imported yet
+            No sets found
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            Run the card import command via CLI to populate physical sets into
-            MariaDB.
+            There are currently no sets available in the catalog.
           </p>
         </div>
       ) : setsData ? (
         <>
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {setsData.items.map((s: SetSummary) => (
-              <Link
-                key={s.id}
-                href={`/sets/${s.id}`}
-                className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 hover:shadow-md"
-              >
-                <div>
-                  <div className="flex h-16 items-center justify-center rounded-lg bg-slate-50 p-2">
-                    {s.logo_url ? (
-                      <div className="relative h-full w-full">
-                        <Image
-                          src={`${s.logo_url}.webp`}
-                          alt={s.name}
-                          fill
-                          className="object-contain"
-                          onError={(e) => {
-                            // Fallback to plain url if extension fails
-                            const target = e.currentTarget as HTMLImageElement;
-                            if (target.src.endsWith(".webp") && s.logo_url) {
-                              target.src = `${s.logo_url}.png`;
-                            }
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-sm font-bold text-slate-400">
-                        {s.name}
-                      </span>
-                    )}
+            {setsData.items.map((s: SetSummary) => {
+              const cardCount = s.card_count ?? s.local_card_count ?? 0;
+              return (
+                <Link
+                  key={s.external_id}
+                  href={`/sets/${s.external_id}`}
+                  className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-400 hover:shadow-md"
+                >
+                  <div>
+                    <div className="flex h-16 items-center justify-center rounded-lg bg-slate-50 p-2">
+                      {s.logo_url ? (
+                        <div className="relative h-full w-full">
+                          <Image
+                            src={`${s.logo_url}.webp`}
+                            alt={s.name}
+                            fill
+                            className="object-contain"
+                            onError={(e) => {
+                              // Fallback to plain url if extension fails
+                              const target =
+                                e.currentTarget as HTMLImageElement;
+                              if (target.src.endsWith(".webp") && s.logo_url) {
+                                target.src = `${s.logo_url}.png`;
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-sm font-bold text-slate-400">
+                          {s.name}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="mt-4 text-lg font-bold text-slate-900 group-hover:text-red-600">
+                      {s.name}
+                    </h3>
+
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                      {s.series && (
+                        <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                          Series: {s.series}
+                        </span>
+                      )}
+                      {s.release_date && (
+                        <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                          Released: {s.release_date}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="mt-4 text-lg font-bold text-slate-900 group-hover:text-red-600">
-                    {s.name}
-                  </h3>
-
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                    {s.series && (
-                      <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                        Series: {s.series}
-                      </span>
-                    )}
-                    {s.release_date && (
-                      <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                        Released: {s.release_date}
-                      </span>
-                    )}
+                  <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                    <span className="font-semibold text-slate-700">
+                      {cardCount} {cardCount === 1 ? "card" : "cards"}
+                    </span>
+                    <span className="font-bold text-red-600 group-hover:underline">
+                      View Set Cards &rarr;
+                    </span>
                   </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                  <span className="font-semibold text-slate-700">
-                    {s.local_card_count}{" "}
-                    {s.local_card_count === 1 ? "card" : "cards"} indexed
-                  </span>
-                  <span className="font-bold text-red-600 group-hover:underline">
-                    View Set Cards &rarr;
-                  </span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
 
           {totalPages > 1 && (

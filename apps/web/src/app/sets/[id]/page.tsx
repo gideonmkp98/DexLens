@@ -16,7 +16,6 @@ import {
 export default function SetDetailPage() {
   const params = useParams();
   const setIdStr = Array.isArray(params.id) ? params.id[0] : params.id;
-  const setId = parseInt(setIdStr || "", 10);
 
   const [setInfo, setSetInfo] = useState<SetDetail | null>(null);
   const [loadingSet, setLoadingSet] = useState(true);
@@ -30,7 +29,7 @@ export default function SetDetailPage() {
 
   // 1. Fetch set metadata
   useEffect(() => {
-    if (isNaN(setId)) {
+    if (!setIdStr) {
       setSetErrorMsg("Invalid set identifier.");
       setLoadingSet(false);
       return;
@@ -39,7 +38,7 @@ export default function SetDetailPage() {
     let mounted = true;
     setLoadingSet(true);
 
-    getSet(setId)
+    getSet(setIdStr)
       .then((data) => {
         if (mounted) {
           setSetInfo(data);
@@ -56,17 +55,17 @@ export default function SetDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [setId]);
+  }, [setIdStr]);
 
   // 2. Fetch cards in this set
   useEffect(() => {
-    if (isNaN(setId)) return;
+    if (!setIdStr) return;
 
     let mounted = true;
     setLoadingCards(true);
 
     getCards({
-      set_id: setId,
+      set_id: setIdStr,
       page: cardPage,
       page_size: 24,
     })
@@ -86,7 +85,7 @@ export default function SetDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [setId, cardPage]);
+  }, [setIdStr, cardPage]);
 
   if (loadingSet) {
     return (
@@ -105,7 +104,7 @@ export default function SetDetailPage() {
           Set Not Found
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          The requested set is not available in the local database.
+          The requested set could not be found.
         </p>
         <Link
           href="/sets"
@@ -118,7 +117,11 @@ export default function SetDetailPage() {
   }
 
   const totalPages = cardsData
-    ? Math.max(1, Math.ceil(cardsData.total / cardsData.page_size))
+    ? cardsData.total !== null
+      ? Math.max(1, Math.ceil(cardsData.total / cardsData.page_size))
+      : cardsData.has_more
+        ? cardPage + 1
+        : cardPage
     : 1;
 
   return (
@@ -176,10 +179,10 @@ export default function SetDetailPage() {
 
           <div className="flex flex-col items-start rounded-xl bg-slate-50 p-4 sm:items-end">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Indexed Cards
+              Cards in Set
             </span>
             <span className="text-2xl font-black text-slate-900">
-              {setInfo.local_card_count}
+              {setInfo.card_count ?? setInfo.local_card_count ?? 0}
               {setInfo.total ? (
                 <span className="text-sm font-normal text-slate-400">
                   {" "}
@@ -199,7 +202,9 @@ export default function SetDetailPage() {
           </h2>
           {cardsData && (
             <span className="text-sm text-slate-500">
-              Showing {cardsData.items.length} of {cardsData.total} cards
+              {cardsData.total !== null
+                ? `Showing ${cardsData.items.length} of ${cardsData.total} cards`
+                : `Showing ${cardsData.items.length} cards`}
             </span>
           )}
         </div>
@@ -222,8 +227,8 @@ export default function SetDetailPage() {
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {cardsData.items.map((card: CardListItem) => (
                 <Link
-                  key={card.id}
-                  href={`/cards/${card.id}`}
+                  key={card.external_id}
+                  href={`/cards/${card.external_id}`}
                   className="group flex flex-col rounded-xl border border-slate-200 bg-white p-2.5 transition hover:border-slate-400 hover:shadow-md"
                 >
                   <CardImage src={card.small_image_url} alt={card.name} />
