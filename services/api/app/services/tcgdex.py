@@ -95,7 +95,12 @@ class TcgdexClient:
                 f"Supported: {settings.SUPPORTED_LANGUAGES}"
             )
 
-    async def _request(self, endpoint: str, language: str = "en") -> Any:
+    async def _request(
+        self,
+        endpoint: str,
+        language: str = "en",
+        params: dict[str, Any] | None = None,
+    ) -> Any:
         self._validate_language(language)
         quoted_lang = urllib.parse.quote(language, safe="")
         clean_ep = endpoint.lstrip("/")
@@ -107,7 +112,7 @@ class TcgdexClient:
         while attempts <= self.max_retries:
             attempts += 1
             try:
-                response = await self._client.get(url)
+                response = await self._client.get(url, params=params)
 
                 if response.status_code == 200:
                     return response.json()
@@ -176,4 +181,27 @@ class TcgdexClient:
         data = await self._request(f"cards/{safe_id}", language=language)
         if data is None or not isinstance(data, dict):
             return None
+        return data
+
+    async def get_cards_search(
+        self,
+        name: str | None = None,
+        local_id: str | None = None,
+        page: int = 1,
+        page_size: int = 24,
+        language: str = "en",
+    ) -> list[dict[str, Any]]:
+        """Search cards with pagination and query filters."""
+        params: dict[str, Any] = {
+            "pagination:page": page,
+            "pagination:itemsPerPage": page_size,
+        }
+        if name:
+            params["name"] = name
+        if local_id:
+            params["localId"] = local_id
+
+        data = await self._request("cards", language=language, params=params)
+        if data is None or not isinstance(data, list):
+            return []
         return data

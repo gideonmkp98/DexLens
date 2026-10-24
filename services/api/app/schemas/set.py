@@ -4,29 +4,31 @@ from pydantic import BaseModel, ConfigDict
 
 
 class SetBase(BaseModel):
-    id: int
-    source: str
+    id: int | str | None = None
+    source: str = "tcgdex"
     external_id: str
     name: str
-    language: str
+    language: str = "en"
     series: str | None = None
     logo_url: str | None = None
     symbol_url: str | None = None
     release_date: str | None = None
     printed_total: int | None = None
     total: int | None = None
-    created_at: datetime
-    updated_at: datetime
+    card_count: int = 0
+    local_card_count: int = 0
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SetSummaryResponse(SetBase):
-    local_card_count: int = 0
+    pass
 
 
 class SetDetailResponse(SetBase):
-    local_card_count: int = 0
+    pass
 
 
 class PaginatedSetsResponse(BaseModel):
@@ -34,3 +36,4 @@ class PaginatedSetsResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    has_more: bool = False
