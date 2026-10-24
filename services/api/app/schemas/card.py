@@ -86,7 +86,7 @@ class CardDetailResponse(BaseModel):
 
 class PaginatedCardsResponse(BaseModel):
     items: list[CardListItem]
-    total: int
+    total: int | None = None
     page: int
     page_size: int
     has_more: bool = False

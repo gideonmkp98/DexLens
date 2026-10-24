@@ -47,9 +47,31 @@ def is_digital_set(set_data: dict[str, Any]) -> bool:
     if "/tcgp/" in logo or "/tcgp/" in symbol:
         return True
 
+    set_id = str(set_data.get("id", "")).lower()
+    if set_id.startswith("tcgp") or "pocket" in set_id:
+        return True
+
     set_name = str(set_data.get("name", "")).lower()
     if "pocket" in set_name:
         return True
+
+    return False
+
+
+def is_digital_card(card_data: dict[str, Any]) -> bool:
+    """Determine whether a card belongs to a digital-only product."""
+    card_id = str(card_data.get("id", "")).lower()
+    if card_id.startswith("tcgp") or "pocket" in card_id:
+        return True
+
+    image = str(card_data.get("image", "")).lower()
+    if "/tcgp/" in image:
+        return True
+
+    set_obj = card_data.get("set")
+    if isinstance(set_obj, dict):
+        if is_digital_set(set_obj):
+            return True
 
     return False
 

@@ -1,199 +1,365 @@
+from datetime import timedelta
+from unittest.mock import AsyncMock
+
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from app.models.card import Card
-from app.models.set import Set
-
-
-def _seed_test_data(db: Session) -> tuple[Set, Set]:
-    s1 = Set(
-        source="tcgdex",
-        external_id="base1",
-        name="Base Set",
-        language="en",
-        series="Base",
-        release_date="1999-01-09",
-        printed_total=102,
-        total=102,
-    )
-    s2 = Set(
-        source="tcgdex",
-        external_id="base2",
-        name="Jungle",
-        language="en",
-        series="Base",
-        release_date="1999-06-16",
-        printed_total=64,
-        total=64,
-    )
-    db.add_all([s1, s2])
-    db.flush()
-
-    c1 = Card(
-        source="tcgdex",
-        external_id="base1-58",
-        set_id=s1.id,
-        local_id="58",
-        name="Pikachu",
-        language="en",
-        image_base_url="https://assets.tcgdex.net/en/base/base1/58",
-    )
-    c2 = Card(
-        source="tcgdex",
-        external_id="base2-60",
-        set_id=s2.id,
-        local_id="60",
-        name="Pikachu",
-        language="en",
-        image_base_url="https://assets.tcgdex.net/en/base/base2/60",
-    )
-    c3 = Card(
-        source="tcgdex",
-        external_id="base1-14",
-        set_id=s1.id,
-        local_id="14",
-        name="Raichu",
-        language="en",
-        image_base_url="https://assets.tcgdex.net/en/base/base1/14",
-    )
-    c4 = Card(
-        source="tcgdex",
-        external_id="base1-4",
-        set_id=s1.id,
-        local_id="4",
-        name="Charizard",
-        language="en",
-        image_base_url="https://assets.tcgdex.net/en/base/base1/4",
-    )
-    db.add_all([c1, c2, c3, c4])
-    db.commit()
-    return s1, s2
+from app.api.v1.cards import get_tcgdex_client
+from app.main import app
+from app.services.detail_cache import CacheEntry, catalog_cache
+from app.services.tcgdex import TcgdexClient, TcgdexConnectionError
 
 
-def test_list_cards_name_partial_match(client: TestClient, db: Session):
-    _seed_test_data(db)
+@pytest.fixture(autouse=True)
+def clear_catalog_cache():
+    catalog_cache._store.clear()
+    catalog_cache._failed_cooldowns.clear()
+    catalog_cache._failed_errors.clear()
+    catalog_cache._in_flight.clear()
+    yield
+    catalog_cache._store.clear()
+    catalog_cache._failed_cooldowns.clear()
+    catalog_cache._failed_errors.clear()
+    catalog_cache._in_flight.clear()
 
-    # Partial case-insensitive search
-    res = client.get("/api/v1/cards?name=pika")
+
+@pytest.fixture
+def mock_tcgdex():
+    mock_client = AsyncMock(spec=TcgdexClient)
+    app.dependency_overrides[get_tcgdex_client] = lambda: mock_client
+    yield mock_client
+    app.dependency_overrides.pop(get_tcgdex_client, None)
+
+
+def test_list_cards_with_set_id_in_memory_filter(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_set_fixture: dict,
+):
+    """Verify card filtering by name and local number within a set from cache."""
+    mock_tcgdex.get_set.return_value = sample_set_fixture
+
+    # 1. Filter by set_id only (5 cards in sample_set_fixture)
+    res = client.get("/api/v1/cards?set_id=base1")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 5
+    assert len(data["items"]) == 5
+    assert all(c["set_id"] == "base1" for c in data["items"])
+    assert all(c["set_name"] == "Base Set" for c in data["items"])
+    mock_tcgdex.get_set.assert_awaited_once_with("base1", language="en")
+
+    # 2. In-memory filter by name (partial case-insensitive)
+    mock_tcgdex.get_set.reset_mock()
+    res_name = client.get("/api/v1/cards?set_id=base1&name=pika")
+    assert res_name.status_code == 200
+    data_name = res_name.json()
+    assert data_name["total"] == 1
+    assert data_name["items"][0]["name"] == "Pikachu"
+    assert data_name["items"][0]["local_id"] == "TG01"
+
+    # 3. In-memory filter by local number (exact match)
+    res_num = client.get("/api/v1/cards?set_id=base1&number=1")
+    assert res_num.status_code == 200
+    data_num = res_num.json()
+    assert data_num["total"] == 1
+    assert data_num["items"][0]["name"] == "Alakazam"
+    assert data_num["items"][0]["local_id"] == "1"
+
+    # 4. Filter with no match returns empty list
+    res_empty = client.get("/api/v1/cards?set_id=base1&name=mewtwo")
+    assert res_empty.status_code == 200
+    data_empty = res_empty.json()
+    assert data_empty["total"] == 0
+    assert len(data_empty["items"]) == 0
+
+
+def test_list_cards_global_search(client: TestClient, mock_tcgdex: AsyncMock):
+    """Verify global card search without set_id calls get_cards_search."""
+    mock_results = [
+        {
+            "id": "base1-58",
+            "localId": "58",
+            "name": "Pikachu",
+            "image": "https://assets.tcgdex.net/en/base/base1/58",
+            "set": {"id": "base1", "name": "Base Set"},
+        },
+        {
+            "id": "base2-60",
+            "localId": "60",
+            "name": "Pikachu",
+            "image": "https://assets.tcgdex.net/en/base/base2/60",
+            "set": {"id": "base2", "name": "Jungle"},
+        },
+    ]
+    mock_tcgdex.get_cards_search.return_value = mock_results
+
+    res = client.get("/api/v1/cards?name=pikachu")
     assert res.status_code == 200
     data = res.json()
     assert data["total"] == 2
-    assert all("Pikachu" in c["name"] for c in data["items"])
-
-
-def test_list_cards_number_exact_match(client: TestClient, db: Session):
-    _seed_test_data(db)
-
-    # Exact number match
-    res = client.get("/api/v1/cards?number=58")
-    assert res.status_code == 200
-    data = res.json()
-    assert data["total"] == 1
-    assert data["items"][0]["local_id"] == "58"
+    assert len(data["items"]) == 2
+    assert data["page"] == 1
+    assert data["page_size"] == 24
+    assert data["has_more"] is False
     assert data["items"][0]["name"] == "Pikachu"
+    assert data["items"][0]["set_name"] == "Base Set"
+    assert data["items"][1]["set_name"] == "Jungle"
+    assert (
+        data["items"][0]["small_image_url"]
+        == "https://assets.tcgdex.net/en/base/base1/58/low.webp"
+    )
+
+    mock_tcgdex.get_cards_search.assert_awaited_once_with(
+        name="pikachu",
+        local_id=None,
+        page=1,
+        page_size=24,
+        language="en",
+    )
 
 
-def test_list_cards_set_filter_and_combined(client: TestClient, db: Session):
-    s1, s2 = _seed_test_data(db)
+def test_list_cards_global_search_filters_digital_cards(
+    client: TestClient, mock_tcgdex: AsyncMock
+):
+    """Verify digital cards (e.g. series tcgp or pocket) are filtered out."""
+    mock_results = [
+        {
+            "id": "base1-58",
+            "localId": "58",
+            "name": "Pikachu",
+            "image": "https://assets.tcgdex.net/en/base/base1/58",
+        },
+        {
+            "id": "tcgp-01",
+            "localId": "1",
+            "name": "Pikachu Pocket",
+            "image": "https://assets.tcgdex.net/en/tcgp/A1/1",
+        },
+    ]
+    mock_tcgdex.get_cards_search.return_value = mock_results
 
-    # Filter by set_id
-    res = client.get(f"/api/v1/cards?set_id={s2.id}")
+    res = client.get("/api/v1/cards?name=pikachu")
     assert res.status_code == 200
     data = res.json()
     assert data["total"] == 1
-    assert data["items"][0]["set_name"] == "Jungle"
-
-    # Combined filters with AND semantics: Pikachu in Base Set
-    res_comb = client.get(f"/api/v1/cards?name=pikachu&set_id={s1.id}&number=58")
-    assert res_comb.status_code == 200
-    comb_data = res_comb.json()
-    assert comb_data["total"] == 1
-    assert comb_data["items"][0]["external_id"] == "base1-58"
+    assert len(data["items"]) == 1
+    assert data["items"][0]["external_id"] == "base1-58"
 
 
-def test_list_cards_pagination_and_totals(client: TestClient, db: Session):
-    _seed_test_data(db)
+def test_list_cards_with_digital_set_returns_empty(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_digital_set_fixture: dict,
+):
+    """Verify browsing cards for a digital set returns empty response."""
+    mock_tcgdex.get_set.return_value = sample_digital_set_fixture
 
-    res_p1 = client.get("/api/v1/cards?page=1&page_size=2")
-    assert res_p1.status_code == 200
-    data_p1 = res_p1.json()
-    assert len(data_p1["items"]) == 2
-    assert data_p1["total"] == 4
-    assert data_p1["page"] == 1
-    assert data_p1["page_size"] == 2
-
-    res_p2 = client.get("/api/v1/cards?page=2&page_size=2")
-    assert res_p2.status_code == 200
-    data_p2 = res_p2.json()
-    assert len(data_p2["items"]) == 2
-    assert data_p2["page"] == 2
-
-
-def test_list_cards_deterministic_ordering(client: TestClient, db: Session):
-    s1, _ = _seed_test_data(db)
-
-    res = client.get(f"/api/v1/cards?set_id={s1.id}")
-    assert res.status_code == 200
-    items = res.json()["items"]
-    # In set 1: 4 (Charizard), 14 (Raichu), 58 (Pikachu)
-    local_ids = [c["local_id"] for c in items]
-    assert local_ids == ["4", "14", "58"]
-
-
-def test_get_card_by_id(client: TestClient, db: Session):
-    _seed_test_data(db)
-    card = db.query(Card).filter(Card.external_id == "base1-4").first()
-
-    res = client.get(f"/api/v1/cards/{card.id}")
+    res = client.get("/api/v1/cards?set_id=A1")
     assert res.status_code == 200
     data = res.json()
-    assert data["name"] == "Charizard"
-    assert data["local_id"] == "4"
+    assert data["total"] == 0
+    assert len(data["items"]) == 0
+    assert data["has_more"] is False
+
+
+def test_list_cards_pagination(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_set_fixture: dict,
+):
+    """Verify in-memory pagination and has_more flag when browsing set cards."""
+    mock_tcgdex.get_set.return_value = sample_set_fixture
+
+    # Page 1 (2 items)
+    res_p1 = client.get("/api/v1/cards?set_id=base1&page=1&page_size=2")
+    assert res_p1.status_code == 200
+    d1 = res_p1.json()
+    assert d1["total"] == 5
+    assert d1["page"] == 1
+    assert d1["page_size"] == 2
+    assert d1["has_more"] is True
+    assert len(d1["items"]) == 2
+    assert [c["local_id"] for c in d1["items"]] == ["1", "2"]
+
+    # Page 2 (2 items)
+    res_p2 = client.get("/api/v1/cards?set_id=base1&page=2&page_size=2")
+    assert res_p2.status_code == 200
+    d2 = res_p2.json()
+    assert d2["total"] == 5
+    assert d2["page"] == 2
+    assert d2["has_more"] is True
+    assert len(d2["items"]) == 2
+    assert [c["local_id"] for c in d2["items"]] == ["003", "TG01"]
+
+    # Page 3 (1 item, last page)
+    res_p3 = client.get("/api/v1/cards?set_id=base1&page=3&page_size=2")
+    assert res_p3.status_code == 200
+    d3 = res_p3.json()
+    assert d3["total"] == 5
+    assert d3["page"] == 3
+    assert d3["has_more"] is False
+    assert len(d3["items"]) == 1
+    assert d3["items"][0]["local_id"] == "5"
+
+
+def test_get_card_detail_unified_success(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_card_detail_fixture: dict,
+):
+    """Verify GET /api/v1/cards/{external_id} returns unified metadata with empty DB."""
+    # Add set object to card detail fixture
+    card_with_set = {
+        **sample_card_detail_fixture,
+        "set": {
+            "id": "base1",
+            "name": "Base Set",
+        },
+    }
+    mock_tcgdex.get_card.return_value = card_with_set
+
+    res = client.get("/api/v1/cards/base1-1")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["external_id"] == "base1-1"
+    assert data["id"] == "base1-1"
+    assert data["name"] == "Alakazam"
+    assert data["local_id"] == "1"
+    assert data["language"] == "en"
+    assert data["status"] == "available"
+    assert data["category"] == "Pokemon"
+    assert data["illustrator"] == "Ken Sugimori"
+    assert data["rarity"] == "Rare Holo"
+    assert data["hp"] == 80
+    assert data["types"] == ["Psychic"]
+    assert data["set"]["external_id"] == "base1"
     assert data["set"]["name"] == "Base Set"
     assert (
-        data["small_image_url"] == "https://assets.tcgdex.net/en/base/base1/4/low.webp"
+        data["small_image_url"] == "https://assets.tcgdex.net/en/base/base1/1/low.webp"
     )
     assert (
-        data["large_image_url"] == "https://assets.tcgdex.net/en/base/base1/4/high.webp"
+        data["large_image_url"] == "https://assets.tcgdex.net/en/base/base1/1/high.webp"
     )
+    assert len(data["attacks"]) == 1
+    assert data["attacks"][0]["name"] == "Confuse Ray"
+    assert data["attacks"][0]["damage"] == 30
+    assert len(data["abilities"]) == 1
+    assert data["abilities"][0]["name"] == "Damage Swap"
+    assert "pricing" not in data
+
+    mock_tcgdex.get_card.assert_awaited_once_with("base1-1", language="en")
 
 
-def test_get_card_not_found(client: TestClient):
-    res = client.get("/api/v1/cards/999999")
+def test_get_card_detail_not_found(client: TestClient, mock_tcgdex: AsyncMock):
+    """Verify 404 for unknown card ID."""
+    mock_tcgdex.get_card.return_value = None
+
+    res = client.get("/api/v1/cards/unknown-card")
     assert res.status_code == 404
     assert res.json()["detail"] == "Card not found"
 
 
-def test_sets_endpoints(client: TestClient, db: Session):
-    s1, s2 = _seed_test_data(db)
+def test_get_card_detail_excludes_digital(client: TestClient, mock_tcgdex: AsyncMock):
+    """Verify 404 for pocket / digital card."""
+    mock_tcgdex.get_card.return_value = {
+        "id": "A1-1",
+        "localId": "1",
+        "name": "Bulbasaur",
+        "image": "https://assets.tcgdex.net/en/tcgp/A1/1",
+        "set": {
+            "id": "A1",
+            "name": "Genetic Apex",
+            "serie": {"id": "tcgp", "name": "Pokémon TCG Pocket"},
+        },
+    }
 
-    # List sets
-    res = client.get("/api/v1/sets")
+    res = client.get("/api/v1/cards/A1-1")
+    assert res.status_code == 404
+    assert res.json()["detail"] == "Card not found"
+
+
+def test_cards_api_upstream_503_without_cache(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+):
+    """Verify HTTP 503 when TCGdex fails and no cached data exists."""
+    mock_tcgdex.get_cards_search.side_effect = TcgdexConnectionError("Upstream timeout")
+    res_list = client.get("/api/v1/cards?name=pikachu")
+    assert res_list.status_code == 503
+    assert res_list.json()["detail"] == "Cards catalog temporarily unavailable"
+
+    mock_tcgdex.get_card.side_effect = TcgdexConnectionError("Upstream timeout")
+    res_detail = client.get("/api/v1/cards/base1-1")
+    assert res_detail.status_code == 503
+    assert res_detail.json()["detail"] == "Card details temporarily unavailable"
+
+
+def test_cards_api_serves_stale_cache_on_upstream_failure(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_card_detail_fixture: dict,
+):
+    """Verify HTTP 200 serves bounded stale data if upstream fails."""
+    # 1. Prime cache with successful initial fetch
+    mock_tcgdex.get_card.return_value = sample_card_detail_fixture
+    res_prime = client.get("/api/v1/cards/base1-1")
+    assert res_prime.status_code == 200
+    assert res_prime.json()["status"] == "available"
+
+    # 2. Age cache entries past fresh TTL (7 hours; fresh TTL is 6h, max stale 24h)
+    for key, entry in list(catalog_cache._store.items()):
+        catalog_cache._store[key] = CacheEntry(
+            details=entry.details,
+            fetched_at=entry.fetched_at - timedelta(hours=7),
+        )
+
+    # 3. Upstream fails
+    mock_tcgdex.get_card.side_effect = TcgdexConnectionError("Connection refused")
+
+    # 4. Should serve stale cache with 200 and status="stale"
+    res_stale = client.get("/api/v1/cards/base1-1")
+    assert res_stale.status_code == 200
+    data = res_stale.json()
+    assert data["status"] == "stale"
+    assert data["external_id"] == "base1-1"
+    assert data["name"] == "Alakazam"
+
+
+def test_get_card_enrichment_legacy_endpoint(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    sample_card_detail_fixture: dict,
+):
+    """Verify legacy /details endpoint compatibility with string external_id."""
+    mock_tcgdex.get_card.return_value = sample_card_detail_fixture
+
+    res = client.get("/api/v1/cards/base1-1/details")
     assert res.status_code == 200
     data = res.json()
-    assert data["total"] == 2
-    # Verify local_card_count is included
-    counts = {s["name"]: s["local_card_count"] for s in data["items"]}
-    assert counts["Base Set"] == 3
-    assert counts["Jungle"] == 1
-
-    # Get single set
-    res_set = client.get(f"/api/v1/sets/{s1.id}")
-    assert res_set.status_code == 200
-    s_data = res_set.json()
-    assert s_data["name"] == "Base Set"
-    assert s_data["local_card_count"] == 3
+    assert data["status"] == "available"
+    assert data["source"] == "tcgdex"
+    assert data["details"]["category"] == "Pokemon"
+    assert data["details"]["rarity"] == "Rare Holo"
+    assert "pricing" not in data["details"]
 
 
-def test_get_set_not_found(client: TestClient):
-    res = client.get("/api/v1/sets/999999")
-    assert res.status_code == 404
-    assert res.json()["detail"] == "Set not found"
+def test_cards_api_language_validation(client: TestClient):
+    """Verify unsupported language codes return HTTP 400."""
+    res_list = client.get("/api/v1/cards?language=unsupported_lang")
+    assert res_list.status_code == 400
+    assert "not supported" in res_list.json()["detail"].lower()
+
+    res_card = client.get("/api/v1/cards/base1-1?language=unsupported_lang")
+    assert res_card.status_code == 400
+    assert "not supported" in res_card.json()["detail"].lower()
 
 
-def test_input_validation(client: TestClient):
+def test_cards_api_input_validation(client: TestClient):
+    """Verify pagination boundary constraints."""
     res_page_zero = client.get("/api/v1/cards?page=0")
     assert res_page_zero.status_code == 422
 
-    res_large_page_size = client.get("/api/v1/cards?page_size=101")
-    assert res_large_page_size.status_code == 422
+    res_large_size = client.get("/api/v1/cards?page_size=101")
+    assert res_large_size.status_code == 422

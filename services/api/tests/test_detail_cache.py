@@ -201,12 +201,14 @@ def test_map_card_details_excludes_pricing(sample_card_detail_fixture):
 
 def test_card_details_api_unknown_card_returns_404(client: TestClient):
     mock_client = AsyncMock(spec=TcgdexClient)
+    mock_client.get_card.return_value = None
     app.dependency_overrides[get_tcgdex_client] = lambda: mock_client
 
     try:
         res = client.get("/api/v1/cards/999999/details")
         assert res.status_code == 404
-        assert mock_client.get_card.call_count == 0  # No provider call!
+        assert res.json()["detail"] == "Card not found"
+        mock_client.get_card.assert_awaited_once_with("999999", language="en")
     finally:
         app.dependency_overrides.pop(get_tcgdex_client, None)
 
