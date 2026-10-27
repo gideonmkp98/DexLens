@@ -6,6 +6,7 @@ from app.schemas.card import (
     PaginatedCardsResponse,
 )
 from app.schemas.health import HealthResponse
+from app.schemas.scan import ErrorDetail, ErrorResponse, ScanResponse
 from app.schemas.set import (
     PaginatedSetsResponse,
     SetDetailResponse,
@@ -17,9 +18,12 @@ __all__ = [
     "CardEnrichmentResponse",
     "CardListItem",
     "CardSetBrief",
+    "ErrorDetail",
+    "ErrorResponse",
     "HealthResponse",
     "PaginatedCardsResponse",
     "PaginatedSetsResponse",
+    "ScanResponse",
     "SetDetailResponse",
     "SetSummaryResponse",
 ]

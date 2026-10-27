@@ -33,6 +33,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       ENVIRONMENT: ${ENVIRONMENT}
       CORS_ORIGINS: ${CORS_ORIGINS}
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "${API_PORT}:8000"
     depends_on:
@@ -44,6 +46,20 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+
+  cleanup:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    entrypoint: ["python", "-m", "app.commands.cleanup_scans", "--loop"]
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      api:
+        condition: service_healthy
 
   web:
     build:
@@ -65,3 +81,4 @@ services:
 
 volumes:
   mariadb_data:
+  uploads_data:

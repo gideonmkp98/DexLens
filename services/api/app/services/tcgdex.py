@@ -209,21 +209,27 @@ class TcgdexClient:
         self,
         name: str | None = None,
         local_id: str | None = None,
-        page: int = 1,
+        page: int | None = 1,
         page_size: int = 24,
         language: str = "en",
     ) -> list[dict[str, Any]]:
-        """Search cards with pagination and query filters."""
-        params: dict[str, Any] = {
-            "pagination:page": page,
-            "pagination:itemsPerPage": page_size,
-        }
+        """Search summaries; page=None retrieves all matching summaries."""
+        params: dict[str, Any] = {}
+        if page is not None:
+            params.update(
+                {
+                    "pagination:page": page,
+                    "pagination:itemsPerPage": page_size,
+                }
+            )
         if name:
             params["name"] = name
         if local_id:
             params["localId"] = local_id
 
         data = await self._request("cards", language=language, params=params)
-        if data is None or not isinstance(data, list):
+        if data is None:
             return []
+        if not isinstance(data, list) or any(not isinstance(c, dict) for c in data):
+            raise TcgdexError("Invalid card search response from TCGdex")
         return data

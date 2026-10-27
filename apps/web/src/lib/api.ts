@@ -280,3 +280,447 @@ export async function getCardDetails(
 export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface CropCorners {
+  top_left: Point;
+  top_right: Point;
+  bottom_right: Point;
+  bottom_left: Point;
+}
+
+export interface DetectResponse {
+  detected: boolean;
+  corners: CropCorners;
+  message: string;
+  score: number;
+}
+
+export interface CropRequest {
+  corners: CropCorners;
+  rotation?: number;
+  expected_version: number;
+}
+
+export interface ConfirmCropRequest {
+  crop_version: number;
+}
+
+export interface CandidateMatchItem {
+  id: string;
+  name: string;
+  local_id: string;
+  set_id: string;
+  set_name: string;
+  image_url: string | null;
+  score: number;
+  reasons: string[];
+  hp?: string | null;
+  matched_attacks?: string[];
+  matched_abilities?: string[];
+  visual_similarity?: number | null;
+}
+
+export interface ConfirmedCardInfo {
+  id: string;
+  name: string;
+  set_name: string;
+  number: string;
+  image_url: string | null;
+  confirmed_at: string;
+}
+
+export interface FieldEvidenceItem {
+  raw_text?: string | null;
+  normalized?: string | null;
+  confidence_level: "high" | "medium" | "low" | "uncertain" | string;
+  source_region?: string | null;
+  alternatives?: string[];
+}
+
+export interface ImageQualityInfo {
+  width: number;
+  height: number;
+  is_low_res: boolean;
+  warning?: string | null;
+  guidance?: string | null;
+}
+
+export interface RecognitionEvidence {
+  name: FieldEvidenceItem;
+  number: FieldEvidenceItem;
+  denominator: FieldEvidenceItem;
+  set_info: FieldEvidenceItem;
+  image_quality: ImageQualityInfo;
+  hp?: string | null;
+  attacks?: string[];
+  abilities?: string[];
+}
+
+export interface RecognizeResponse {
+  recognition_id: string;
+  crop_version: number;
+  raw_text: string;
+  recognized_name: string | null;
+  recognized_number: string | null;
+  recognized_set_code: string | null;
+  ocr_confidence: number;
+  confidence_state?: "high" | "medium" | "low" | string;
+  image_quality?: ImageQualityInfo | null;
+  evidence?: RecognitionEvidence | null;
+  catalog_status?: "ok" | "unavailable" | string;
+  catalog_error?: string | null;
+  search_version?: number;
+  card_selection_version?: number;
+  candidates: CandidateMatchItem[];
+  total_candidates: number;
+}
+
+export interface SearchCandidatesRequest {
+  name?: string | null;
+  number?: string | null;
+  set_id?: string | null;
+  set_code?: string | null;
+  expected_crop_version: number;
+  expected_search_version?: number;
+}
+
+export interface SearchCandidatesResponse {
+  search_version: number;
+  crop_version: number;
+  confidence_state?: "high" | "medium" | "low" | string;
+  catalog_status?: "ok" | "unavailable" | string;
+  candidates: CandidateMatchItem[];
+  total_candidates: number;
+}
+
+export interface ConfirmCardRequest {
+  card_id: string;
+  expected_crop_version: number;
+  expected_search_version?: number;
+  expected_selection_version?: number;
+}
+
+export interface ResetCardConfirmationRequest {
+  expected_crop_version: number;
+  expected_selection_version?: number;
+}
+
+export interface ScanResponse {
+  id: string;
+  status: string;
+  image_url: string;
+  width: number;
+  height: number;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+  expires_at: string;
+
+  // Phase 4 fields
+  crop_status?: "none" | "detected" | "preview" | "confirmed" | string;
+  corners?: CropCorners | null;
+  rotation?: number;
+  crop_image_url?: string | null;
+  crop_width?: number | null;
+  crop_height?: number | null;
+  crop_file_size?: number | null;
+  crop_version?: number;
+  confirmed_at?: string | null;
+
+  // Phase 5 fields
+  recognition_status?: "none" | "processing" | "completed" | "failed" | string;
+  recognition_id?: string | null;
+  ocr_crop_version?: number | null;
+  ocr_raw_text?: string | null;
+  recognized_name?: string | null;
+  recognized_number?: string | null;
+  recognized_set_code?: string | null;
+  ocr_confidence?: number | null;
+  confidence_state?: "high" | "medium" | "low" | string;
+  image_quality?: ImageQualityInfo | null;
+  evidence?: RecognitionEvidence | null;
+  search_version?: number;
+  candidate_search_version?: number;
+  card_selection_version?: number;
+  catalog_status?: "none" | "ok" | "unavailable" | string;
+  catalog_error?: string | null;
+  user_search_name?: string | null;
+  user_search_number?: string | null;
+  user_search_set_code?: string | null;
+  user_search_provider_set_id?: string | null;
+  candidates?: CandidateMatchItem[] | null;
+  confirmed_card?: ConfirmedCardInfo | null;
+}
+
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function parseApiError(
+  res: Response,
+  fallbackMsg: string
+): Promise<ApiError> {
+  let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
+  let errorCode: string | undefined;
+  try {
+    const err = await res.json();
+    if (err?.detail && typeof err.detail === "object") {
+      errorMsg = err.detail.message || errorMsg;
+      errorCode = err.detail.code;
+    } else if (typeof err?.detail === "string") {
+      errorMsg = err.detail;
+    } else if (err?.message) {
+      errorMsg = err.message;
+      errorCode = err.code;
+    }
+  } catch {
+    // Non-JSON response
+  }
+  return new ApiError(errorMsg, res.status, errorCode);
+}
+
+/**
+ * Upload a single card image file to /api/v1/scans.
+ */
+export async function uploadScan(file: File): Promise<ScanResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Upload failed");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Fetch scan metadata from /api/v1/scans/{id}.
+ */
+export async function getScan(id: string): Promise<ScanResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Failed to fetch scan");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Build absolute URL for the stored scan image.
+ */
+export function getScanImageUrl(id: string): string {
+  return `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/image`;
+}
+
+/**
+ * Request automatic card corner detection for a scan.
+ */
+export async function detectCard(id: string): Promise<DetectResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/detect`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Card detection failed");
+  }
+
+  return res.json() as Promise<DetectResponse>;
+}
+
+/**
+ * Request perspective-corrected crop preview with specified corners and rotation.
+ */
+export async function cropScan(
+  id: string,
+  request: CropRequest
+): Promise<ScanResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/crop`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Crop generation failed");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Confirm the current previewed crop version.
+ */
+export async function confirmCrop(
+  id: string,
+  request: ConfirmCropRequest
+): Promise<ScanResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/confirm`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Crop confirmation failed");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Build absolute URL for the cropped card image.
+ */
+export function getScanCropImageUrl(
+  id: string,
+  version?: number | null
+): string {
+  const query =
+    version !== undefined && version !== null ? `?v=${version}` : "";
+  return `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/crop/image${query}`;
+}
+
+/**
+ * Trigger OCR card text recognition and initial catalog matching on confirmed crop.
+ */
+export async function recognizeCard(id: string): Promise<RecognizeResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/recognize`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Card recognition failed");
+  }
+
+  return res.json() as Promise<RecognizeResponse>;
+}
+
+/**
+ * Search catalog candidates with corrected card name, number, or set.
+ */
+export async function searchCardCandidates(
+  id: string,
+  request: SearchCandidatesRequest
+): Promise<SearchCandidatesResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/search-candidates`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Candidate search failed");
+  }
+
+  return res.json() as Promise<SearchCandidatesResponse>;
+}
+
+/**
+ * Explicitly confirm a matched catalog card.
+ */
+export async function confirmCatalogCard(
+  id: string,
+  request: ConfirmCardRequest
+): Promise<ScanResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/confirm-card`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Card confirmation failed");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Reset confirmed card selection while preserving the confirmed crop.
+ */
+export async function resetCatalogCardConfirmation(
+  id: string,
+  request: ResetCardConfirmationRequest
+): Promise<ScanResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(id)}/reset-card-confirmation`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(request),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Reset card confirmation failed");
+  }
+
+  return res.json() as Promise<ScanResponse>;
+}

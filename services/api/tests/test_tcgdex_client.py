@@ -6,6 +6,7 @@ import pytest
 from app.services.tcgdex import (
     TcgdexClient,
     TcgdexConnectionError,
+    TcgdexError,
     TcgdexInvalidLanguageError,
 )
 
@@ -93,7 +94,7 @@ async def test_get_cards_search_404_returns_empty_list(mock_httpx_client):
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_invalid_response_format_returns_empty_list(
+async def test_get_cards_search_invalid_response_format_raises(
     mock_httpx_client,
 ):
     mock_response = httpx.Response(
@@ -104,9 +105,19 @@ async def test_get_cards_search_invalid_response_format_returns_empty_list(
     mock_httpx_client.get.return_value = mock_response
 
     client = TcgdexClient(client=mock_httpx_client)
-    cards = await client.get_cards_search(name="Whatever")
+    with pytest.raises(TcgdexError):
+        await client.get_cards_search(name="Whatever")
 
-    assert cards == []
+
+@pytest.mark.asyncio
+async def test_complete_search_omits_provider_pagination(mock_httpx_client):
+    mock_httpx_client.get.return_value = httpx.Response(200, json=[])
+    client = TcgdexClient(client=mock_httpx_client)
+    await client.get_cards_search(name="Pikachu", local_id="001", page=None)
+    assert mock_httpx_client.get.call_args.kwargs["params"] == {
+        "name": "Pikachu",
+        "localId": "001",
+    }
 
 
 @pytest.mark.asyncio

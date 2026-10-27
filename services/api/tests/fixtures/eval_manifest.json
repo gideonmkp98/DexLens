@@ -1,0 +1,279 @@
+{
+  "manifest_version": "1.0.0",
+  "description": "Evaluation benchmark manifest for Pokemon TCG scanner card recognition and regression coverage",
+  "provider": "tcgdex",
+  "categories": {
+    "real_photographs": {
+      "description": "Real device photographs of physical cards under various capture conditions (vintage/modern, cropped/uncropped, low-res). Never describe clean catalog scans as real photographs.",
+      "dev_set": [
+        {
+          "id": "charizard_dev_cropped",
+          "file": "regression_scans/charizard.jpg",
+          "card_id": "base4-4",
+          "expected_name": "Charizard",
+          "expected_number": "4/130",
+          "expected_local_id": "4",
+          "expected_set_id": "base4",
+          "expected_set_name": "Base Set 2",
+          "era": "vintage",
+          "condition": "cropped_photograph",
+          "has_fixture": true,
+          "is_uncropped": false,
+          "negative_assertions": ["base1-4"],
+          "description": "Vintage Base Set 2 Charizard cropped photograph. Denominator 130 distinguishes from Base Set (4/102)."
+        },
+        {
+          "id": "pikachu_dev_cropped",
+          "file": "regression_scans/pikachu.jpg",
+          "card_id": "base2-60",
+          "expected_name": "Pikachu",
+          "expected_number": "60/64",
+          "expected_local_id": "60",
+          "expected_set_id": "base2",
+          "expected_set_name": "Jungle",
+          "era": "vintage",
+          "condition": "cropped_photograph",
+          "has_fixture": true,
+          "is_uncropped": false,
+          "negative_assertions": ["ex9-60"],
+          "description": "Vintage Jungle Pikachu photograph with Basic Pokemon header. Denominator 64 distinguishes from Emerald (60/106)."
+        },
+        {
+          "id": "gastly_dev_cropped",
+          "file": "regression_scans/gastly.jpg",
+          "card_id": "me03-048",
+          "expected_name": "Gastly",
+          "expected_number": "048/088",
+          "expected_local_id": "048",
+          "expected_set_id": "me03",
+          "expected_set_name": "Perfect Order",
+          "era": "modern",
+          "condition": "cropped_photograph",
+          "has_fixture": true,
+          "is_uncropped": false,
+          "negative_assertions": [],
+          "description": "Modern Perfect Order Gastly photograph with leading zeros in collector number (048/088 vs official count 88)."
+        },
+        {
+          "id": "steelix_dev_low_res",
+          "file": "regression_scans/steelix.jpg",
+          "card_id": "swsh8-139",
+          "expected_name": "Steelix",
+          "expected_number": "139/264",
+          "expected_local_id": "139",
+          "expected_set_id": "swsh8",
+          "expected_set_name": "Fusion Strike",
+          "era": "modern",
+          "condition": "low_resolution_crop",
+          "has_fixture": true,
+          "is_uncropped": false,
+          "negative_assertions": ["ex7-10"],
+          "description": "Low-resolution crop (281x393) with unreadable footer text. Must be identified as Fusion Strike 139 (swsh8-139) via visual reranking, and MUST NOT be labeled ex7-10 (Dark Steelix)."
+        },
+        {
+          "id": "charizard_dev_closeup_uncropped",
+          "file": "regression_scans/charizard-original.jpg",
+          "card_id": "base4-4",
+          "expected_name": "Charizard",
+          "expected_number": "4/130",
+          "expected_local_id": "4",
+          "expected_set_id": "base4",
+          "expected_set_name": "Base Set 2",
+          "era": "vintage",
+          "condition": "closeup_uncropped_photo",
+          "has_fixture": true,
+          "is_uncropped": true,
+          "expected_corners_criteria": {
+            "top_left_x_max": 0.10,
+            "top_right_x_min": 0.90,
+            "bottom_left_y_min": 0.90,
+            "bottom_right_y_min": 0.90
+          },
+          "description": "Vintage Base Set 2 Charizard close-up uncropped photograph. Used to evaluate card detection and crop quality (ensuring corners retain both header title and footer collector number)."
+        }
+      ],
+      "held_out_evaluation_set": [
+        {
+          "id": "reflective_glare_eval_01",
+          "file": null,
+          "card_id": null,
+          "expected_name": null,
+          "expected_number": null,
+          "era": "modern",
+          "condition": "reflective_glare",
+          "has_fixture": false,
+          "is_uncropped": false,
+          "gap_category": "reflective_glare",
+          "gap_description": "Representative fixture missing: photograph with severe holofoil surface glare obscuring title or number regions."
+        },
+        {
+          "id": "non_card_eval_01",
+          "file": null,
+          "card_id": null,
+          "expected_name": null,
+          "expected_number": null,
+          "era": null,
+          "condition": "non_card_image",
+          "has_fixture": false,
+          "is_uncropped": false,
+          "gap_category": "non_card",
+          "gap_description": "Representative fixture missing: non-card surface or object (e.g. tabletop, empty sleeve, coin, deckbox) for evaluating rejection / abstention."
+        },
+        {
+          "id": "held_out_vintage_eval_01",
+          "file": null,
+          "card_id": null,
+          "expected_name": null,
+          "expected_number": null,
+          "era": "vintage",
+          "condition": "independent_held_out_photo",
+          "has_fixture": false,
+          "is_uncropped": false,
+          "gap_category": "vintage_held_out",
+          "gap_description": "Representative fixture missing: independent held-out vintage photograph batch not used during heuristic tuning."
+        },
+        {
+          "id": "held_out_modern_eval_01",
+          "file": null,
+          "card_id": null,
+          "expected_name": null,
+          "expected_number": null,
+          "era": "modern",
+          "condition": "independent_held_out_photo",
+          "has_fixture": false,
+          "is_uncropped": false,
+          "gap_category": "modern_held_out",
+          "gap_description": "Representative fixture missing: independent held-out modern illustration rare photograph batch."
+        }
+      ]
+    },
+    "clean_catalog_scans": {
+      "description": "Direct clean digital card images from TCGdex provider across vintage and modern sets. Used strictly as catalog benchmarks; never described as real photographs.",
+      "items": [
+        {
+          "id": "base1-58",
+          "expected_name": "Pikachu",
+          "expected_number": "58/102",
+          "expected_local_id": "58",
+          "expected_set_id": "base1",
+          "expected_set_name": "Base Set",
+          "era": "vintage",
+          "url": "https://assets.tcgdex.net/en/base/base1/58/high.webp",
+          "clean_file": "eval_cards/base1-58_clean.webp"
+        },
+        {
+          "id": "base1-4",
+          "expected_name": "Charizard",
+          "expected_number": "4/102",
+          "expected_local_id": "4",
+          "expected_set_id": "base1",
+          "expected_set_name": "Base Set",
+          "era": "vintage",
+          "url": "https://assets.tcgdex.net/en/base/base1/4/high.webp",
+          "clean_file": "eval_cards/base1-4_clean.webp"
+        },
+        {
+          "id": "base1-1",
+          "expected_name": "Alakazam",
+          "expected_number": "1/102",
+          "expected_local_id": "1",
+          "expected_set_id": "base1",
+          "expected_set_name": "Base Set",
+          "era": "vintage",
+          "url": "https://assets.tcgdex.net/en/base/base1/1/high.webp",
+          "clean_file": "eval_cards/base1-1_clean.webp"
+        },
+        {
+          "id": "base2-3",
+          "expected_name": "Flareon",
+          "expected_number": "3/64",
+          "expected_local_id": "3",
+          "expected_set_id": "base2",
+          "expected_set_name": "Jungle",
+          "era": "vintage",
+          "url": "https://assets.tcgdex.net/en/base/base2/3/high.webp",
+          "clean_file": "eval_cards/base2-3_clean.webp"
+        },
+        {
+          "id": "swsh1-1",
+          "expected_name": "Celebi V",
+          "expected_number": "1/202",
+          "expected_local_id": "1",
+          "expected_set_id": "swsh1",
+          "expected_set_name": "Sword & Shield",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/swsh/swsh1/1/high.webp",
+          "clean_file": "eval_cards/swsh1-1_clean.webp"
+        },
+        {
+          "id": "swsh4-1",
+          "expected_name": "Weedle",
+          "expected_number": "1/185",
+          "expected_local_id": "1",
+          "expected_set_id": "swsh4",
+          "expected_set_name": "Vivid Voltage",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/swsh/swsh4/1/high.webp",
+          "clean_file": "eval_cards/swsh4-1_clean.webp"
+        },
+        {
+          "id": "sm1-1",
+          "expected_name": "Caterpie",
+          "expected_number": "1/149",
+          "expected_local_id": "1",
+          "expected_set_id": "sm1",
+          "expected_set_name": "Sun & Moon",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/sm/sm1/1/high.webp",
+          "clean_file": "eval_cards/sm1-1_clean.webp"
+        },
+        {
+          "id": "sv01-001",
+          "expected_name": "Pineco",
+          "expected_number": "001/198",
+          "expected_local_id": "001",
+          "expected_set_id": "sv01",
+          "expected_set_name": "Scarlet & Violet",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/sv/sv01/001/high.webp",
+          "clean_file": "eval_cards/sv01-001_clean.webp"
+        },
+        {
+          "id": "sv03.5-001",
+          "expected_name": "Bulbasaur",
+          "expected_number": "001/165",
+          "expected_local_id": "001",
+          "expected_set_id": "sv03.5",
+          "expected_set_name": "151",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/sv/sv03.5/001/high.webp",
+          "clean_file": "eval_cards/sv03.5-001_clean.webp"
+        },
+        {
+          "id": "swsh12.5-001",
+          "expected_name": "Oddish",
+          "expected_number": "001/159",
+          "expected_local_id": "001",
+          "expected_set_id": "swsh12.5",
+          "expected_set_name": "Crown Zenith",
+          "era": "modern",
+          "url": "https://assets.tcgdex.net/en/swsh/swsh12.5/001/high.webp",
+          "clean_file": "eval_cards/swsh12.5-001_clean.webp"
+        }
+      ]
+    },
+    "synthetic_distortions": {
+      "description": "Synthetic image degradations applied to clean catalog cards to simulate camera rotation, sensor noise, and slight optical defocus.",
+      "transformation_parameters": {
+        "rotation_degrees": 3.0,
+        "gaussian_noise_mean": 0.0,
+        "gaussian_noise_std": 4.0,
+        "gaussian_blur_ksize": [3, 3],
+        "gaussian_blur_sigma": 0.5,
+        "seed": 42
+      },
+      "source_category": "clean_catalog_scans",
+      "target_file_pattern": "eval_cards/{id}_synthetic.jpg"
+    }
+  }
+}

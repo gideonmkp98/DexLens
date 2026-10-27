@@ -7,6 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -17,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 RUN chmod +x /app/entrypoint.sh
+
+# Parallel scan requests already have an application-level concurrency bound.
+# Avoid multiplying that by Tesseract's internal OpenMP worker count.
+ENV OMP_THREAD_LIMIT=1
 
 EXPOSE 8000
 

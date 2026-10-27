@@ -5,8 +5,11 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+import app.models  # noqa: F401
 import app.services.importer as importer_module
 from app.core.database import Base, get_db
 from app.main import app
@@ -14,9 +17,23 @@ from app.main import app
 # Test database connection string (separate from normal development DB)
 DEFAULT_TEST_DB = "mysql+pymysql://tcg_user:tcg_password@db:3306/tcg_test"
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", DEFAULT_TEST_DB)
+test_url = make_url(TEST_DATABASE_URL)
+if test_url.get_backend_name() != "sqlite" and not (
+    test_url.database and test_url.database.endswith("_test")
+):
+    raise RuntimeError("Tests require a dedicated database ending in _test")
 
 try:
-    test_engine = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    if test_url.get_backend_name() == "sqlite":
+        if test_url.database not in (None, "", ":memory:"):
+            raise RuntimeError("SQLite tests must use an in-memory database")
+        test_engine = create_engine(
+            TEST_DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    else:
+        test_engine = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     with test_engine.connect() as conn:
         pass
 except Exception:
@@ -25,6 +42,7 @@ except Exception:
     test_engine = create_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
 
 TestingSessionLocal = sessionmaker(

@@ -1,136 +1,104 @@
-"use client";
+import Image from "next/image";
+import Link from "next/link";
 
-import { useCallback, useEffect, useState } from "react";
-import { getHealth, HealthResponse } from "@/lib/api";
-
-export default function Home() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
-
-  const checkStatus = useCallback(async () => {
-    setLoading(true);
-    const result = await getHealth();
-    setHealth(result);
-    setLastChecked(new Date());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void checkStatus();
-  }, [checkStatus]);
-
-  const isApiConnected = health !== null && health.status !== "disconnected";
-  const isDbConnected = health !== null && health.database === "connected";
-
+export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 text-slate-900">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Pokémon TCG Scanner
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Phase 1: System Foundation &amp; Health Monitor
-        </p>
-
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
-            <span className="text-sm font-medium text-slate-700">
-              API Status
-            </span>
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-block h-2.5 w-2.5 rounded-full ${
-                  loading
-                    ? "animate-pulse bg-amber-400"
-                    : isApiConnected
-                      ? "bg-emerald-500"
-                      : "bg-rose-500"
-                }`}
-              />
-              <span
-                className={`text-sm font-semibold ${
-                  loading
-                    ? "text-slate-500"
-                    : isApiConnected
-                      ? "text-emerald-700"
-                      : "text-rose-700"
-                }`}
-              >
-                {loading
-                  ? "Checking..."
-                  : isApiConnected
-                    ? "Connected"
-                    : "Disconnected"}
-              </span>
-            </div>
+    <main className="collector-page">
+      <section className="home-hero">
+        <div className="hero-copy">
+          <p className="eyebrow">
+            <span className="red-square" /> VOOR VERZAMELAARS. UIT
+            NIEUWSGIERIGHEID.
+          </p>
+          <h1>
+            Oude favoriet.
+            <br />
+            Nieuwe vondst.
+            <br />
+            <em>Welke heb jij?</em>
+          </h1>
+          <p className="hero-intro">
+            Van die eerste Pikachu tot je nieuwste pull. Geef je Pokémon-kaart
+            een naam, een set en een plek in het verhaal.
+          </p>
+          <div className="hero-buttons">
+            <Link href="/scan" className="ink-button red">
+              Scan je kaart <span aria-hidden="true">↗</span>
+            </Link>
+            <Link href="/cards" className="text-link">
+              Duik in de catalogus →
+            </Link>
           </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
-            <span className="text-sm font-medium text-slate-700">
-              Database Status
-            </span>
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-block h-2.5 w-2.5 rounded-full ${
-                  loading
-                    ? "animate-pulse bg-amber-400"
-                    : isDbConnected
-                      ? "bg-emerald-500"
-                      : "bg-rose-500"
-                }`}
-              />
-              <span
-                className={`text-sm font-semibold ${
-                  loading
-                    ? "text-slate-500"
-                    : isDbConnected
-                      ? "text-emerald-700"
-                      : "text-rose-700"
-                }`}
-              >
-                {loading
-                  ? "Checking..."
-                  : isDbConnected
-                    ? "Connected"
-                    : "Disconnected"}
-              </span>
-            </div>
-          </div>
+          <p className="small-note">
+            Eén foto. Controleer de uitsnede. Vind jouw kaart.
+          </p>
         </div>
-
-        <div className="mt-6 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => void checkStatus()}
-            disabled={loading}
-            className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-          >
-            {loading ? "Checking..." : "Refresh Status"}
-          </button>
-
-          {lastChecked && (
-            <p className="text-center text-xs text-slate-400">
-              Last checked: {lastChecked.toLocaleTimeString()}
-            </p>
-          )}
-
-          <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs font-semibold">
-            <a
-              href="/cards"
-              className="flex-1 rounded-lg border border-slate-200 py-2 text-center text-slate-700 transition hover:bg-slate-50"
-            >
-              Browse Cards &rarr;
-            </a>
-            <a
-              href="/sets"
-              className="flex-1 rounded-lg border border-slate-200 py-2 text-center text-slate-700 transition hover:bg-slate-50"
-            >
-              Browse Sets &rarr;
-            </a>
+        <div className="card-showcase">
+          <span className="showcase-caption">UIT DE OUDE SCHOENENDOOS</span>
+          <div className="card-fan">
+            <Image
+              className="fan-card fan-left"
+              src="/cards/flareon.webp"
+              alt="Flareon uit Jungle"
+              width={250}
+              height={350}
+              priority
+            />
+            <Image
+              className="fan-card fan-right"
+              src="/cards/charizard.webp"
+              alt="Charizard uit Base Set"
+              width={250}
+              height={350}
+              priority
+            />
+            <Image
+              className="fan-card fan-front"
+              src="/cards/pikachu.webp"
+              alt="Pikachu uit Base Set"
+              width={250}
+              height={350}
+              priority
+            />
           </div>
+          <span className="collector-stamp">
+            ÉCHTE KAARTEN.
+            <br />
+            GOEDE VERHALEN.
+          </span>
+          <span className="showcase-bottom">BASE SET & JUNGLE · 1999</span>
         </div>
+      </section>
+      <div className="collector-strip">
+        <span>VAN BASE SET TOT NU</span>
+        <span aria-hidden="true">✦</span>
+        <span>ONTDEK JOUW KAART</span>
+        <span aria-hidden="true">✦</span>
+        <span>BEKIJK DE HELE SET</span>
       </div>
+      <section className="home-explore">
+        <div>
+          <p className="eyebrow">BLADEREN MAG OOK</p>
+          <h2>Het begint bij één kaart.</h2>
+          <p>
+            Zoek een bekende naam of bekijk de kaarten uit een hele uitbreiding.
+          </p>
+        </div>
+        <Link href="/cards" className="explore-ticket">
+          <span className="ticket-number">01 / CATALOGUS</span>
+          <h3>
+            Zoek jouw favoriet <span>↗</span>
+          </h3>
+          <p>Kaartnaam, nummer of set. Jij kiest.</p>
+        </Link>
+        <Link href="/sets" className="explore-ticket yellow">
+          <span className="ticket-number">02 / UITBREIDINGEN</span>
+          <h3>
+            Open een set <span>↗</span>
+          </h3>
+          <p>Van de klassiekers tot recente releases.</p>
+        </Link>
+      </section>
     </main>
   );
 }

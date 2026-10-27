@@ -1,0 +1,122 @@
+[
+  {
+    "file": "regression_scans/geodude-fossil.jpg",
+    "scan": "cb12fdb3-9321-42e9-bb2c-3ef25ec9e351",
+    "detected": true,
+    "corners": {
+      "top_left": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "top_right": {
+        "x": 0.99833,
+        "y": 0.0
+      },
+      "bottom_right": {
+        "x": 0.99833,
+        "y": 0.99881
+      },
+      "bottom_left": {
+        "x": 0.0,
+        "y": 0.99881
+      }
+    },
+    "expected": "base3-47",
+    "top": "base3-47",
+    "correct": true,
+    "name": "Geodude",
+    "number": "47/62",
+    "confidence": "high",
+    "seconds": 4.85
+  },
+  {
+    "file": "regression_scans/meganium-prime.jpg",
+    "scan": "fb32f545-f844-40e6-b854-4bd3541bdbd3",
+    "detected": true,
+    "corners": {
+      "top_left": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "top_right": {
+        "x": 0.99864,
+        "y": 0.0
+      },
+      "bottom_right": {
+        "x": 0.99864,
+        "y": 0.99902
+      },
+      "bottom_left": {
+        "x": 0.0,
+        "y": 0.99902
+      }
+    },
+    "expected": "hgss1-109",
+    "top": "hgss1-109",
+    "correct": true,
+    "name": "Meganium",
+    "number": "109/123",
+    "confidence": "high",
+    "seconds": 5.96
+  },
+  {
+    "file": "regression_scans/meganium-lost-thunder.jpg",
+    "scan": "7031f126-92c6-4a09-8e8b-dd957d51c57f",
+    "detected": true,
+    "corners": {
+      "top_left": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "top_right": {
+        "x": 0.99864,
+        "y": 0.0
+      },
+      "bottom_right": {
+        "x": 0.99864,
+        "y": 0.99902
+      },
+      "bottom_left": {
+        "x": 0.0,
+        "y": 0.99902
+      }
+    },
+    "expected": "sm8-8",
+    "top": "sm8-8",
+    "correct": true,
+    "name": "Meganium",
+    "number": "8/214",
+    "confidence": "high",
+    "seconds": 4.89
+  },
+  {
+    "file": "additional_catalog/base1-53.webp",
+    "scan": "124f6336-6ad3-46ec-b2e3-f33a0bb757c8",
+    "detected": true,
+    "corners": {
+      "top_left": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "top_right": {
+        "x": 0.99833,
+        "y": 0.0
+      },
+      "bottom_right": {
+        "x": 0.99833,
+        "y": 0.99879
+      },
+      "bottom_left": {
+        "x": 0.0,
+        "y": 0.99879
+      }
+    },
+    "expected": "base1-53",
+    "top": "base1-53",
+    "correct": true,
+    "name": "Macnamitea",
+    "number": "53/102",
+    "confidence": "high",
+    "seconds": 4.67
+  }
+]

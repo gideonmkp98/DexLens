@@ -37,6 +37,48 @@ class Settings(BaseSettings):
     DETAIL_CACHE_MAX_STALE_SECONDS: int = 86400  # 24 hours
     DETAIL_CACHE_FAILED_COOLDOWN_SECONDS: int = 60  # 1 minute
 
+    # Upload and Scan Configuration
+    UPLOAD_MAX_BYTES: int = 15728640  # 15 MiB default
+    UPLOAD_MAX_PIXELS: int = 40000000  # 40M pixels
+    UPLOAD_MAX_DIMENSION: int = 2500  # max normalized long edge
+    UPLOAD_JPEG_QUALITY: int = 90  # JPEG quality (1-100)
+    UPLOAD_RETENTION_HOURS: int = 24  # Scan retention period
+    UPLOAD_DIRECTORY: str = "/app/uploads/scans"  # Storage path
+    UPLOAD_REQUEST_OVERHEAD_BYTES: int = 262144  # 256 KiB multipart request overhead
+
+    # Phase 5: OCR and Recognition Configuration
+    OCR_ENGINE: str = "tesseract"
+    OCR_TIMEOUT_SECONDS: float = 6.0
+    OCR_MAX_CONCURRENCY: int = 3
+    OCR_MAX_IMAGE_DIMENSION: int = 2000
+
+    @field_validator(
+        "UPLOAD_MAX_BYTES",
+        "UPLOAD_MAX_PIXELS",
+        "UPLOAD_MAX_DIMENSION",
+        "UPLOAD_RETENTION_HOURS",
+        mode="after",
+    )
+    @classmethod
+    def validate_positive_int(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Value must be strictly positive")
+        return v
+
+    @field_validator("UPLOAD_JPEG_QUALITY", mode="after")
+    @classmethod
+    def validate_quality(cls, v: int) -> int:
+        if not (1 <= v <= 100):
+            raise ValueError("JPEG quality must be between 1 and 100")
+        return v
+
+    @field_validator("UPLOAD_REQUEST_OVERHEAD_BYTES", mode="after")
+    @classmethod
+    def validate_non_negative_int(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return v
+
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:

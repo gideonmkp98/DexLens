@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.config import settings
@@ -8,13 +10,17 @@ from app.schemas.card import (
     CardSetBrief,
     PaginatedCardsResponse,
 )
-from app.services.detail_cache import catalog_cache, map_card_details
+from app.services.detail_cache import DetailCache, catalog_cache, map_card_details
 from app.services.tcgdex import TcgdexClient, is_digital_card, is_digital_set
 
 router = APIRouter(prefix="/cards", tags=["Cards"])
 
 # Reusable client for catalog requests in API process
 _tcgdex_client = TcgdexClient()
+
+# Complete search summaries are larger than individual details. Keep only a
+# handful of queries, shared across all page sizes and page numbers.
+search_cache = DetailCache(max_entries=8)
 
 
 def get_tcgdex_client() -> TcgdexClient:
@@ -156,22 +162,17 @@ async def list_cards(
     # Case B: Global card search across all sets
     clean_name_param = name.strip() if name else None
     clean_number_param = number.strip() if number else None
-    query_str = (
-        f"name={clean_name_param or ''}&"
-        f"localId={clean_number_param or ''}&"
-        f"page={page}&size={page_size}"
-    )
+    query_str = json.dumps([clean_name_param or "", clean_number_param or ""])
 
     async def fetch_search() -> list[dict]:
         return await client.get_cards_search(
             name=clean_name_param,
             local_id=clean_number_param,
-            page=page,
-            page_size=page_size,
+            page=None,
             language=clean_lang,
         )
 
-    result = await catalog_cache.get_or_fetch(
+    result = await search_cache.get_or_fetch(
         resource="search",
         source="tcgdex",
         language=clean_lang,
@@ -195,19 +196,13 @@ async def list_cards(
         c for c in raw_cards if isinstance(c, dict) and not is_digital_card(c)
     ]
 
-    has_more = len(raw_cards) == page_size
-    total = (
-        len(physical_cards)
-        if (not has_more and page == 1)
-        else (
-            (page * page_size + 1)
-            if has_more
-            else ((page - 1) * page_size + len(physical_cards))
-        )
-    )
+    total = len(physical_cards)
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    has_more = end_idx < total
 
     items = []
-    for c in physical_cards:
+    for c in physical_cards[start_idx:end_idx]:
         image_base = c.get("image")
         small_url, large_url = _derive_image_urls(image_base)
         card_id = c.get("id", "")

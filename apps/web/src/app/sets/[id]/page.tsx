@@ -4,14 +4,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import CardImage from "@/components/CardImage";
-import {
-  CardListItem,
-  getCards,
-  getSet,
-  PaginatedCardsResponse,
-  SetDetail,
-} from "@/lib/api";
+import CardTile from "@/components/CardTile";
+import { CardGridSkeleton } from "@/components/LoadingSkeleton";
+import EmptyState from "@/components/EmptyState";
+import { getCards, getSet, PaginatedCardsResponse, SetDetail } from "@/lib/api";
 
 export default function SetDetailPage() {
   const params = useParams();
@@ -89,9 +85,11 @@ export default function SetDetailPage() {
 
   if (loadingSet) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 text-center text-slate-500">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-slate-900" />
-        <p className="mt-4 text-sm font-medium">Loading set details...</p>
+      <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-16 text-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-800 dark:border-t-white" />
+        <p className="mt-4 font-mono text-xs text-zinc-500">
+          Loading expansion checklist...
+        </p>
       </div>
     );
   }
@@ -99,16 +97,30 @@ export default function SetDetailPage() {
   if (setErrorMsg || !setInfo) {
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <span className="text-5xl">🚫</span>
-        <h2 className="mt-4 text-2xl font-bold text-slate-900">
-          Set Not Found
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-obsidian-850 dark:text-zinc-400">
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+            />
+          </svg>
+        </div>
+        <h2 className="mt-4 text-base font-bold text-zinc-900 dark:text-white">
+          Expansion Set Not Found
         </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          The requested set could not be found.
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          The requested set could not be found in the catalog index.
         </p>
         <Link
           href="/sets"
-          className="mt-6 inline-block rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+          className="mt-6 inline-block rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-obsidian-950 dark:hover:bg-zinc-200"
         >
           &larr; Back to Sets
         </Link>
@@ -125,71 +137,105 @@ export default function SetDetailPage() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <nav className="mb-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Breadcrumb */}
+      <nav className="mb-6 flex items-center gap-2 font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
         <Link
           href="/sets"
-          className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+          className="hover:text-zinc-900 dark:hover:text-white"
         >
-          &larr; Back to All Sets
+          Expansions
         </Link>
+        <span className="text-zinc-300 dark:text-zinc-700">/</span>
+        <span className="truncate text-zinc-900 dark:text-white">
+          {setInfo.name}
+        </span>
       </nav>
 
-      {/* Set Header Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Set Header Hero Banner */}
+      <div className="card-slab rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-obsidian-900 sm:p-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-5">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             {setInfo.logo_url && (
-              <div className="relative h-16 w-32 shrink-0">
+              <div className="relative h-16 w-32 shrink-0 rounded-xl border border-zinc-100 bg-zinc-50/60 p-2 dark:border-zinc-800/80 dark:bg-obsidian-950">
                 <Image
                   src={`${setInfo.logo_url}.webp`}
                   alt={setInfo.name}
                   fill
-                  className="object-contain"
+                  className="object-contain p-1"
                   onError={(e) => {
                     const target = e.currentTarget as HTMLImageElement;
                     if (target.src.endsWith(".webp") && setInfo.logo_url) {
                       target.src = `${setInfo.logo_url}.png`;
                     }
                   }}
+                  unoptimized
                 />
               </div>
             )}
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-                {setInfo.name}
-              </h1>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                {setInfo.series && (
-                  <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                    Series: {setInfo.series}
-                  </span>
-                )}
-                {setInfo.release_date && (
-                  <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                    Released: {setInfo.release_date}
-                  </span>
-                )}
-                <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-obsidian-850 dark:text-zinc-300">
+                  {setInfo.series || "Expansion Set"}
+                </span>
+                <span className="font-mono text-xs text-zinc-400">
                   ID: {setInfo.external_id}
                 </span>
               </div>
+
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+                {setInfo.name}
+              </h1>
+
+              {setInfo.release_date && (
+                <p className="mt-1 font-mono text-xs text-zinc-500">
+                  Released {setInfo.release_date}
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col items-start rounded-xl bg-slate-50 p-4 sm:items-end">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Cards in Set
-            </span>
-            <span className="text-2xl font-black text-slate-900">
-              {setInfo.card_count ?? setInfo.local_card_count ?? 0}
-              {setInfo.total ? (
-                <span className="text-sm font-normal text-slate-400">
-                  {" "}
-                  / {setInfo.total} total
-                </span>
-              ) : null}
-            </span>
+          <div className="flex items-center gap-4 sm:flex-col sm:items-end">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 px-5 py-3 text-left dark:border-zinc-800/60 dark:bg-obsidian-850 sm:text-right">
+              <span className="block font-mono text-[10px] uppercase text-zinc-400">
+                Indexed Cards
+              </span>
+              <span className="font-mono text-2xl font-bold text-zinc-900 dark:text-white">
+                {setInfo.card_count ?? setInfo.local_card_count ?? 0}
+                {setInfo.total ? (
+                  <span className="text-xs font-normal text-zinc-400">
+                    {" "}
+                    / {setInfo.total}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+
+            <Link
+              href="/scan"
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-obsidian-950 dark:hover:bg-zinc-200"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.75}
+                  d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.75}
+                  d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+                />
+              </svg>
+              <span>Scan From Set</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -197,86 +243,62 @@ export default function SetDetailPage() {
       {/* Cards in Set Section */}
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">
-            Cards in this Set
-          </h2>
-          {cardsData && (
-            <span className="text-sm text-slate-500">
-              {cardsData.total !== null
-                ? `Showing ${cardsData.items.length} of ${cardsData.total} cards`
-                : `Showing ${cardsData.items.length} cards`}
-            </span>
+          <div>
+            <h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white">
+              Cards in this Expansion
+            </h2>
+            <p className="font-mono text-xs text-zinc-500">
+              Checklist of indexed specimens released in {setInfo.name}
+            </p>
+          </div>
+        </div>
+
+        {/* Card Grid */}
+        <div className="mt-6">
+          {loadingCards ? (
+            <CardGridSkeleton count={12} />
+          ) : cardsData && cardsData.items.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {cardsData.items.map((card) => (
+                <CardTile key={card.external_id || card.id} card={card} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No cards in set yet"
+              description="Cards from this set have not been imported or indexed yet."
+              actionHref="/cards"
+              actionLabel="Search All Cards"
+            />
           )}
         </div>
 
-        {loadingCards ? (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex aspect-[2.5/3.5] animate-pulse rounded-lg bg-slate-200"
-              />
-            ))}
-          </div>
-        ) : cardsData && cardsData.items.length === 0 ? (
-          <div className="mt-8 rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
-            No cards found for this set.
-          </div>
-        ) : cardsData ? (
-          <>
-            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {cardsData.items.map((card: CardListItem) => (
-                <Link
-                  key={card.external_id}
-                  href={`/cards/${card.external_id}`}
-                  className="group flex flex-col rounded-xl border border-slate-200 bg-white p-2.5 transition hover:border-slate-400 hover:shadow-md"
-                >
-                  <CardImage src={card.small_image_url} alt={card.name} />
-                  <div className="mt-2.5 flex flex-col">
-                    <span className="text-xs font-semibold text-slate-400">
-                      #{card.local_id}
-                    </span>
-                    <span className="truncate text-sm font-bold text-slate-900 group-hover:text-red-600">
-                      {card.name}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-10 flex items-center justify-center gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <button
+              type="button"
+              disabled={cardPage <= 1 || loadingCards}
+              onClick={() => setCardPage(cardPage - 1)}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-800 dark:bg-obsidian-900 dark:text-zinc-200 dark:hover:bg-obsidian-850"
+            >
+              &larr; Previous
+            </button>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-10 flex items-center justify-between border-t border-slate-200 pt-6">
-                <button
-                  type="button"
-                  disabled={cardPage <= 1}
-                  onClick={() => setCardPage((p) => p - 1)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  &larr; Previous
-                </button>
-                <span className="text-sm text-slate-600">
-                  Page{" "}
-                  <span className="font-semibold text-slate-900">
-                    {cardPage}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-slate-900">
-                    {totalPages}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  disabled={cardPage >= totalPages}
-                  onClick={() => setCardPage((p) => p + 1)}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  Next &rarr;
-                </button>
-              </div>
-            )}
-          </>
-        ) : null}
+            <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              Page {cardPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              disabled={cardPage >= totalPages || loadingCards}
+              onClick={() => setCardPage(cardPage + 1)}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-800 dark:bg-obsidian-900 dark:text-zinc-200 dark:hover:bg-obsidian-850"
+            >
+              Next &rarr;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

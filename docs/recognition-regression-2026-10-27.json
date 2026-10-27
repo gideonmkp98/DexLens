@@ -1,0 +1,4959 @@
+[
+  {
+    "id": "swsh12.5-GG44",
+    "category": "additional_catalog",
+    "error": "No provider image"
+  },
+  {
+    "id": "sm3.5-73",
+    "category": "additional_catalog",
+    "error": "No provider image"
+  },
+  {
+    "id": "base1-53",
+    "category": "additional_catalog",
+    "name": "cnemite",
+    "number": "53/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 45,
+    "seconds": 3.88,
+    "candidates": [
+      {
+        "id": "base1-53",
+        "name": "Magnemite",
+        "local_id": "53",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/53/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (53/102)",
+          "Name found in scanned card text ('Magnemite')",
+          "HP matches (40)",
+          "Attack matches ('Thunder Wave')",
+          "Attack matches ('Selfdestruct')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Thunder Wave",
+          "Selfdestruct"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.996
+      },
+      {
+        "id": "base4-79",
+        "name": "Magnemite",
+        "local_id": "79",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/79/low.webp",
+        "score": 61,
+        "reasons": [
+          "Name found in scanned card text ('Magnemite')",
+          "Card number differs from query (79 vs 53/102)",
+          "HP matches (40)",
+          "Attack matches ('Thunder Wave')",
+          "Attack matches ('Selfdestruct')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Thunder Wave",
+          "Selfdestruct"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.843
+      },
+      {
+        "id": "lc-80",
+        "name": "Magnemite",
+        "local_id": "80",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/80/low.webp",
+        "score": 61,
+        "reasons": [
+          "Name found in scanned card text ('Magnemite')",
+          "Card number differs from query (80 vs 53/102)",
+          "HP matches (40)",
+          "Attack matches ('Thunder Wave')",
+          "Attack matches ('Selfdestruct')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Thunder Wave",
+          "Selfdestruct"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.857
+      },
+      {
+        "id": "base5-60",
+        "name": "Magnemite",
+        "local_id": "60",
+        "set_id": "base5",
+        "set_name": "Team Rocket",
+        "image_url": "https://assets.tcgdex.net/en/base/base5/60/low.webp",
+        "score": 42,
+        "reasons": [
+          "Name found in scanned card text ('Magnemite')",
+          "Card number differs from query (60 vs 53/102)",
+          "HP matches (40)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.673
+      },
+      {
+        "id": "ecard3-76",
+        "name": "Magnemite",
+        "local_id": "76",
+        "set_id": "ecard3",
+        "set_name": "Skyridge",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard3/76/low.webp",
+        "score": 40,
+        "reasons": [
+          "Name found in scanned card text ('Magnemite')",
+          "Card number differs from query (76 vs 53/102)",
+          "HP matches (40)",
+          "Attack matches ('Thunder Wave')"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Thunder Wave"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.505
+      }
+    ]
+  },
+  {
+    "id": "base1-62",
+    "category": "additional_catalog",
+    "name": "Sandshrew",
+    "number": "62/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 25,
+    "seconds": 3.49,
+    "candidates": [
+      {
+        "id": "base1-62",
+        "name": "Sandshrew",
+        "local_id": "62",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/62/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (62/102)",
+          "Exact card name match ('Sandshrew')",
+          "HP matches (40)",
+          "Attack matches ('Sand-attack')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Sand-attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.992
+      },
+      {
+        "id": "base4-91",
+        "name": "Sandshrew",
+        "local_id": "91",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/91/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Sandshrew')",
+          "Card number differs from query (91 vs 62/102)",
+          "HP matches (40)",
+          "Attack matches ('Sand-attack')"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Sand-attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.643
+      },
+      {
+        "id": "lc-91",
+        "name": "Sandshrew",
+        "local_id": "91",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/91/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Sandshrew')",
+          "Card number differs from query (91 vs 62/102)",
+          "HP matches (40)",
+          "Attack matches ('Sand-attack')"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Sand-attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.593
+      },
+      {
+        "id": "ecard3-92",
+        "name": "Sandshrew",
+        "local_id": "92",
+        "set_id": "ecard3",
+        "set_name": "Skyridge",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard3/92/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Sandshrew')",
+          "Card number differs from query (92 vs 62/102)",
+          "HP matches (40)"
+        ],
+        "hp": "40",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.145
+      },
+      {
+        "id": "bw7-78",
+        "name": "Sandshrew",
+        "local_id": "78",
+        "set_id": "bw7",
+        "set_name": "Boundaries Crossed",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw7/78/low.webp",
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Sandshrew')",
+          "Card number differs from query (78 vs 62/102)"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.25
+      }
+    ]
+  },
+  {
+    "id": "base1-49",
+    "category": "additional_catalog",
+    "name": "Drowzee",
+    "number": "49/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 27,
+    "seconds": 2.36,
+    "candidates": [
+      {
+        "id": "base1-49",
+        "name": "Drowzee",
+        "local_id": "49",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/49/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (49/102)",
+          "Exact card name match ('Drowzee')",
+          "HP matches (50)",
+          "Attack matches ('Pound')",
+          "Attack matches ('Confuse Ray')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Pound",
+          "Confuse Ray"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "base4-73",
+        "name": "Drowzee",
+        "local_id": "73",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/73/low.webp",
+        "score": 71,
+        "reasons": [
+          "Exact card name match ('Drowzee')",
+          "Card number differs from query (73 vs 49/102)",
+          "HP matches (50)",
+          "Attack matches ('Pound')",
+          "Attack matches ('Confuse Ray')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Pound",
+          "Confuse Ray"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.853
+      },
+      {
+        "id": "xy12-49",
+        "name": "Drowzee",
+        "local_id": "49",
+        "set_id": "xy12",
+        "set_name": "Evolutions",
+        "image_url": "https://assets.tcgdex.net/en/xy/xy12/49/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (49), but denominator conflicts (102 vs 108)",
+          "Exact card name match ('Drowzee')",
+          "Attack matches ('Pound')",
+          "Attack matches ('Confuse Ray')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Pound",
+          "Confuse Ray"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.721
+      },
+      {
+        "id": "ex6-32",
+        "name": "Drowzee",
+        "local_id": "32",
+        "set_id": "ex6",
+        "set_name": "FireRed & LeafGreen",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex6/32/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Drowzee')",
+          "Card number differs from query (32 vs 49/102)",
+          "HP matches (50)",
+          "Attack matches ('Hypnosis')"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Hypnosis"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.308
+      },
+      {
+        "id": "dp4-65",
+        "name": "Drowzee",
+        "local_id": "65",
+        "set_id": "dp4",
+        "set_name": "Great Encounters",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp4/65/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Drowzee')",
+          "Card number differs from query (65 vs 49/102)",
+          "Attack matches ('Hypnosis')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Hypnosis"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.279
+      }
+    ]
+  },
+  {
+    "id": "base1-88",
+    "category": "additional_catalog",
+    "name": "_ TRAINER",
+    "number": "88/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 94,
+    "seconds": 3.99,
+    "candidates": [
+      {
+        "id": "base1-88",
+        "name": "Professor Oak",
+        "local_id": "88",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/88/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (88/102)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "hgss4-88",
+        "name": "Seeker",
+        "local_id": "88",
+        "set_id": "hgss4",
+        "set_name": "Triumphant",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss4/88/low.webp",
+        "score": 50,
+        "reasons": [
+          "Full number and denominator match (88/102)"
+        ],
+        "hp": "0",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.208
+      },
+      {
+        "id": "P-A-088",
+        "name": "Dragonair",
+        "local_id": "088",
+        "set_id": "P-A",
+        "set_name": "Promos-A",
+        "image_url": null,
+        "score": 42,
+        "reasons": [
+          "Collector number numerator matches (088), printed denominator unverified"
+        ],
+        "hp": "100",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "mep-088",
+        "name": "Zarude",
+        "local_id": "088",
+        "set_id": "mep",
+        "set_name": "MEP Black Star Promos",
+        "image_url": null,
+        "score": 42,
+        "reasons": [
+          "Collector number numerator matches (088), printed denominator unverified"
+        ],
+        "hp": "130",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "30th-088",
+        "name": "Nidorina",
+        "local_id": "088",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/088/low.webp",
+        "score": 15,
+        "reasons": [
+          "Numerator matches (088), but denominator conflicts (102 vs 128)"
+        ],
+        "hp": "90",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.419
+      }
+    ]
+  },
+  {
+    "id": "base1-96",
+    "category": "additional_catalog",
+    "name": "ee es",
+    "number": "96/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 4,
+    "seconds": 3.78,
+    "candidates": [
+      {
+        "id": "base1-96",
+        "name": "Double Colorless Energy",
+        "local_id": "96",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/96/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (96/102)",
+          "Card name differs from query ('Double Colorless Energy')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.998
+      },
+      {
+        "id": "hgss4-96",
+        "name": "Magnezone",
+        "local_id": "96",
+        "set_id": "hgss4",
+        "set_name": "Triumphant",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss4/96/low.webp",
+        "score": 25,
+        "reasons": [
+          "Full number and denominator match (96/102)",
+          "Card name differs from query ('Magnezone')"
+        ],
+        "hp": "140",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.198
+      },
+      {
+        "id": "P-A-096",
+        "name": "Houndoom",
+        "local_id": "096",
+        "set_id": "P-A",
+        "set_name": "Promos-A",
+        "image_url": null,
+        "score": 17,
+        "reasons": [
+          "Collector number numerator matches (096), printed denominator unverified",
+          "Card name differs from query ('Houndoom')"
+        ],
+        "hp": "110",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "mep-096",
+        "name": "Moltres",
+        "local_id": "096",
+        "set_id": "mep",
+        "set_name": "MEP Black Star Promos",
+        "image_url": null,
+        "score": 17,
+        "reasons": [
+          "Collector number numerator matches (096), printed denominator unverified",
+          "Card name differs from query ('Moltres')"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "base3-54",
+    "category": "additional_catalog",
+    "name": "ellder",
+    "number": "54/62",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 14,
+    "seconds": 3.97,
+    "candidates": [
+      {
+        "id": "base3-54",
+        "name": "Shellder",
+        "local_id": "54",
+        "set_id": "base3",
+        "set_name": "Fossil",
+        "image_url": "https://assets.tcgdex.net/en/base/base3/54/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (54/62)",
+          "Name closely matches ('Shellder')",
+          "Attack matches ('Supersonic')",
+          "Attack matches ('Hide in Shell')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "30",
+        "matched_attacks": [
+          "Supersonic",
+          "Hide in Shell"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "dp3-105",
+        "name": "Shellder",
+        "local_id": "105",
+        "set_id": "dp3",
+        "set_name": "Secret Wonders",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp3/105/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Shellder')",
+          "Card number differs from query (105 vs 54/62)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.207
+      },
+      {
+        "id": "ecard1-129",
+        "name": "Shellder",
+        "local_id": "129",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/129/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Shellder')",
+          "Card number differs from query (129 vs 54/62)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.266
+      },
+      {
+        "id": "ex15-63",
+        "name": "Shellder \u03b4",
+        "local_id": "63",
+        "set_id": "ex15",
+        "set_name": "Dragon Frontiers",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex15/63/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Shellder \u03b4')",
+          "Card number differs from query (63 vs 54/62)"
+        ],
+        "hp": "40",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.3
+      },
+      {
+        "id": "ex6-79",
+        "name": "Shellder",
+        "local_id": "79",
+        "set_id": "ex6",
+        "set_name": "FireRed & LeafGreen",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex6/79/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Shellder')",
+          "Card number differs from query (79 vs 54/62)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.286
+      }
+    ]
+  },
+  {
+    "id": "hgss1-110",
+    "category": "additional_catalog",
+    "name": "STAGES",
+    "number": "110/123",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 2,
+    "seconds": 11.36,
+    "candidates": [
+      {
+        "id": "hgss1-110",
+        "name": "Typhlosion",
+        "local_id": "110",
+        "set_id": "hgss1",
+        "set_name": "HeartGold SoulSilver",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss1/110/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (110/123)",
+          "Name found in scanned card text ('Typhlosion')",
+          "Attack matches ('Flare Destroy')",
+          "Ability matches ('Afterburner')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "140",
+        "matched_attacks": [
+          "Flare Destroy"
+        ],
+        "matched_abilities": [
+          "Afterburner"
+        ],
+        "visual_similarity": 0.997
+      },
+      {
+        "id": "dp2-110",
+        "name": "Dusk Ball",
+        "local_id": "110",
+        "set_id": "dp2",
+        "set_name": "Mysterious Treasures",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp2/110/low.webp",
+        "score": 25,
+        "reasons": [
+          "Full number and denominator match (110/123)",
+          "Card name differs from query ('Dusk Ball')"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.281
+      }
+    ]
+  },
+  {
+    "id": "sm8-18",
+    "category": "additional_catalog",
+    "name": "Heracross",
+    "number": "18/214",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 28,
+    "seconds": 3.06,
+    "candidates": [
+      {
+        "id": "sm8-18",
+        "name": "Heracross",
+        "local_id": "18",
+        "set_id": "sm8",
+        "set_name": "Lost Thunder",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm8/18/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (18/214)",
+          "Exact card name match ('Heracross')",
+          "Attack matches ('Tackle')",
+          "Attack matches ('Powerful Friends')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Tackle",
+          "Powerful Friends"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.993
+      },
+      {
+        "id": "neo4-41",
+        "name": "Heracross",
+        "local_id": "41",
+        "set_id": "neo4",
+        "set_name": "Neo Destiny",
+        "image_url": "https://assets.tcgdex.net/en/neo/neo4/41/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Heracross')",
+          "Card number differs from query (41 vs 18/214)",
+          "Attack matches ('Tackle')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Tackle"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.059
+      },
+      {
+        "id": "sm11-107",
+        "name": "Heracross",
+        "local_id": "107",
+        "set_id": "sm11",
+        "set_name": "Unified Minds",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm11/107/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Heracross')",
+          "Card number differs from query (107 vs 18/214)",
+          "Attack matches ('Tackle')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Tackle"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.15
+      },
+      {
+        "id": "sv02-006",
+        "name": "Heracross",
+        "local_id": "006",
+        "set_id": "sv02",
+        "set_name": "Paldea Evolved",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv02/006/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Heracross')",
+          "Card number differs from query (006 vs 18/214)",
+          "Attack matches ('Tackle')"
+        ],
+        "hp": "130",
+        "matched_attacks": [
+          "Tackle"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.333
+      },
+      {
+        "id": "sv02-194",
+        "name": "Heracross",
+        "local_id": "194",
+        "set_id": "sv02",
+        "set_name": "Paldea Evolved",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv02/194/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Heracross')",
+          "Card number differs from query (194 vs 18/214)",
+          "Attack matches ('Tackle')"
+        ],
+        "hp": "130",
+        "matched_attacks": [
+          "Tackle"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.207
+      }
+    ]
+  },
+  {
+    "id": "swsh8-157",
+    "category": "additional_catalog",
+    "name": "NGLE",
+    "number": "157/264",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 38,
+    "seconds": 4.53,
+    "candidates": [
+      {
+        "id": "swsh8-157",
+        "name": "Gengar VMAX",
+        "local_id": "157",
+        "set_id": "swsh8",
+        "set_name": "Fusion Strike",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh8/157/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (157/264)",
+          "Card name differs from query ('Gengar VMAX')",
+          "HP matches (320)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "320",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "base3-38",
+        "name": "Kingler",
+        "local_id": "38",
+        "set_id": "base3",
+        "set_name": "Fossil",
+        "image_url": "https://assets.tcgdex.net/en/base/base3/38/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Kingler')",
+          "Card number differs from query (38 vs 157/264)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.25
+      },
+      {
+        "id": "bw10-88",
+        "name": "Silver Bangle",
+        "local_id": "88",
+        "set_id": "bw10",
+        "set_name": "Plasma Blast",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw10/88/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Silver Bangle')",
+          "Card number differs from query (88 vs 157/264)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.061
+      },
+      {
+        "id": "dp4-20",
+        "name": "Kingler",
+        "local_id": "20",
+        "set_id": "dp4",
+        "set_name": "Great Encounters",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp4/20/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Kingler')",
+          "Card number differs from query (20 vs 157/264)"
+        ],
+        "hp": "90",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.152
+      },
+      {
+        "id": "ecard1-15",
+        "name": "Kingler",
+        "local_id": "15",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/15/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Kingler')",
+          "Card number differs from query (15 vs 157/264)"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.099
+      }
+    ]
+  },
+  {
+    "id": "swsh8-225",
+    "category": "additional_catalog",
+    "name": "TRAIN",
+    "number": "225/264",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 39,
+    "seconds": 4.37,
+    "candidates": [
+      {
+        "id": "swsh8-225",
+        "name": "Battle VIP Pass",
+        "local_id": "225",
+        "set_id": "swsh8",
+        "set_name": "Fusion Strike",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh8/225/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (225/264)",
+          "Name found in scanned card text ('Battle VIP Pass')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.997
+      },
+      {
+        "id": "col1-82",
+        "name": "Professor Elm's Training Method",
+        "local_id": "82",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/82/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Professor Elm's Training Method')",
+          "Card number differs from query (82 vs 225/264)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.357
+      },
+      {
+        "id": "col1-85",
+        "name": "Sage's Training",
+        "local_id": "85",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/85/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Sage's Training')",
+          "Card number differs from query (85 vs 225/264)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.408
+      },
+      {
+        "id": "dp6-130",
+        "name": "Buck's Training",
+        "local_id": "130",
+        "set_id": "dp6",
+        "set_name": "Legends Awakened",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp6/130/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Buck's Training')",
+          "Card number differs from query (130 vs 225/264)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.505
+      },
+      {
+        "id": "ecard1-148",
+        "name": "Professor Elm's Training Method",
+        "local_id": "148",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/148/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Professor Elm's Training Method')",
+          "Card number differs from query (148 vs 225/264)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.246
+      }
+    ]
+  },
+  {
+    "id": "sv03.5-006",
+    "category": "additional_catalog",
+    "name": "a Charizard eas Y A 3",
+    "number": "006/165",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 43,
+    "seconds": 4.21,
+    "candidates": [
+      {
+        "id": "sv03.5-006",
+        "name": "Charizard ex",
+        "local_id": "006",
+        "set_id": "sv03.5",
+        "set_name": "151",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv03.5/006/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (006/165)",
+          "Name shares words (charizard)",
+          "Attack matches ('Brave Wing')",
+          "Attack matches ('Explosive Vortex')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "330",
+        "matched_attacks": [
+          "Brave Wing",
+          "Explosive Vortex"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "ecard1-6",
+        "name": "Charizard",
+        "local_id": "6",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/6/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (6/165)",
+          "Name closely matches ('Charizard')"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.197
+      },
+      {
+        "id": "ex16-6",
+        "name": "Charizard",
+        "local_id": "6",
+        "set_id": "ex16",
+        "set_name": "Power Keepers",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex16/6/low.webp",
+        "score": 50,
+        "reasons": [
+          "Numerator matches (6), but denominator conflicts (165 vs 108)",
+          "Name closely matches ('Charizard')"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.121
+      },
+      {
+        "id": "mep-006",
+        "name": "Drifblim",
+        "local_id": "006",
+        "set_id": "mep",
+        "set_name": "MEP Black Star Promos",
+        "image_url": null,
+        "score": 17,
+        "reasons": [
+          "Collector number numerator matches (006), printed denominator unverified",
+          "Card name differs from query ('Drifblim')"
+        ],
+        "hp": "110",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "2024sv-1",
+        "name": "Charizard",
+        "local_id": "1",
+        "set_id": "2024sv",
+        "set_name": "McDonald's Collection 2024",
+        "image_url": null,
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Charizard')",
+          "Card number differs from query (1 vs 006/165)"
+        ],
+        "hp": "170",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "sv03.5-183",
+    "category": "additional_catalog",
+    "name": "arizard ery",
+    "number": "183/165",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 33,
+    "seconds": 3.19,
+    "candidates": [
+      {
+        "id": "sv03.5-183",
+        "name": "Charizard ex",
+        "local_id": "183",
+        "set_id": "sv03.5",
+        "set_name": "151",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv03.5/183/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (183/165)",
+          "OCR name approximately matches ('Charizard ex')",
+          "HP matches (330)",
+          "Attack matches ('Brave Wing')",
+          "Attack matches ('Explosive Vortex')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "330",
+        "matched_attacks": [
+          "Brave Wing",
+          "Explosive Vortex"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "2024sv-1",
+        "name": "Charizard",
+        "local_id": "1",
+        "set_id": "2024sv",
+        "set_name": "McDonald's Collection 2024",
+        "image_url": null,
+        "score": 10,
+        "reasons": [
+          "OCR name approximately matches ('Charizard')",
+          "Card number differs from query (1 vs 183/165)"
+        ],
+        "hp": "170",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "30th-c-001",
+        "name": "Charizard",
+        "local_id": "001",
+        "set_id": "30th-c",
+        "set_name": "30th Classic Collection",
+        "image_url": null,
+        "score": 10,
+        "reasons": [
+          "OCR name approximately matches ('Charizard')",
+          "Card number differs from query (001 vs 183/165)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "base1-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/4/low.webp",
+        "score": 10,
+        "reasons": [
+          "OCR name approximately matches ('Charizard')",
+          "Card number differs from query (4 vs 183/165)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.265
+      },
+      {
+        "id": "base4-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/4/low.webp",
+        "score": 10,
+        "reasons": [
+          "OCR name approximately matches ('Charizard')",
+          "Card number differs from query (4 vs 183/165)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.265
+      }
+    ]
+  },
+  {
+    "id": "sv01-198",
+    "category": "additional_catalog",
+    "name": "Youngster",
+    "number": "198/198",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 2,
+    "seconds": 3.54,
+    "candidates": [
+      {
+        "id": "sv01-198",
+        "name": "Youngster",
+        "local_id": "198",
+        "set_id": "sv01",
+        "set_name": "Scarlet & Violet",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv01/198/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (198/198)",
+          "Exact card name match ('Youngster')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "swsh6-198",
+        "name": "Siebold",
+        "local_id": "198",
+        "set_id": "swsh6",
+        "set_name": "Chilling Reign",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh6/198/low.webp",
+        "score": 25,
+        "reasons": [
+          "Full number and denominator match (198/198)",
+          "Card name differs from query ('Siebold')"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.24
+      }
+    ]
+  },
+  {
+    "id": "ex7-10",
+    "category": "additional_catalog",
+    "name": "Dark Steelix",
+    "number": "3",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 20,
+    "seconds": 4.97,
+    "candidates": [
+      {
+        "id": "ex7-10",
+        "name": "Dark Steelix",
+        "local_id": "10",
+        "set_id": "ex7",
+        "set_name": "Team Rocket Returns",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex7/10/low.webp",
+        "score": 95,
+        "reasons": [
+          "Exact card name match ('Dark Steelix')",
+          "Card number unverified (10 vs query 3)",
+          "Attack matches ('Energy Link')",
+          "Attack matches ('Heavy Impact')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "110",
+        "matched_attacks": [
+          "Energy Link",
+          "Heavy Impact"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.996
+      },
+      {
+        "id": "base5-3",
+        "name": "Dark Blastoise",
+        "local_id": "3",
+        "set_id": "base5",
+        "set_name": "Team Rocket",
+        "image_url": "https://assets.tcgdex.net/en/base/base5/3/low.webp",
+        "score": 35,
+        "reasons": [
+          "Weak standalone number match (3)",
+          "Name shares words (dark)"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.313
+      },
+      {
+        "id": "ex7-3",
+        "name": "Dark Crobat",
+        "local_id": "3",
+        "set_id": "ex7",
+        "set_name": "Team Rocket Returns",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex7/3/low.webp",
+        "score": 35,
+        "reasons": [
+          "Weak standalone number match (3)",
+          "Name shares words (dark)"
+        ],
+        "hp": "90",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.55
+      },
+      {
+        "id": "neo4-3",
+        "name": "Dark Donphan",
+        "local_id": "3",
+        "set_id": "neo4",
+        "set_name": "Neo Destiny",
+        "image_url": "https://assets.tcgdex.net/en/neo/neo4/3/low.webp",
+        "score": 35,
+        "reasons": [
+          "Weak standalone number match (3)",
+          "Name shares words (dark)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.353
+      },
+      {
+        "id": "base5-13",
+        "name": "Dark Vileplume",
+        "local_id": "13",
+        "set_id": "base5",
+        "set_name": "Team Rocket",
+        "image_url": "https://assets.tcgdex.net/en/base/base5/13/low.webp",
+        "score": 20,
+        "reasons": [
+          "Name shares words (dark)",
+          "Card number unverified (13 vs query 3)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.192
+      }
+    ]
+  },
+  {
+    "id": "dp1-1",
+    "category": "additional_catalog",
+    "name": "Dialga",
+    "number": "545",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 48,
+    "seconds": 5.44,
+    "candidates": [
+      {
+        "id": "dp1-1",
+        "name": "Dialga",
+        "local_id": "1",
+        "set_id": "dp1",
+        "set_name": "Diamond & Pearl",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp1/1/low.webp",
+        "score": 95,
+        "reasons": [
+          "Exact card name match ('Dialga')",
+          "Card number unverified (1 vs query 545)",
+          "Attack matches ('Time Bellow')",
+          "Attack matches ('Flash Cannon')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "90",
+        "matched_attacks": [
+          "Time Bellow",
+          "Flash Cannon"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "dp4-16",
+        "name": "Dialga",
+        "local_id": "16",
+        "set_id": "dp4",
+        "set_name": "Great Encounters",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp4/16/low.webp",
+        "score": 70,
+        "reasons": [
+          "Exact card name match ('Dialga')",
+          "Card number unverified (16 vs query 545)",
+          "Attack matches ('Time Bellow')",
+          "Attack matches ('Flash Cannon')"
+        ],
+        "hp": "90",
+        "matched_attacks": [
+          "Time Bellow",
+          "Flash Cannon"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.488
+      },
+      {
+        "id": "dpp-DP26",
+        "name": "Dialga",
+        "local_id": "DP26",
+        "set_id": "dpp",
+        "set_name": "DP Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/dp/dpp/DP26/low.webp",
+        "score": 70,
+        "reasons": [
+          "Exact card name match ('Dialga')",
+          "Card number unverified (DP26 vs query 545)",
+          "Attack matches ('Time Bellow')",
+          "Attack matches ('Flash Cannon')"
+        ],
+        "hp": "90",
+        "matched_attacks": [
+          "Time Bellow",
+          "Flash Cannon"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.572
+      },
+      {
+        "id": "30th-103",
+        "name": "Dialga",
+        "local_id": "103",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/103/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Dialga')",
+          "Card number unverified (103 vs query 545)"
+        ],
+        "hp": "130",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.359
+      },
+      {
+        "id": "cel25-20",
+        "name": "Dialga",
+        "local_id": "20",
+        "set_id": "cel25",
+        "set_name": "Celebrations",
+        "image_url": "https://assets.tcgdex.net/en/swsh/cel25/20/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Dialga')",
+          "Card number unverified (20 vs query 545)"
+        ],
+        "hp": "130",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.39
+      }
+    ]
+  },
+  {
+    "id": "ecard1-1",
+    "category": "additional_catalog",
+    "name": "Alakazam",
+    "number": "2",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 32,
+    "seconds": 5.05,
+    "candidates": [
+      {
+        "id": "ecard1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/1/low.webp",
+        "score": 90,
+        "reasons": [
+          "Exact card name match ('Alakazam')",
+          "Card number unverified (1 vs query 2)",
+          "Attack matches ('Syncroblast')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Syncroblast"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "ecard1-33",
+        "name": "Alakazam",
+        "local_id": "33",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/33/low.webp",
+        "score": 85,
+        "reasons": [
+          "Exact card name match ('Alakazam')",
+          "Card number unverified (33 vs query 2)",
+          "Attack matches ('Syncroblast')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Syncroblast"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.793
+      },
+      {
+        "id": "ecard3-2",
+        "name": "Alakazam",
+        "local_id": "2",
+        "set_id": "ecard3",
+        "set_name": "Skyridge",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard3/2/low.webp",
+        "score": 80,
+        "reasons": [
+          "Weak standalone number match (2)",
+          "Exact card name match ('Alakazam')",
+          "Attack matches ('Psychic')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Psychic"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.538
+      },
+      {
+        "id": "ecard3-H01",
+        "name": "Alakazam",
+        "local_id": "H01",
+        "set_id": "ecard3",
+        "set_name": "Skyridge",
+        "image_url": null,
+        "score": 65,
+        "reasons": [
+          "Exact card name match ('Alakazam')",
+          "Card number unverified (H01 vs query 2)",
+          "Attack matches ('Psychic')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Psychic"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "sv06-082",
+        "name": "Alakazam",
+        "local_id": "082",
+        "set_id": "sv06",
+        "set_name": "Twilight Masquerade",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv06/082/low.webp",
+        "score": 65,
+        "reasons": [
+          "Exact card name match ('Alakazam')",
+          "Card number unverified (082 vs query 2)",
+          "Attack matches ('Psychic')"
+        ],
+        "hp": "140",
+        "matched_attacks": [
+          "Psychic"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.183
+      }
+    ]
+  },
+  {
+    "id": "xy1-141",
+    "category": "additional_catalog",
+    "name": "mp Venusaun EX i",
+    "number": "7",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "medium",
+    "pool_size": 50,
+    "seconds": 5.03,
+    "candidates": [
+      {
+        "id": "xy1-141",
+        "name": "Venusaur EX",
+        "local_id": "141",
+        "set_id": "xy1",
+        "set_name": "XY",
+        "image_url": "https://assets.tcgdex.net/en/xy/xy1/141/low.webp",
+        "score": 85,
+        "reasons": [
+          "OCR name approximately matches ('Venusaur EX')",
+          "Matching 'ex' designation",
+          "Card number unverified (141 vs query 7)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "180",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.993
+      },
+      {
+        "id": "ex6-112",
+        "name": "Venusaur ex",
+        "local_id": "112",
+        "set_id": "ex6",
+        "set_name": "FireRed & LeafGreen",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex6/112/low.webp",
+        "score": 42,
+        "reasons": [
+          "OCR name approximately matches ('Venusaur ex')",
+          "Matching 'ex' designation",
+          "Card number unverified (112 vs query 7)"
+        ],
+        "hp": "150",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.111
+      },
+      {
+        "id": "g1-1",
+        "name": "Venusaur EX",
+        "local_id": "1",
+        "set_id": "g1",
+        "set_name": "Generations",
+        "image_url": "https://assets.tcgdex.net/en/xy/g1/1/low.webp",
+        "score": 42,
+        "reasons": [
+          "OCR name approximately matches ('Venusaur EX')",
+          "Matching 'ex' designation",
+          "Card number unverified (1 vs query 7)"
+        ],
+        "hp": "180",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.232
+      },
+      {
+        "id": "g1-2",
+        "name": "M Venusaur EX",
+        "local_id": "2",
+        "set_id": "g1",
+        "set_name": "Generations",
+        "image_url": "https://assets.tcgdex.net/en/xy/g1/2/low.webp",
+        "score": 42,
+        "reasons": [
+          "OCR name approximately matches ('M Venusaur EX')",
+          "Matching 'ex' designation",
+          "Card number unverified (2 vs query 7)"
+        ],
+        "hp": "230",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.139
+      },
+      {
+        "id": "me01-003",
+        "name": "Mega Venusaur ex",
+        "local_id": "003",
+        "set_id": "me01",
+        "set_name": "Mega Evolution",
+        "image_url": "https://assets.tcgdex.net/en/me/me01/003/low.webp",
+        "score": 42,
+        "reasons": [
+          "OCR name approximately matches ('Mega Venusaur ex')",
+          "Matching 'ex' designation",
+          "Card number unverified (003 vs query 7)"
+        ],
+        "hp": "380",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.245
+      }
+    ]
+  },
+  {
+    "id": "xy12-101",
+    "category": "additional_catalog",
+    "name": "MEGA",
+    "number": "101/108",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 91,
+    "seconds": 3.56,
+    "candidates": [
+      {
+        "id": "xy12-101",
+        "name": "M Charizard EX",
+        "local_id": "101",
+        "set_id": "xy12",
+        "set_name": "Evolutions",
+        "image_url": "https://assets.tcgdex.net/en/xy/xy12/101/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (101/108)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "220",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.993
+      },
+      {
+        "id": "bw5-101",
+        "name": "Twist Mountain",
+        "local_id": "101",
+        "set_id": "bw5",
+        "set_name": "Dark Explorers",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw5/101/low.webp",
+        "score": 50,
+        "reasons": [
+          "Full number and denominator match (101/108)"
+        ],
+        "hp": null,
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.182
+      },
+      {
+        "id": "ex16-101",
+        "name": "Jolteon \u2606",
+        "local_id": "101",
+        "set_id": "ex16",
+        "set_name": "Power Keepers",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex16/101/low.webp",
+        "score": 50,
+        "reasons": [
+          "Full number and denominator match (101/108)"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.246
+      },
+      {
+        "id": "xy6-101",
+        "name": "Latios EX",
+        "local_id": "101",
+        "set_id": "xy6",
+        "set_name": "Roaring Skies",
+        "image_url": "https://assets.tcgdex.net/en/xy/xy6/101/low.webp",
+        "score": 50,
+        "reasons": [
+          "Full number and denominator match (101/108)"
+        ],
+        "hp": "170",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.252
+      },
+      {
+        "id": "mep-101",
+        "name": "Nidorina",
+        "local_id": "101",
+        "set_id": "mep",
+        "set_name": "MEP Black Star Promos",
+        "image_url": null,
+        "score": 42,
+        "reasons": [
+          "Collector number numerator matches (101), printed denominator unverified"
+        ],
+        "hp": "90",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "swshp-SWSH020",
+    "category": "additional_catalog",
+    "name": "Pikachu",
+    "number": "SWSH 020",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 230,
+    "seconds": 5.98,
+    "candidates": [
+      {
+        "id": "swshp-SWSH020",
+        "name": "Pikachu",
+        "local_id": "SWSH020",
+        "set_id": "swshp",
+        "set_name": "SWSH Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swshp/SWSH020/low.webp",
+        "score": 100,
+        "reasons": [
+          "Collector number match without leading zero (SWSH020)",
+          "Exact card name match ('Pikachu')",
+          "Attack matches ('Iron Tail')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Iron Tail"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.991
+      },
+      {
+        "id": "2019sm-6",
+        "name": "Pikachu",
+        "local_id": "6",
+        "set_id": "2019sm",
+        "set_name": "McDonald's Collection 2019",
+        "image_url": null,
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (6 vs SWSH 020)",
+          "Attack matches ('Iron Tail')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Iron Tail"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "30th-039",
+        "name": "Pikachu",
+        "local_id": "039",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/039/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (039 vs SWSH 020)",
+          "Attack matches ('Iron Tail')"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Iron Tail"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.22
+      },
+      {
+        "id": "swshp-SWSH039",
+        "name": "Pikachu",
+        "local_id": "SWSH039",
+        "set_id": "swshp",
+        "set_name": "SWSH Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swshp/SWSH039/low.webp",
+        "score": 40,
+        "reasons": [
+          "Matching number prefix (SWSH)",
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (SWSH039 vs SWSH 020)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.166
+      },
+      {
+        "id": "swshp-SWSH153",
+        "name": "Pikachu",
+        "local_id": "SWSH153",
+        "set_id": "swshp",
+        "set_name": "SWSH Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swshp/SWSH153/low.webp",
+        "score": 40,
+        "reasons": [
+          "Matching number prefix (SWSH)",
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (SWSH153 vs SWSH 020)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.19
+      }
+    ]
+  },
+  {
+    "id": "base1-1",
+    "category": "clean",
+    "name": "Alakazam",
+    "number": "1/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 33,
+    "seconds": 4.93,
+    "candidates": [
+      {
+        "id": "base1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/1/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (1/102)",
+          "Exact card name match ('Alakazam')",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "base4-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (102 vs 130)",
+          "Exact card name match ('Alakazam')",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.826
+      },
+      {
+        "id": "ecard1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (102 vs 165)",
+          "Exact card name match ('Alakazam')"
+        ],
+        "hp": "100",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.388
+      },
+      {
+        "id": "lc-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (102 vs 110)",
+          "Exact card name match ('Alakazam')",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.845
+      },
+      {
+        "id": "base5-1",
+        "name": "Dark Alakazam",
+        "local_id": "1",
+        "set_id": "base5",
+        "set_name": "Team Rocket",
+        "image_url": "https://assets.tcgdex.net/en/base/base5/1/low.webp",
+        "score": 50,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (102 vs 82)",
+          "Name closely matches ('Dark Alakazam')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.61
+      }
+    ]
+  },
+  {
+    "id": "base1-1",
+    "category": "synthetic",
+    "name": "Puc Alakazam on the St",
+    "number": "4",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 32,
+    "seconds": 3.93,
+    "candidates": [
+      {
+        "id": "base1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/1/low.webp",
+        "score": 80,
+        "reasons": [
+          "Name closely matches ('Alakazam')",
+          "Card number unverified (1 vs query 4)",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.786
+      },
+      {
+        "id": "lc-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/1/low.webp",
+        "score": 79,
+        "reasons": [
+          "Name closely matches ('Alakazam')",
+          "Card number unverified (1 vs query 4)",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.772
+      },
+      {
+        "id": "base4-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/1/low.webp",
+        "score": 78,
+        "reasons": [
+          "Name closely matches ('Alakazam')",
+          "Card number unverified (1 vs query 4)",
+          "HP matches (80)",
+          "Attack matches ('Confuse Ray')",
+          "Ability matches ('Damage Swap')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "80",
+        "matched_attacks": [
+          "Confuse Ray"
+        ],
+        "matched_abilities": [
+          "Damage Swap"
+        ],
+        "visual_similarity": 0.735
+      },
+      {
+        "id": "dp2-2",
+        "name": "Alakazam",
+        "local_id": "2",
+        "set_id": "dp2",
+        "set_name": "Mysterious Treasures",
+        "image_url": "https://assets.tcgdex.net/en/dp/dp2/2/low.webp",
+        "score": 35,
+        "reasons": [
+          "Name closely matches ('Alakazam')",
+          "Card number unverified (2 vs query 4)"
+        ],
+        "hp": "100",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.245
+      },
+      {
+        "id": "ecard1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/1/low.webp",
+        "score": 35,
+        "reasons": [
+          "Name closely matches ('Alakazam')",
+          "Card number unverified (1 vs query 4)"
+        ],
+        "hp": "100",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.367
+      }
+    ]
+  },
+  {
+    "id": "base1-4",
+    "category": "clean",
+    "name": "Charizard",
+    "number": "4/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 114,
+    "seconds": 3.05,
+    "candidates": [
+      {
+        "id": "base1-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/4/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (4/102)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "lc-3",
+        "name": "Charizard",
+        "local_id": "3",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/3/low.webp",
+        "score": 68,
+        "reasons": [
+          "Exact card name match ('Charizard')",
+          "Card number differs from query (3 vs 4/102)",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.71
+      },
+      {
+        "id": "base4-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (102 vs 130)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.719
+      },
+      {
+        "id": "ex14-4",
+        "name": "Charizard \u03b4",
+        "local_id": "4",
+        "set_id": "ex14",
+        "set_name": "Crystal Guardians",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex14/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (102 vs 100)",
+          "Name closely matches ('Charizard \u03b4')",
+          "HP matches (120)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.286
+      },
+      {
+        "id": "30th-c-001",
+        "name": "Charizard",
+        "local_id": "001",
+        "set_id": "30th-c",
+        "set_name": "30th Classic Collection",
+        "image_url": null,
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Charizard')",
+          "Card number differs from query (001 vs 4/102)",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "base1-4",
+    "category": "synthetic",
+    "name": "Charizard",
+    "number": "4/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 114,
+    "seconds": 3.08,
+    "candidates": [
+      {
+        "id": "base1-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/4/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (4/102)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.775
+      },
+      {
+        "id": "lc-3",
+        "name": "Charizard",
+        "local_id": "3",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/3/low.webp",
+        "score": 67,
+        "reasons": [
+          "Exact card name match ('Charizard')",
+          "Card number differs from query (3 vs 4/102)",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.676
+      },
+      {
+        "id": "base4-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (102 vs 130)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.668
+      },
+      {
+        "id": "ex14-4",
+        "name": "Charizard \u03b4",
+        "local_id": "4",
+        "set_id": "ex14",
+        "set_name": "Crystal Guardians",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex14/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (102 vs 100)",
+          "Name closely matches ('Charizard \u03b4')",
+          "HP matches (120)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.297
+      },
+      {
+        "id": "30th-c-001",
+        "name": "Charizard",
+        "local_id": "001",
+        "set_id": "30th-c",
+        "set_name": "30th Classic Collection",
+        "image_url": null,
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Charizard')",
+          "Card number differs from query (001 vs 4/102)",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "base1-58",
+    "category": "clean",
+    "name": "Pikachu HF",
+    "number": "58/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 232,
+    "seconds": 2.36,
+    "candidates": [
+      {
+        "id": "base1-58",
+        "name": "Pikachu",
+        "local_id": "58",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/58/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (58/102)",
+          "Exact card name match ('Pikachu')",
+          "HP matches (40)",
+          "Attack matches ('Gnaw')",
+          "Attack matches ('Thunder Jolt')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Gnaw",
+          "Thunder Jolt"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "2021swsh-25",
+        "name": "Pikachu",
+        "local_id": "25",
+        "set_id": "2021swsh",
+        "set_name": "McDonald's Collection 2021",
+        "image_url": null,
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (25 vs 58/102)",
+          "Attack matches ('Gnaw')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "30th-031",
+        "name": "Pikachu",
+        "local_id": "031",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/031/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (031 vs 58/102)",
+          "Attack matches ('Gnaw')"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.331
+      },
+      {
+        "id": "ecard1-58",
+        "name": "Pichu",
+        "local_id": "58",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/58/low.webp",
+        "score": 45,
+        "reasons": [
+          "Numerator matches (58), but denominator conflicts (102 vs 165)",
+          "OCR name approximately matches ('Pichu')"
+        ],
+        "hp": "30",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.228
+      },
+      {
+        "id": "2014xy-5",
+        "name": "Pikachu",
+        "local_id": "5",
+        "set_id": "2014xy",
+        "set_name": "McDonald's Collection 2014",
+        "image_url": null,
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (5 vs 58/102)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "base1-58",
+    "category": "synthetic",
+    "name": "Pikachu",
+    "number": "58/102",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 232,
+    "seconds": 3.02,
+    "candidates": [
+      {
+        "id": "base1-58",
+        "name": "Pikachu",
+        "local_id": "58",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/58/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (58/102)",
+          "Exact card name match ('Pikachu')",
+          "HP matches (40)",
+          "Attack matches ('Gnaw')",
+          "Attack matches ('Thunder Jolt')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Gnaw",
+          "Thunder Jolt"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.778
+      },
+      {
+        "id": "2021swsh-25",
+        "name": "Pikachu",
+        "local_id": "25",
+        "set_id": "2021swsh",
+        "set_name": "McDonald's Collection 2021",
+        "image_url": null,
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (25 vs 58/102)",
+          "Attack matches ('Gnaw')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "30th-031",
+        "name": "Pikachu",
+        "local_id": "031",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/031/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (031 vs 58/102)",
+          "Attack matches ('Gnaw')"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.323
+      },
+      {
+        "id": "ecard1-58",
+        "name": "Pichu",
+        "local_id": "58",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/58/low.webp",
+        "score": 45,
+        "reasons": [
+          "Numerator matches (58), but denominator conflicts (102 vs 165)",
+          "OCR name approximately matches ('Pichu')"
+        ],
+        "hp": "30",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.21
+      },
+      {
+        "id": "2014xy-5",
+        "name": "Pikachu",
+        "local_id": "5",
+        "set_id": "2014xy",
+        "set_name": "McDonald's Collection 2014",
+        "image_url": null,
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (5 vs 58/102)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      }
+    ]
+  },
+  {
+    "id": "base2-3",
+    "category": "clean",
+    "name": "Flareon",
+    "number": "3/64",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 42,
+    "seconds": 3.71,
+    "candidates": [
+      {
+        "id": "base2-3",
+        "name": "Flareon",
+        "local_id": "3",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/3/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (3/64)",
+          "Exact card name match ('Flareon')",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "lc-10",
+        "name": "Flareon",
+        "local_id": "10",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/10/low.webp",
+        "score": 85,
+        "reasons": [
+          "Exact card name match ('Flareon')",
+          "Card number differs from query (10 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.954
+      },
+      {
+        "id": "base2-19",
+        "name": "Flareon",
+        "local_id": "19",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/19/low.webp",
+        "score": 72,
+        "reasons": [
+          "Exact card name match ('Flareon')",
+          "Card number differs from query (19 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.898
+      },
+      {
+        "id": "pop3-2",
+        "name": "Flareon",
+        "local_id": "2",
+        "set_id": "pop3",
+        "set_name": "POP Series 3",
+        "image_url": "https://assets.tcgdex.net/en/pop/pop3/2/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Flareon')",
+          "Card number differs from query (2 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.125
+      },
+      {
+        "id": "col1-44",
+        "name": "Flareon",
+        "local_id": "44",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/44/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Flareon')",
+          "Card number differs from query (44 vs 3/64)",
+          "Attack matches ('Flamethrower')"
+        ],
+        "hp": "90",
+        "matched_attacks": [
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.201
+      }
+    ]
+  },
+  {
+    "id": "base2-3",
+    "category": "synthetic",
+    "name": "Put Flareon onthe",
+    "number": "3/64",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 34,
+    "seconds": 2.82,
+    "candidates": [
+      {
+        "id": "base2-3",
+        "name": "Flareon",
+        "local_id": "3",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/3/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (3/64)",
+          "Name closely matches ('Flareon')",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.791
+      },
+      {
+        "id": "lc-10",
+        "name": "Flareon",
+        "local_id": "10",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/10/low.webp",
+        "score": 59,
+        "reasons": [
+          "Name closely matches ('Flareon')",
+          "Card number differs from query (10 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.768
+      },
+      {
+        "id": "base2-19",
+        "name": "Flareon",
+        "local_id": "19",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/19/low.webp",
+        "score": 58,
+        "reasons": [
+          "Name closely matches ('Flareon')",
+          "Card number differs from query (19 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')",
+          "Attack matches ('Flamethrower')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack",
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.714
+      },
+      {
+        "id": "pop3-2",
+        "name": "Flareon",
+        "local_id": "2",
+        "set_id": "pop3",
+        "set_name": "POP Series 3",
+        "image_url": "https://assets.tcgdex.net/en/pop/pop3/2/low.webp",
+        "score": 40,
+        "reasons": [
+          "Name closely matches ('Flareon')",
+          "Card number differs from query (2 vs 3/64)",
+          "HP matches (70)",
+          "Attack matches ('Quick Attack')"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Quick Attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.126
+      },
+      {
+        "id": "col1-44",
+        "name": "Flareon",
+        "local_id": "44",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/44/low.webp",
+        "score": 35,
+        "reasons": [
+          "Name closely matches ('Flareon')",
+          "Card number differs from query (44 vs 3/64)",
+          "Attack matches ('Flamethrower')"
+        ],
+        "hp": "90",
+        "matched_attacks": [
+          "Flamethrower"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.19
+      }
+    ]
+  },
+  {
+    "id": "sm1-1",
+    "category": "clean",
+    "name": "asic Caterpie",
+    "number": "1/149",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 23,
+    "seconds": 3.22,
+    "candidates": [
+      {
+        "id": "sm1-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm1",
+        "set_name": "Sun & Moon",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm1/1/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (1/149)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)",
+          "Attack matches ('Nap')",
+          "Attack matches ('Gnaw')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Nap",
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "2019sm-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "2019sm",
+        "set_name": "McDonald's Collection 2019",
+        "image_url": null,
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 12)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "sm115-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm115",
+        "set_name": "Hidden Fates",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm115/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 68)",
+          "Exact card name match ('Caterpie')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.574
+      },
+      {
+        "id": "sm3-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm3",
+        "set_name": "Burning Shadows",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm3/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 147)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.3
+      },
+      {
+        "id": "sv09-001",
+        "name": "Caterpie",
+        "local_id": "001",
+        "set_id": "sv09",
+        "set_name": "Journey Together",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv09/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (149 vs 159)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.534
+      }
+    ]
+  },
+  {
+    "id": "sm1-1",
+    "category": "synthetic",
+    "name": "ic Caterpie",
+    "number": "1/149",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 23,
+    "seconds": 2.91,
+    "candidates": [
+      {
+        "id": "sm1-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm1",
+        "set_name": "Sun & Moon",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm1/1/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (1/149)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)",
+          "Attack matches ('Nap')",
+          "Attack matches ('Gnaw')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Nap",
+          "Gnaw"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.694
+      },
+      {
+        "id": "2019sm-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "2019sm",
+        "set_name": "McDonald's Collection 2019",
+        "image_url": null,
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 12)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "sm115-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm115",
+        "set_name": "Hidden Fates",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm115/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 68)",
+          "Exact card name match ('Caterpie')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.547
+      },
+      {
+        "id": "sm3-1",
+        "name": "Caterpie",
+        "local_id": "1",
+        "set_id": "sm3",
+        "set_name": "Burning Shadows",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm3/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (149 vs 147)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.263
+      },
+      {
+        "id": "sv09-001",
+        "name": "Caterpie",
+        "local_id": "001",
+        "set_id": "sv09",
+        "set_name": "Journey Together",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv09/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (149 vs 159)",
+          "Exact card name match ('Caterpie')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.52
+      }
+    ]
+  },
+  {
+    "id": "sv01-001",
+    "category": "clean",
+    "name": "Pineco",
+    "number": "001/198",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 21,
+    "seconds": 3.42,
+    "candidates": [
+      {
+        "id": "sv01-001",
+        "name": "Pineco",
+        "local_id": "001",
+        "set_id": "sv01",
+        "set_name": "Scarlet & Violet",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv01/001/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (001/198)",
+          "Exact card name match ('Pineco')",
+          "HP matches (60)",
+          "Attack matches ('Guard Press')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Guard Press"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "sv04.5-001",
+        "name": "Pineco",
+        "local_id": "001",
+        "set_id": "sv04.5",
+        "set_name": "Paldean Fates",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv04.5/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (198 vs 91)",
+          "Exact card name match ('Pineco')"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.639
+      },
+      {
+        "id": "col1-68",
+        "name": "Pineco",
+        "local_id": "68",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/68/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (68 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.149
+      },
+      {
+        "id": "hgss3-62",
+        "name": "Pineco",
+        "local_id": "62",
+        "set_id": "hgss3",
+        "set_name": "Undaunted",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss3/62/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (62 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.268
+      },
+      {
+        "id": "hgss3-63",
+        "name": "Pineco",
+        "local_id": "63",
+        "set_id": "hgss3",
+        "set_name": "Undaunted",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss3/63/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (63 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.293
+      }
+    ]
+  },
+  {
+    "id": "sv01-001",
+    "category": "synthetic",
+    "name": "Pineco",
+    "number": "001/198",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 21,
+    "seconds": 3.31,
+    "candidates": [
+      {
+        "id": "sv01-001",
+        "name": "Pineco",
+        "local_id": "001",
+        "set_id": "sv01",
+        "set_name": "Scarlet & Violet",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv01/001/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (001/198)",
+          "Exact card name match ('Pineco')",
+          "HP matches (60)",
+          "Attack matches ('Guard Press')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Guard Press"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.783
+      },
+      {
+        "id": "sv04.5-001",
+        "name": "Pineco",
+        "local_id": "001",
+        "set_id": "sv04.5",
+        "set_name": "Paldean Fates",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv04.5/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (198 vs 91)",
+          "Exact card name match ('Pineco')"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.561
+      },
+      {
+        "id": "col1-68",
+        "name": "Pineco",
+        "local_id": "68",
+        "set_id": "col1",
+        "set_name": "Call of Legends",
+        "image_url": "https://assets.tcgdex.net/en/col/col1/68/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (68 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.178
+      },
+      {
+        "id": "hgss3-62",
+        "name": "Pineco",
+        "local_id": "62",
+        "set_id": "hgss3",
+        "set_name": "Undaunted",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss3/62/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (62 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.278
+      },
+      {
+        "id": "hgss3-63",
+        "name": "Pineco",
+        "local_id": "63",
+        "set_id": "hgss3",
+        "set_name": "Undaunted",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss3/63/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pineco')",
+          "Card number differs from query (63 vs 001/198)",
+          "HP matches (60)"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.309
+      }
+    ]
+  },
+  {
+    "id": "sv03.5-001",
+    "category": "clean",
+    "name": "Bulbasaur",
+    "number": "001/165",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 31,
+    "seconds": 3.26,
+    "candidates": [
+      {
+        "id": "sv03.5-001",
+        "name": "Bulbasaur",
+        "local_id": "001",
+        "set_id": "sv03.5",
+        "set_name": "151",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv03.5/001/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (001/165)",
+          "Exact card name match ('Bulbasaur')",
+          "Attack matches ('Leech Seed')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Leech Seed"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.994
+      },
+      {
+        "id": "2021swsh-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "2021swsh",
+        "set_name": "McDonald's Collection 2021",
+        "image_url": null,
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (165 vs 25)",
+          "Exact card name match ('Bulbasaur')"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "bw5-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "bw5",
+        "set_name": "Dark Explorers",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw5/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (165 vs 108)",
+          "Exact card name match ('Bulbasaur')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.303
+      },
+      {
+        "id": "det1-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "det1",
+        "set_name": "Detective Pikachu",
+        "image_url": "https://assets.tcgdex.net/en/sm/det1/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (165 vs 18)",
+          "Exact card name match ('Bulbasaur')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.33
+      },
+      {
+        "id": "me01-001",
+        "name": "Bulbasaur",
+        "local_id": "001",
+        "set_id": "me01",
+        "set_name": "Mega Evolution",
+        "image_url": "https://assets.tcgdex.net/en/me/me01/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (165 vs 132)",
+          "Exact card name match ('Bulbasaur')"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.557
+      }
+    ]
+  },
+  {
+    "id": "sv03.5-001",
+    "category": "synthetic",
+    "name": "SIC",
+    "number": "001/165",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 46,
+    "seconds": 2.96,
+    "candidates": [
+      {
+        "id": "sv03.5-001",
+        "name": "Bulbasaur",
+        "local_id": "001",
+        "set_id": "sv03.5",
+        "set_name": "151",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv03.5/001/low.webp",
+        "score": 64,
+        "reasons": [
+          "Full number and denominator match (001/165)",
+          "Card name differs from query ('Bulbasaur')",
+          "Attack matches ('Leech Seed')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Leech Seed"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.754
+      },
+      {
+        "id": "ecard1-1",
+        "name": "Alakazam",
+        "local_id": "1",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/1/low.webp",
+        "score": 25,
+        "reasons": [
+          "Full number and denominator match (1/165)",
+          "Card name differs from query ('Alakazam')"
+        ],
+        "hp": "100",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.14
+      },
+      {
+        "id": "bw2-11",
+        "name": "Whimsicott",
+        "local_id": "11",
+        "set_id": "bw2",
+        "set_name": "Emerging Powers",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw2/11/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Whimsicott')",
+          "Card number differs from query (11 vs 001/165)"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.34
+      },
+      {
+        "id": "bw2-12",
+        "name": "Whimsicott",
+        "local_id": "12",
+        "set_id": "bw2",
+        "set_name": "Emerging Powers",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw2/12/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Whimsicott')",
+          "Card number differs from query (12 vs 001/165)"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.319
+      },
+      {
+        "id": "bw7-15",
+        "name": "Whimsicott",
+        "local_id": "15",
+        "set_id": "bw7",
+        "set_name": "Boundaries Crossed",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw7/15/low.webp",
+        "score": 15,
+        "reasons": [
+          "Name closely matches ('Whimsicott')",
+          "Card number differs from query (15 vs 001/165)"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.219
+      }
+    ]
+  },
+  {
+    "id": "swsh1-1",
+    "category": "clean",
+    "name": "BAS",
+    "number": "001/202",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 96,
+    "seconds": 3.65,
+    "candidates": [
+      {
+        "id": "swsh1-1",
+        "name": "Celebi V",
+        "local_id": "1",
+        "set_id": "swsh1",
+        "set_name": "Sword & Shield",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh1/1/low.webp",
+        "score": 85,
+        "reasons": [
+          "Full number and denominator match (1/202)",
+          "Card name differs from query ('Celebi V')",
+          "Attack matches ('Find a Friend')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "180",
+        "matched_attacks": [
+          "Find a Friend"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.996
+      },
+      {
+        "id": "det1-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "det1",
+        "set_name": "Detective Pikachu",
+        "image_url": "https://assets.tcgdex.net/en/sm/det1/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (202 vs 18)",
+          "Name closely matches ('Bulbasaur')",
+          "Attack matches ('Find a Friend')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Find a Friend"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.146
+      },
+      {
+        "id": "2021swsh-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "2021swsh",
+        "set_name": "McDonald's Collection 2021",
+        "image_url": null,
+        "score": 50,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (202 vs 25)",
+          "Name closely matches ('Bulbasaur')"
+        ],
+        "hp": "70",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "bw5-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "bw5",
+        "set_name": "Dark Explorers",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw5/1/low.webp",
+        "score": 50,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (202 vs 108)",
+          "Name closely matches ('Bulbasaur')"
+        ],
+        "hp": "60",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.279
+      },
+      {
+        "id": "me01-001",
+        "name": "Bulbasaur",
+        "local_id": "001",
+        "set_id": "me01",
+        "set_name": "Mega Evolution",
+        "image_url": "https://assets.tcgdex.net/en/me/me01/001/low.webp",
+        "score": 50,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (202 vs 132)",
+          "Name closely matches ('Bulbasaur')"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.148
+      }
+    ]
+  },
+  {
+    "id": "swsh1-1",
+    "category": "synthetic",
+    "name": "TF lcbiV",
+    "number": "001/202",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 3,
+    "seconds": 3.57,
+    "candidates": [
+      {
+        "id": "swsh1-1",
+        "name": "Celebi V",
+        "local_id": "1",
+        "set_id": "swsh1",
+        "set_name": "Sword & Shield",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh1/1/low.webp",
+        "score": 54,
+        "reasons": [
+          "Full number and denominator match (1/202)",
+          "Card name differs from query ('Celebi V')",
+          "Attack matches ('Find a Friend')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "180",
+        "matched_attacks": [
+          "Find a Friend"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.771
+      },
+      {
+        "id": "mep-001",
+        "name": "Meganium",
+        "local_id": "001",
+        "set_id": "mep",
+        "set_name": "MEP Black Star Promos",
+        "image_url": null,
+        "score": 17,
+        "reasons": [
+          "Collector number numerator matches (001), printed denominator unverified",
+          "Card name differs from query ('Meganium')"
+        ],
+        "hp": "160",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "det1-1",
+        "name": "Bulbasaur",
+        "local_id": "1",
+        "set_id": "det1",
+        "set_name": "Detective Pikachu",
+        "image_url": "https://assets.tcgdex.net/en/sm/det1/1/low.webp",
+        "score": 10,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (202 vs 18)",
+          "Card name differs from query ('Bulbasaur')",
+          "Attack matches ('Find a Friend')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Find a Friend"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.15
+      }
+    ]
+  },
+  {
+    "id": "swsh12.5-001",
+    "category": "clean",
+    "name": "Oddish",
+    "number": "001/159",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 31,
+    "seconds": 3.35,
+    "candidates": [
+      {
+        "id": "swsh12.5-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "swsh12.5",
+        "set_name": "Crown Zenith",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh12.5/001/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (001/159)",
+          "Exact card name match ('Oddish')",
+          "Attack matches ('Leaf Boomerang')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Leaf Boomerang"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "bw7-1",
+        "name": "Oddish",
+        "local_id": "1",
+        "set_id": "bw7",
+        "set_name": "Boundaries Crossed",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw7/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (159 vs 149)",
+          "Exact card name match ('Oddish')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.319
+      },
+      {
+        "id": "me02-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "me02",
+        "set_name": "Phantasmal Flames",
+        "image_url": "https://assets.tcgdex.net/en/me/me02/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (159 vs 94)",
+          "Exact card name match ('Oddish')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.703
+      },
+      {
+        "id": "sv03-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "sv03",
+        "set_name": "Obsidian Flames",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv03/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (159 vs 197)",
+          "Exact card name match ('Oddish')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.348
+      },
+      {
+        "id": "swsh11-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "swsh11",
+        "set_name": "Lost Origin",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh11/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (159 vs 196)",
+          "Exact card name match ('Oddish')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.429
+      }
+    ]
+  },
+  {
+    "id": "swsh12.5-001",
+    "category": "synthetic",
+    "name": "Oddish",
+    "number": "007/159",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 32,
+    "seconds": 3.43,
+    "candidates": [
+      {
+        "id": "swsh12.5-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "swsh12.5",
+        "set_name": "Crown Zenith",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh12.5/001/low.webp",
+        "score": 66,
+        "reasons": [
+          "Exact card name match ('Oddish')",
+          "Card number differs from query (001 vs 007/159)",
+          "Attack matches ('Leaf Boomerang')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Leaf Boomerang"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.822
+      },
+      {
+        "id": "me02-001",
+        "name": "Oddish",
+        "local_id": "001",
+        "set_id": "me02",
+        "set_name": "Phantasmal Flames",
+        "image_url": "https://assets.tcgdex.net/en/me/me02/001/low.webp",
+        "score": 42,
+        "reasons": [
+          "Exact card name match ('Oddish')",
+          "Card number differs from query (001 vs 007/159)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.669
+      },
+      {
+        "id": "ex5-68",
+        "name": "Oddish",
+        "local_id": "68",
+        "set_id": "ex5",
+        "set_name": "Hidden Legends",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex5/68/low.webp",
+        "score": 41,
+        "reasons": [
+          "Exact card name match ('Oddish')",
+          "Card number differs from query (68 vs 007/159)",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.657
+      },
+      {
+        "id": "B1a-088",
+        "name": "Oddish",
+        "local_id": "088",
+        "set_id": "B1a",
+        "set_name": "Crimson Blaze",
+        "image_url": null,
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Oddish')",
+          "Card number differs from query (088 vs 007/159)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "base2-58",
+        "name": "Oddish",
+        "local_id": "58",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/58/low.webp",
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Oddish')",
+          "Card number differs from query (58 vs 007/159)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.484
+      }
+    ]
+  },
+  {
+    "id": "swsh4-1",
+    "category": "clean",
+    "name": "Weedle",
+    "number": "001/185",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 26,
+    "seconds": 3.49,
+    "candidates": [
+      {
+        "id": "swsh4-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "swsh4",
+        "set_name": "Vivid Voltage",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh4/1/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (1/185)",
+          "Exact card name match ('Weedle')",
+          "HP matches (40)",
+          "Attack matches ('Bug Hunch')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Bug Hunch"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.996
+      },
+      {
+        "id": "2014xy-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "2014xy",
+        "set_name": "McDonald's Collection 2014",
+        "image_url": null,
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 12)",
+          "Exact card name match ('Weedle')",
+          "HP matches (40)"
+        ],
+        "hp": "40",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "bw9-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "bw9",
+        "set_name": "Plasma Freeze",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw9/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 116)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.2
+      },
+      {
+        "id": "me04-001",
+        "name": "Weedle",
+        "local_id": "001",
+        "set_id": "me04",
+        "set_name": "Chaos Rising",
+        "image_url": "https://assets.tcgdex.net/en/me/me04/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (185 vs 86)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.486
+      },
+      {
+        "id": "sm4-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "sm4",
+        "set_name": "Crimson Invasion",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm4/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 111)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.37
+      }
+    ]
+  },
+  {
+    "id": "swsh4-1",
+    "category": "synthetic",
+    "name": "Weedle",
+    "number": "001/185",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 26,
+    "seconds": 3.34,
+    "candidates": [
+      {
+        "id": "swsh4-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "swsh4",
+        "set_name": "Vivid Voltage",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh4/1/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (1/185)",
+          "Exact card name match ('Weedle')",
+          "Attack matches ('Bug Hunch')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "40",
+        "matched_attacks": [
+          "Bug Hunch"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.762
+      },
+      {
+        "id": "2014xy-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "2014xy",
+        "set_name": "McDonald's Collection 2014",
+        "image_url": null,
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 12)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "40",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "bw9-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "bw9",
+        "set_name": "Plasma Freeze",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw9/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 116)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.187
+      },
+      {
+        "id": "me04-001",
+        "name": "Weedle",
+        "local_id": "001",
+        "set_id": "me04",
+        "set_name": "Chaos Rising",
+        "image_url": "https://assets.tcgdex.net/en/me/me04/001/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (001), but denominator conflicts (185 vs 86)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.419
+      },
+      {
+        "id": "sm4-1",
+        "name": "Weedle",
+        "local_id": "1",
+        "set_id": "sm4",
+        "set_name": "Crimson Invasion",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm4/1/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (1), but denominator conflicts (185 vs 111)",
+          "Exact card name match ('Weedle')"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.371
+      }
+    ]
+  },
+  {
+    "id": "base3-47",
+    "category": "user_scan_regression",
+    "name": "Geodude",
+    "number": "47/62",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 25,
+    "seconds": 3.4,
+    "candidates": [
+      {
+        "id": "base3-47",
+        "name": "Geodude",
+        "local_id": "47",
+        "set_id": "base3",
+        "set_name": "Fossil",
+        "image_url": "https://assets.tcgdex.net/en/base/base3/47/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (47/62)",
+          "Exact card name match ('Geodude')",
+          "HP matches (50)",
+          "Attack matches ('Stone Barrage')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Stone Barrage"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.995
+      },
+      {
+        "id": "lc-77",
+        "name": "Geodude",
+        "local_id": "77",
+        "set_id": "lc",
+        "set_name": "Legendary Collection",
+        "image_url": "https://assets.tcgdex.net/en/lc/lc/77/low.webp",
+        "score": 72,
+        "reasons": [
+          "Exact card name match ('Geodude')",
+          "Card number differs from query (77 vs 47/62)",
+          "HP matches (50)",
+          "Attack matches ('Stone Barrage')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Stone Barrage"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.864
+      },
+      {
+        "id": "pl4-65",
+        "name": "Geodude",
+        "local_id": "65",
+        "set_id": "pl4",
+        "set_name": "Arceus",
+        "image_url": "https://assets.tcgdex.net/en/pl/pl4/65/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Geodude')",
+          "Card number differs from query (65 vs 47/62)",
+          "Attack matches ('Stone Barrage')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Stone Barrage"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.327
+      },
+      {
+        "id": "ecard1-110",
+        "name": "Geodude",
+        "local_id": "110",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/110/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Geodude')",
+          "Card number differs from query (110 vs 47/62)",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.408
+      },
+      {
+        "id": "ex12-53",
+        "name": "Geodude",
+        "local_id": "53",
+        "set_id": "ex12",
+        "set_name": "Legend Maker",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex12/53/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Geodude')",
+          "Card number differs from query (53 vs 47/62)",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.288
+      }
+    ]
+  },
+  {
+    "id": "hgss1-109",
+    "category": "user_scan_regression",
+    "name": "Meganium",
+    "number": "109/123",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 21,
+    "seconds": 3.19,
+    "candidates": [
+      {
+        "id": "hgss1-109",
+        "name": "Meganium",
+        "local_id": "109",
+        "set_id": "hgss1",
+        "set_name": "HeartGold SoulSilver",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss1/109/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (109/123)",
+          "Exact card name match ('Meganium')",
+          "HP matches (150)",
+          "Attack matches ('Solarbeam')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.899
+      },
+      {
+        "id": "hgssp-HGSS08",
+        "name": "Meganium",
+        "local_id": "HGSS08",
+        "set_id": "hgssp",
+        "set_name": "HGSS Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgssp/HGSS08/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (HGSS08 vs 109/123)",
+          "HP matches (150)",
+          "Attack matches ('Solarbeam')"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.545
+      },
+      {
+        "id": "sm8-8",
+        "name": "Meganium",
+        "local_id": "8",
+        "set_id": "sm8",
+        "set_name": "Lost Thunder",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm8/8/low.webp",
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (8 vs 109/123)",
+          "HP matches (150)",
+          "Attack matches ('Solar Beam')"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solar Beam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.103
+      },
+      {
+        "id": "ecard1-53",
+        "name": "Meganium",
+        "local_id": "53",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/53/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (53 vs 109/123)",
+          "Attack matches ('Solarbeam')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.32
+      },
+      {
+        "id": "me01-010",
+        "name": "Meganium",
+        "local_id": "010",
+        "set_id": "me01",
+        "set_name": "Mega Evolution",
+        "image_url": "https://assets.tcgdex.net/en/me/me01/010/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (010 vs 109/123)",
+          "Attack matches ('Solar Beam')"
+        ],
+        "hp": "160",
+        "matched_attacks": [
+          "Solar Beam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.27
+      }
+    ]
+  },
+  {
+    "id": "sm8-8",
+    "category": "user_scan_regression",
+    "name": "Meganium",
+    "number": "8/214",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 21,
+    "seconds": 3.59,
+    "candidates": [
+      {
+        "id": "sm8-8",
+        "name": "Meganium",
+        "local_id": "8",
+        "set_id": "sm8",
+        "set_name": "Lost Thunder",
+        "image_url": "https://assets.tcgdex.net/en/sm/sm8/8/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (8/214)",
+          "Exact card name match ('Meganium')",
+          "Attack matches ('Solar Beam')",
+          "Ability matches ('Quick-Ripening Herb')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solar Beam"
+        ],
+        "matched_abilities": [
+          "Quick-Ripening Herb"
+        ],
+        "visual_similarity": 0.959
+      },
+      {
+        "id": "ecard1-53",
+        "name": "Meganium",
+        "local_id": "53",
+        "set_id": "ecard1",
+        "set_name": "Expedition Base Set",
+        "image_url": "https://assets.tcgdex.net/en/ecard/ecard1/53/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (53 vs 8/214)",
+          "Attack matches ('Solarbeam')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.227
+      },
+      {
+        "id": "hgss1-109",
+        "name": "Meganium",
+        "local_id": "109",
+        "set_id": "hgss1",
+        "set_name": "HeartGold SoulSilver",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgss1/109/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (109 vs 8/214)",
+          "Attack matches ('Solarbeam')"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.12
+      },
+      {
+        "id": "hgssp-HGSS08",
+        "name": "Meganium",
+        "local_id": "HGSS08",
+        "set_id": "hgssp",
+        "set_name": "HGSS Black Star Promos",
+        "image_url": "https://assets.tcgdex.net/en/hgss/hgssp/HGSS08/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (HGSS08 vs 8/214)",
+          "Attack matches ('Solarbeam')"
+        ],
+        "hp": "150",
+        "matched_attacks": [
+          "Solarbeam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.21
+      },
+      {
+        "id": "me01-010",
+        "name": "Meganium",
+        "local_id": "010",
+        "set_id": "me01",
+        "set_name": "Mega Evolution",
+        "image_url": "https://assets.tcgdex.net/en/me/me01/010/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Meganium')",
+          "Card number differs from query (010 vs 8/214)",
+          "Attack matches ('Solar Beam')"
+        ],
+        "hp": "160",
+        "matched_attacks": [
+          "Solar Beam"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.158
+      }
+    ]
+  },
+  {
+    "id": "base4-4",
+    "category": "user_scan_regression",
+    "name": "Charizard",
+    "number": "4/130",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 114,
+    "seconds": 4.61,
+    "candidates": [
+      {
+        "id": "base4-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/4/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (4/130)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.244
+      },
+      {
+        "id": "base1-4",
+        "name": "Charizard",
+        "local_id": "4",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (130 vs 102)",
+          "Exact card name match ('Charizard')",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": 0.287
+      },
+      {
+        "id": "ex14-4",
+        "name": "Charizard \u03b4",
+        "local_id": "4",
+        "set_id": "ex14",
+        "set_name": "Crystal Guardians",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex14/4/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (130 vs 100)",
+          "Name closely matches ('Charizard \u03b4')",
+          "HP matches (120)"
+        ],
+        "hp": "120",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.136
+      },
+      {
+        "id": "30th-c-001",
+        "name": "Charizard",
+        "local_id": "001",
+        "set_id": "30th-c",
+        "set_name": "30th Classic Collection",
+        "image_url": null,
+        "score": 50,
+        "reasons": [
+          "Exact card name match ('Charizard')",
+          "Card number differs from query (001 vs 4/130)",
+          "HP matches (120)",
+          "Attack matches ('Fire Spin')",
+          "Ability matches ('Energy Burn')"
+        ],
+        "hp": "120",
+        "matched_attacks": [
+          "Fire Spin"
+        ],
+        "matched_abilities": [
+          "Energy Burn"
+        ],
+        "visual_similarity": null
+      },
+      {
+        "id": "base5-4",
+        "name": "Dark Charizard",
+        "local_id": "4",
+        "set_id": "base5",
+        "set_name": "Team Rocket",
+        "image_url": "https://assets.tcgdex.net/en/base/base5/4/low.webp",
+        "score": 50,
+        "reasons": [
+          "Numerator matches (4), but denominator conflicts (130 vs 82)",
+          "Name closely matches ('Dark Charizard')"
+        ],
+        "hp": "80",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.222
+      }
+    ]
+  },
+  {
+    "id": "base2-60",
+    "category": "user_scan_regression",
+    "name": "Pikachu",
+    "number": "60/64",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 232,
+    "seconds": 2.99,
+    "candidates": [
+      {
+        "id": "base2-60",
+        "name": "Pikachu",
+        "local_id": "60",
+        "set_id": "base2",
+        "set_name": "Jungle",
+        "image_url": "https://assets.tcgdex.net/en/base/base2/60/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (60/64)",
+          "Exact card name match ('Pikachu')",
+          "HP matches (50)",
+          "Attack matches ('Spark')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "50",
+        "matched_attacks": [
+          "Spark"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.862
+      },
+      {
+        "id": "ex9-60",
+        "name": "Pikachu",
+        "local_id": "60",
+        "set_id": "ex9",
+        "set_name": "Emerald",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex9/60/low.webp",
+        "score": 59,
+        "reasons": [
+          "Numerator matches (60), but denominator conflicts (64 vs 106)",
+          "Exact card name match ('Pikachu')",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.284
+      },
+      {
+        "id": "30th-025",
+        "name": "Pikachu",
+        "local_id": "025",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/025/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (025 vs 60/64)",
+          "Attack matches ('Spark')"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Spark"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.193
+      },
+      {
+        "id": "30th-038",
+        "name": "Pikachu",
+        "local_id": "038",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/038/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (038 vs 60/64)",
+          "Attack matches ('Targeted Spark')"
+        ],
+        "hp": "60",
+        "matched_attacks": [
+          "Targeted Spark"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.362
+      },
+      {
+        "id": "30th-031",
+        "name": "Pikachu",
+        "local_id": "031",
+        "set_id": "30th",
+        "set_name": "30th Celebration",
+        "image_url": "https://assets.tcgdex.net/en/me/30th/031/low.webp",
+        "score": 35,
+        "reasons": [
+          "Exact card name match ('Pikachu')",
+          "Card number differs from query (031 vs 60/64)",
+          "HP matches (50)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.291
+      }
+    ]
+  },
+  {
+    "id": "me03-048",
+    "category": "user_scan_regression",
+    "name": "Gastly",
+    "number": "048/088",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "high",
+    "pool_size": 35,
+    "seconds": 3.71,
+    "candidates": [
+      {
+        "id": "me03-048",
+        "name": "Gastly",
+        "local_id": "048",
+        "set_id": "me03",
+        "set_name": "Perfect Order",
+        "image_url": "https://assets.tcgdex.net/en/me/me03/048/low.webp",
+        "score": 100,
+        "reasons": [
+          "Full number and denominator match (048/088)",
+          "Exact card name match ('Gastly')",
+          "Attack matches ('Surprise Attack')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "70",
+        "matched_attacks": [
+          "Surprise Attack"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.991
+      },
+      {
+        "id": "2019sm-7",
+        "name": "Gastly",
+        "local_id": "7",
+        "set_id": "2019sm",
+        "set_name": "McDonald's Collection 2019",
+        "image_url": null,
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Gastly')",
+          "Card number differs from query (7 vs 048/088)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": null
+      },
+      {
+        "id": "base1-50",
+        "name": "Gastly",
+        "local_id": "50",
+        "set_id": "base1",
+        "set_name": "Base Set",
+        "image_url": "https://assets.tcgdex.net/en/base/base1/50/low.webp",
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Gastly')",
+          "Card number differs from query (50 vs 048/088)"
+        ],
+        "hp": "30",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.41
+      },
+      {
+        "id": "base3-33",
+        "name": "Gastly",
+        "local_id": "33",
+        "set_id": "base3",
+        "set_name": "Fossil",
+        "image_url": "https://assets.tcgdex.net/en/base/base3/33/low.webp",
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Gastly')",
+          "Card number differs from query (33 vs 048/088)"
+        ],
+        "hp": "50",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.134
+      },
+      {
+        "id": "base4-75",
+        "name": "Gastly",
+        "local_id": "75",
+        "set_id": "base4",
+        "set_name": "Base Set 2",
+        "image_url": "https://assets.tcgdex.net/en/base/base4/75/low.webp",
+        "score": 25,
+        "reasons": [
+          "Exact card name match ('Gastly')",
+          "Card number differs from query (75 vs 048/088)"
+        ],
+        "hp": "30",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.354
+      }
+    ]
+  },
+  {
+    "id": "swsh8-139",
+    "category": "user_scan_regression",
+    "name": "steelix",
+    "number": "8",
+    "rank1": true,
+    "top5": true,
+    "false_high": false,
+    "confidence": "low",
+    "pool_size": 35,
+    "seconds": 4.59,
+    "candidates": [
+      {
+        "id": "swsh8-139",
+        "name": "Steelix",
+        "local_id": "139",
+        "set_id": "swsh8",
+        "set_name": "Fusion Strike",
+        "image_url": "https://assets.tcgdex.net/en/swsh/swsh8/139/low.webp",
+        "score": 87,
+        "reasons": [
+          "Exact card name match ('Steelix')",
+          "Card number unverified (139 vs query 8)",
+          "Attack matches ('Powerful Rage')",
+          "Attack matches ('Earthquake')",
+          "Artwork resembles the scan; printing still requires confirmation"
+        ],
+        "hp": "190",
+        "matched_attacks": [
+          "Powerful Rage",
+          "Earthquake"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.673
+      },
+      {
+        "id": "ex2-23",
+        "name": "Steelix",
+        "local_id": "23",
+        "set_id": "ex2",
+        "set_name": "Sandstorm",
+        "image_url": "https://assets.tcgdex.net/en/ex/ex2/23/low.webp",
+        "score": 65,
+        "reasons": [
+          "Exact card name match ('Steelix')",
+          "Card number unverified (23 vs query 8)",
+          "Attack matches ('Rage')"
+        ],
+        "hp": "100",
+        "matched_attacks": [
+          "Rage"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.193
+      },
+      {
+        "id": "sv04-125",
+        "name": "Steelix",
+        "local_id": "125",
+        "set_id": "sv04",
+        "set_name": "Paradox Rift",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv04/125/low.webp",
+        "score": 65,
+        "reasons": [
+          "Exact card name match ('Steelix')",
+          "Card number unverified (125 vs query 8)",
+          "Attack matches ('Earthquake')"
+        ],
+        "hp": "180",
+        "matched_attacks": [
+          "Earthquake"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.235
+      },
+      {
+        "id": "sv04-208",
+        "name": "Steelix",
+        "local_id": "208",
+        "set_id": "sv04",
+        "set_name": "Paradox Rift",
+        "image_url": "https://assets.tcgdex.net/en/sv/sv04/208/low.webp",
+        "score": 65,
+        "reasons": [
+          "Exact card name match ('Steelix')",
+          "Card number unverified (208 vs query 8)",
+          "Attack matches ('Earthquake')"
+        ],
+        "hp": "180",
+        "matched_attacks": [
+          "Earthquake"
+        ],
+        "matched_abilities": [],
+        "visual_similarity": 0.173
+      },
+      {
+        "id": "bw9-79",
+        "name": "Steelix",
+        "local_id": "79",
+        "set_id": "bw9",
+        "set_name": "Plasma Freeze",
+        "image_url": "https://assets.tcgdex.net/en/bw/bw9/79/low.webp",
+        "score": 45,
+        "reasons": [
+          "Exact card name match ('Steelix')",
+          "Card number unverified (79 vs query 8)"
+        ],
+        "hp": "150",
+        "matched_attacks": [],
+        "matched_abilities": [],
+        "visual_similarity": 0.212
+      }
+    ]
+  }
+]

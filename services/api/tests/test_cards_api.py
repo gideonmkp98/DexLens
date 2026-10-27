@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.v1.cards import get_tcgdex_client
+from app.api.v1.cards import get_tcgdex_client, search_cache
 from app.main import app
 from app.services.detail_cache import CacheEntry, catalog_cache
 from app.services.tcgdex import TcgdexClient, TcgdexConnectionError
@@ -12,6 +12,10 @@ from app.services.tcgdex import TcgdexClient, TcgdexConnectionError
 
 @pytest.fixture(autouse=True)
 def clear_catalog_cache():
+    search_cache._store.clear()
+    search_cache._failed_cooldowns.clear()
+    search_cache._failed_errors.clear()
+    search_cache._in_flight.clear()
     catalog_cache._store.clear()
     catalog_cache._failed_cooldowns.clear()
     catalog_cache._failed_errors.clear()
@@ -113,10 +117,54 @@ def test_list_cards_global_search(client: TestClient, mock_tcgdex: AsyncMock):
     mock_tcgdex.get_cards_search.assert_awaited_once_with(
         name="pikachu",
         local_id=None,
-        page=1,
-        page_size=24,
+        page=None,
         language="en",
     )
+
+
+@pytest.mark.parametrize(
+    ("page", "result_count", "expected_has_more"),
+    [(1, 24, True), (2, 24, True), (3, 5, False), (4, 0, False)],
+)
+def test_global_search_exact_total_and_pages(
+    client: TestClient,
+    mock_tcgdex: AsyncMock,
+    page: int,
+    result_count: int,
+    expected_has_more: bool,
+):
+    mock_tcgdex.get_cards_search.return_value = [
+        {"id": f"base1-{i}", "localId": str(i), "name": "Card"} for i in range(53)
+    ]
+
+    response = client.get(f"/api/v1/cards?page={page}&page_size=24")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 53
+    assert len(data["items"]) == result_count
+    assert [c["external_id"] for c in data["items"]] == [
+        f"base1-{i}" for i in range((page - 1) * 24, min(page * 24, 53))
+    ]
+    assert data["has_more"] is expected_has_more
+    mock_tcgdex.get_cards_search.assert_awaited_once_with(
+        name=None, local_id=None, page=None, language="en"
+    )
+
+
+def test_global_search_cache_shared_across_pages(client, mock_tcgdex):
+    mock_tcgdex.get_cards_search.return_value = [
+        {"id": f"base1-{i}", "localId": str(i), "name": "Pikachu"} for i in range(5)
+    ] + [{"id": "tcgp-1", "localId": "1", "name": "Pocket"}]
+    first = client.get("/api/v1/cards?name=Pikachu&page_size=2").json()
+    second = client.get("/api/v1/cards?name=Pikachu&page_size=3&page=2").json()
+    assert first["total"] == second["total"] == 5
+    assert len(first["items"]) == len(second["items"]) == 2
+    assert first["has_more"] is True
+    assert second["has_more"] is False
+    mock_tcgdex.get_cards_search.assert_awaited_once()
+    client.get("/api/v1/cards?name=Eevee&page_size=2")
+    assert mock_tcgdex.get_cards_search.await_count == 2
 
 
 def test_list_cards_global_search_filters_digital_cards(
