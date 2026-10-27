@@ -1,239 +1,224 @@
-# Pokémon TCG Scanner — Phase 2: Searchable Card Catalog
+# Pokémon TCG Scanner — Phase 5: OCR-Based Card Identification, Catalog Candidate Matching & User Confirmation
 
-A production-minded Pokémon TCG scanner web application. Phase 2 delivers a searchable, browsable card catalog that works **out-of-the-box without requiring an initial database import**, combining an in-memory bounded LRU cache with stale fallback, on-demand retrieval from TCGdex, direct CDN image rendering, and decoupled MariaDB persistence for future application features.
+A production-minded Pokémon TCG scanner web application. Phase 5 delivers local OCR text extraction on confirmed card crops, structured card info normalization, catalog candidate retrieval and explainable ranking via TCGdex, user-editable search fields and manual search fallback, explicit candidate confirmation, and persistent side-by-side comparison across browser reloads.
+
+> [!NOTE]
+> **Phase 5 Scope & Clarification**: This phase delivers robust local OCR extraction on confirmed crops, explainable catalog matching, editable search fields, manual search fallback, and atomic persistence of the user-confirmed card. Live camera streams, price estimation, condition grading, and multi-card scanning remain out of scope.
 
 ---
 
 ## Architecture & Data Flow
 
 ```
-Live Catalog Browsing & Search:
-  Next.js (Web)  ──>  FastAPI (/api/v1)  ──>  In-Memory Catalog Cache  ──>  TCGdex API (on miss / refresh)
+1. Image Selection & Upload:
+   User (Browser) ──> Select / Drag-and-Drop (JPEG, PNG, WebP)
+                  ──> POST /api/v1/scans (multipart/form-data)
+                  ──> Request size limit & normalization (Pillow, max 2500 px)
+                  ──> Atomic store to /app/uploads/scans/<uuid>.jpg
+                  ──> Persist scan record in MariaDB (scans table)
+                  ──> Redirect to /scan/[id]
 
-Card Details:
-  Next.js (Web)  ──>  FastAPI (/api/v1/cards/{external_id})  ──>  In-Memory Catalog Cache  ──>  TCGdex API
+2. Automatic Card Detection & Interactive Crop (Phase 4):
+   Next.js (Web)  ──> POST /api/v1/scans/{id}/detect (OpenCV edge & contour scoring)
+   User (Browser) ──> Adjust corner handles & 90° rotation controls (CornerSelector)
+                  ──> POST /api/v1/scans/{id}/crop (perspective warp to <uuid>_crop.jpg)
+                  ──> POST /api/v1/scans/{id}/confirm (version concurrency check)
+                  ──> Confirmed crop persisted; enables Phase 5 recognition
 
-Images:
-  Browser (Client)  ──>  TCGdex Image CDN (assets.tcgdex.net)
+3. Local OCR Text Extraction & Normalization (Phase 5):
+   User (Browser) ──> Click "Kaart herkennen"
+                  ──> POST /api/v1/scans/{id}/recognize
+                  ──> Threadpool worker: CLAHE preprocessing & ROI extraction
+                      - Header ROI: Card name & suffix (ex, EX, VMAX, etc.)
+                      - Footer ROI: Collector number (199/165, 058/102, TG01, SVP 001)
+                      - Set code ROI & full-card fallback
+                  ──> Tesseract OCR (5.5.0) execution bounded by process timeout & concurrency semaphore
+                  ──> Structured normalization & false-positive rejection (HP, damage, copyright years)
 
-Application Persistence (Optional / Future Phases):
-  CLI Importer / Scans / Collections  ──>  MariaDB
-```
+4. Catalog Candidate Matching & Explainable Ranking (Phase 5):
+   API Backend    ──> Query TCGdex for matching cards (by collector number & name tokens)
+                  ──> Exclude digital products (TCG Pocket / tcgp)
+                  ──> Rank candidates (0-100 score) with human-readable match reasons
+                  ──> Atomically store recognition state & candidate list in MariaDB
 
-### Architectural Principles
-
-1. **Instant Availability (Zero Initial Import)**: The application is immediately usable upon startup. Users can browse physical Pokémon sets, search for cards, open set card lists, and view full card details when the local database `sets` and `cards` tables are completely empty.
-2. **Decoupled Catalog Layer**: Public catalog routes (`/api/v1/sets`, `/api/v1/sets/{id}`, `/api/v1/cards`, `/api/v1/cards/{id}`) query an in-memory bounded cache backed by TCGdex. MariaDB remains dedicated to application-owned persistent data (e.g. user collections, scan history in future phases).
-3. **Provider String Identifiers**: All catalog routes and URLs use provider string identifiers (`external_id`), such as `/sets/base1` and `/cards/base1-1`.
-4. **On-Demand Caching with Stale Fallback**:
-   - Multi-resource caching for sets lists, set card summaries, search queries, and single card details.
-   - Bounded LRU capacity (1,000 entries) with 6-hour fresh TTL and up to 24-hour stale fallback if upstream TCGdex degrades.
-   - 60-second failed lookup cooldown to avoid hammering the upstream provider on missing cards or connection drops.
-   - In-flight request deduplication prevents concurrent identical fetches.
-5. **Direct CDN Images**: Card images and set logos stream directly from TCGdex CDN (`assets.tcgdex.net`) into the browser with lazy loading and fallback states. No image datasets or image binaries are stored locally in Phase 2.
-6. **Digital-Only Product Exclusion**: Digital-only products (such as *Pokémon TCG Pocket*, series ID `tcgp`) are automatically identified and excluded from physical set listings and card searches.
-7. **Strict Field Ownership**:
-   - **Catalog Details**: Category, Illustrator, Rarity, HP, Types, Regulation mark, Variants, Attacks, Abilities.
-   - **Explicitly Excluded**: Prices and secondary marketplace pricing.
-
----
-
-## TCGdex Integration & Data Rules
-
-- **TCGdex Base URL**: `https://api.tcgdex.net/v2`
-- **TCGdex Documentation**:
-  - Main Docs: [https://tcgdex.dev](https://tcgdex.dev)
-  - REST Sets: [https://tcgdex.dev/rest/set](https://tcgdex.dev/rest/set)
-  - REST Cards: [https://tcgdex.dev/rest/card](https://tcgdex.dev/rest/card)
-  - Assets CDN: [https://tcgdex.dev/assets](https://tcgdex.dev/assets)
-
-### Digital-Only Product Exclusion Rule
-
-TCGdex catalogs both physical cards and digital-only apps (such as *Pokémon TCG Pocket*).
-- **Identification Rule**: Any set or card belonging to series ID `tcgp`, series name `Pokémon TCG Pocket`, or with image/logo paths containing `/tcgp/` is identified as digital-only.
-- **Catalog Behavior**: Digital sets and cards are filtered out from set listings, search results, and direct detail endpoints (returning HTTP 404 if directly requested).
-
-### Image URL Construction
-
-Cards reference images directly from the CDN:
-- List image: `{image_base_url}/low.webp` (245x337 WebP)
-- Detail image: `{image_base_url}/high.webp` (600x825 WebP)
-- Fallback: Transparent `.png` or custom client-side placeholder if CDN fails.
-
----
-
-## Tech Stack
-
-### Frontend (`apps/web`)
-- **Next.js 14** (App Router, Standalone build)
-- **TypeScript** (Strict mode)
-- **Tailwind CSS**
-- **Centralized Typed API Client** (`src/lib/api.ts`)
-- **ESLint** & **Prettier**
-
-### Backend (`services/api`)
-- **FastAPI** (`/api/v1` versioned routing)
-- **Python 3.12**
-- **SQLAlchemy 2.0** & **Alembic**
-- **PyMySQL** & **Cryptography**
-- **Pydantic Settings v2**
-- **HTTPX** (Async HTTP client with retry backoff)
-- **Ruff** (Linter & formatter)
-- **Pytest** & **pytest-asyncio**
-
-### Database & Infrastructure
-- **MariaDB 11.4** (Containerized with healthchecks)
-- **Docker** & **Docker Compose**
-
----
-
-## Environment Setup
-
-Copy `.env.example` to `.env` in the repository root:
-
-```bash
-cp .env.example .env
-```
-
-Key environment variables:
-
-| Variable | Description | Default |
-|---|---|---|
-| `ENVIRONMENT` | Runtime environment (`development`, `production`) | `development` |
-| `NEXT_PUBLIC_API_URL` | Base URL used by the frontend to reach FastAPI | `http://localhost:8000` |
-| `API_PORT` | Host port exposed for FastAPI | `8000` |
-| `WEB_PORT` | Host port exposed for Next.js | `3000` |
-| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000,http://127.0.0.1:3000` |
-| `DATABASE_URL` | MariaDB SQLAlchemy connection string | `mysql+pymysql://tcg_user:tcg_password@db:3306/tcg` |
-| `TCGDEX_BASE_URL` | Base REST endpoint for TCGdex API | `https://api.tcgdex.net/v2` |
-| `TCGDEX_HTTP_TIMEOUT` | HTTP client timeout in seconds | `10.0` |
-| `IMPORT_MAX_RETRIES` | Max retries for transient HTTP errors | `3` |
-| `DETAIL_CACHE_TTL_SECONDS` | In-memory fresh cache TTL | `21600` (6h) |
-| `DETAIL_CACHE_MAX_ENTRIES` | In-memory LRU max entries | `1000` |
-| `DETAIL_CACHE_MAX_STALE_SECONDS` | Max stale age for fallback | `86400` (24h) |
-| `DETAIL_CACHE_FAILED_COOLDOWN_SECONDS` | Cooldown after failed provider fetch | `60` |
-
----
-
-## Running with Docker Compose
-
-### Development Mode (Recommended)
-
-Starts Next.js and FastAPI with local volume mounts and hot-reloading enabled:
-
-```bash
-# Build and start services
-docker compose -f docker-compose.dev.yml up -d
-
-# View container logs
-docker compose -f docker-compose.dev.yml logs -f
-```
-
-### Production Build
-
-```bash
-# Build and start optimized production stack
-docker compose up --build -d
-
-# Stop services
-docker compose down
+5. User Review, Correction & Explicit Confirmation (Phase 5):
+   User (Browser) ──> Inspect recognized fields and top candidate cards
+                  ──> Optional: Edit name, number, or set code and click "Zoekopdracht bijwerken"
+                  ──> Optional: Manual catalog search fallback if OCR missed fields
+                  ──> Explicitly click "✓ Bevestig deze kaart" on chosen candidate
+                  ──> POST /api/v1/scans/{id}/confirm-card (atomic version-checked SQL update)
+                  ──> Side-by-side view: cropped user photo alongside official catalog image
+                  ──> Persistent state preserved across browser reloads
+                  ──> Optional: "Andere kaart kiezen" resets selection without losing confirmed crop
 ```
 
 ---
 
-## API Endpoints
+## Phase 5 Scope & Exclusions
 
-FastAPI provides versioned REST endpoints under `/api/v1`:
+The October 27 recognition audit, measured results and remaining limitations are in
+[Recognition quality](docs/recognition-quality-2026-10-27.md). Recognition now uses
+printed set counts, corrected TCGdex set identifiers, multiple OCR readings and
+bounded artwork comparison. New scans use the updated pipeline; use **OCR opnieuw
+uitvoeren** to recompute an existing scan. Confirmation remains a user action.
 
-### Sets
-- `GET /api/v1/sets`: Paginated physical sets list served from cache.
-  - Query params: `page` (default 1), `page_size` (1-100, default 24), `language` (default "en").
-  - Digital sets (*Pocket*) are filtered out automatically.
-- `GET /api/v1/sets/{external_id}`: Metadata and card count for a specific set (e.g. `base1`).
+### Included in Phase 5
+- **Local OCR Engine**: Integrated Tesseract OCR 5.5.0 via Debian packages; 0 runtime model downloads; ~15 MB image overhead; ~80–120 ms ROI OCR speed on CPU; non-blocking threadpool execution; bounded concurrency and timeouts; overall request deadline tracking.
+- **Evidence-Aware Preprocessing & Normalization**: CLAHE contrast enhancement; multi-ROI slicing (header, footer, bottom-left, bottom-right); strict slash validation (`_validate_slash_structure`) rejecting pure alphabetic noise (e.g. `thoes/ie`); retreat/modifier number suppression (`[\+x×\-@*]\s*\d{1,3}`); evidence strength classification (`strong`, `moderate`, `weak`, `none`); bounded name hypotheses generation (`generate_name_hypotheses`) recovering base names from noise (`Gastly se` -> `Gastly`, `ad Steelix eee 4` -> `Steelix`).
+- **Image Quality & Low-Resolution Detection**: Automatic resolution assessment (`assess_crop_quality`) flagging crops under 400×550 px with actionable advice for sharper photos.
+- **Catalog Matching & Evidence-Aware Ranking**: Decoupled TCGdex search by collector number and name hypotheses; bounded independent retrieval queries; weak number suppression avoiding catalog pool pollution; conflicting name penalties (-45 pts) preventing weak numbers from displacing credible name matches; digital-only card filtering; distinction between 0 matches and catalog provider outages.
+- **Frontend Workflow**: Editable pre-filled search fields; raw OCR inspection toggle; confidence state banners (`high`, `medium`, `low`); image quality advisory banners; candidate cards with match reasons, conflict indicators (⚠️), and score badges; explicit card confirmation; side-by-side comparison; reload persistence; selection reset ("Andere kaart kiezen"); manual search fallback when OCR fails.
+- **Data Integrity & Concurrency**: Migrations `0005` & `0006`; atomic crop invalidation on re-crop; conditional database updates checking `crop_version`, `search_version`, `card_selection_version`, `crop_status == 'confirmed'`, and non-expired status; full real MariaDB concurrency test suite.
 
-### Cards
-- `GET /api/v1/cards`: Search and list cards.
-  - Query params:
-    - `set_id`: String provider set ID (e.g. `base1`). When provided, filters the set's card summaries in memory.
-    - `name`: Case-insensitive partial name search.
-    - `number`: Exact match against local card number.
-    - `language`: Card language code (default "en").
-    - `page`, `page_size`: Pagination bounds.
-  - Excludes digital-only cards.
-- `GET /api/v1/cards/{external_id}`: Unified single card detail response.
-  - Path param: `external_id` (e.g. `base1-1`).
-  - Returns metadata, set relation, and allowlisted gameplay attributes (`category`, `illustrator`, `rarity`, `hp`, `types`, `attacks`, `abilities`, `variants`).
-  - Includes cache freshness status (`"available"` or `"stale"`).
-  - Returns 404 for unknown cards or digital sets; returns 503 if upstream is unavailable without cache.
-
-### Health
-- `GET /api/v1/health`: Checks API and MariaDB connectivity (HTTP 200 OK / HTTP 503 Degraded).
+### Excluded from Phase 5
+- Automatic final confirmation without explicit user action.
+- Guaranteed recognition of holographic foils or print variants (first edition, reverse holo).
+- Live video stream scanning.
+- Multi-card simultaneous detection in a single photo.
+- Price estimation or condition grading.
+- Paid external vision APIs.
 
 ---
 
-## Frontend Web Routes
+## API Specification
 
-Access the web interface at `http://localhost:3000`:
+### 1. Upload Scan
+`POST /api/v1/scans` (multipart/form-data)
 
-- `/cards`: Card catalog search with name, card number, and set filter dropdown, responsive card grid, and URL-synchronized pagination.
-- `/cards/[id]`: Card detail view displaying card art, set badge, stats, variants, attacks, and abilities with cache indicator and fallback handling.
-- `/sets`: Overview of all physical Pokémon card sets with logos, series, release dates, and card counts.
-- `/sets/[id]`: Set detail view showing set statistics and a paginated list of cards in that set.
-- `/`: System foundation and real-time API & Database health monitor.
+### 2. Get Scan Metadata
+`GET /api/v1/scans/{id}`
+
+Returns scan metadata including crop status, crop version, recognition status, candidate matches, and confirmed card details.
+
+### 3. Detect Card Corners
+`POST /api/v1/scans/{id}/detect`
+
+Runs OpenCV edge detection and returns detected corners or fallback defaults.
+
+### 4. Generate Crop Preview
+`POST /api/v1/scans/{id}/crop`
+
+Payload:
+```json
+{
+  "corners": {
+    "top_left": {"x": 0.15, "y": 0.12},
+    "top_right": {"x": 0.85, "y": 0.12},
+    "bottom_right": {"x": 0.85, "y": 0.88},
+    "bottom_left": {"x": 0.15, "y": 0.88}
+  },
+  "rotation": 0,
+  "expected_version": 0
+}
+```
+
+### 5. Confirm Crop
+`POST /api/v1/scans/{id}/confirm`
+
+Payload: `{"crop_version": 1}`
+
+### 6. Run Card Recognition (Phase 5)
+`POST /api/v1/scans/{id}/recognize`
+
+Executes local OCR on the confirmed crop, normalizes extracted text, queries TCGdex, and returns ranked candidate matches.
+
+### 7. Search Candidates with Corrected Fields (Phase 5)
+`POST /api/v1/scans/{id}/search-candidates`
+
+Payload:
+```json
+{
+  "name": "Pikachu",
+  "number": "58",
+  "set_code": "base1",
+  "expected_crop_version": 2,
+  "expected_search_version": 0
+}
+```
+
+### 8. Explicitly Confirm Catalog Card (Phase 5)
+`POST /api/v1/scans/{id}/confirm-card`
+
+Payload:
+```json
+{
+  "card_id": "base1-58",
+  "expected_crop_version": 2,
+  "expected_search_version": 0,
+  "expected_selection_version": 0
+}
+```
+
+### 9. Reset Card Confirmation (Phase 5)
+`POST /api/v1/scans/{id}/reset-card-confirmation`
+
+Payload:
+```json
+{
+  "expected_crop_version": 2,
+  "expected_selection_version": 0
+}
+```
 
 ---
 
-## Code Quality & Verification Suite
+## Database Migrations
 
-### Backend Testing & Linting
+Apply Alembic migrations to update MariaDB:
 
 ```bash
-# Run full pytest test suite (55 tests covering sets, cards, cache, tcgdex client, import, health)
+docker compose exec api alembic upgrade head
+```
+
+The database schema includes:
+- `0001`: Initial sets table.
+- `0002`: Phase 2 catalog tables (`cards`, `import_runs`).
+- `0003`: Phase 3 scans table (`scans` with indexed `expires_at`).
+- `0004`: Phase 4 crop fields (`crop_status`, `corners`, `rotation`, `crop_path`, `crop_width`, `crop_height`, `crop_file_size`, `crop_version`, `confirmed_at`).
+- `0005`: Phase 5 recognition & confirmed card fields (`recognition_status`, `recognition_id`, `ocr_crop_version`, `ocr_raw_text`, `recognized_name`, `recognized_number`, `recognized_set_code`, `ocr_confidence`, `search_version`, `candidate_matches`, `confirmed_card_id`, `confirmed_card_name`, `confirmed_card_set_name`, `confirmed_card_number`, `confirmed_card_image_url`, `card_confirmed_at`).
+- `0006`: Phase 5 search persistence, catalog status & card selection versioning (`card_selection_version`, `catalog_status`, `catalog_error`, `user_search_name`, `user_search_number`, `user_search_set_code`, `user_search_provider_set_id`).
+- `0007`: Persist structured OCR field confidence and source regions in the `recognition_evidence` JSON column.
+
+---
+
+## Verification Suite
+
+### Backend Tests & Linters
+
+```bash
+# Run full test suite in Docker against MariaDB (232 passed in ~32s)
 docker compose exec api pytest
 
-# Run Ruff linter
-docker compose exec api ruff check .
-
-# Check code formatting with Ruff
-docker compose exec api ruff format --check .
+# Ruff code quality and format checks
+docker compose exec api ruff check /app
+docker compose exec api ruff format --check /app
 ```
 
-### Frontend Linting, Type Checking & Build
+### Frontend Typecheck, Lint & Build
 
 ```bash
-# Type check with TypeScript compiler
+# Type check with TypeScript strict mode
 npm.cmd --prefix apps/web run typecheck
 
 # Run Next.js ESLint
 npm.cmd --prefix apps/web run lint
 
-# Check formatting with Prettier
+# Check code formatting with Prettier
 npm.cmd --prefix apps/web run format:check
 
 # Verify Next.js production build
 npm.cmd --prefix apps/web run build
 ```
 
----
-
-## Optional Database Import Tool (Persistent Features)
-
-MariaDB tables (`sets`, `cards`, `import_runs`) and the CLI importer remain available as an optional utility for persistent indexing:
+### Browser End-to-End Verification (Playwright)
 
 ```bash
-# Import Jungle (base2 - 64 physical cards)
-docker compose exec api python -m app.commands.import_cards --set base2 --language en
-
-# Import all physical sets
-docker compose exec api python -m app.commands.import_cards --all --language en
+services\api\.venv\Scripts\python services/api/tests/verify_phase5_browser_flow.py
 ```
 
----
+### Recognition Quality Benchmark
 
-## Future Roadmap (Phase 3 Preview)
-
-Phase 2 establishes the complete catalog and search infrastructure. Future phases will incorporate:
-- Camera input and image capture via web/mobile interfaces.
-- Image preprocessing and computer vision recognition (OpenCV / perceptual hashing / embeddings).
-- Scanner ML training dataset generation.
-- User collections, binder management, and scan history.
+```bash
+docker compose exec api python tests/evaluate_recognition_quality.py
+```
+"# DexLens" 
