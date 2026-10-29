@@ -1,6 +1,10 @@
 services:
   db:
-    image: ${MARIADB_IMAGE:-mariadb:11.4}
+    build:
+      context: .
+      dockerfile: services/db/Dockerfile
+      args:
+        MARIADB_IMAGE: ${MARIADB_IMAGE:-mariadb:11.4}
     container_name: tcg_db
     restart: unless-stopped
     env_file:
@@ -12,7 +16,6 @@ services:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./ops/reset-mariadb-credentials.sh:/usr/local/bin/reset-mariadb-credentials.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/reset-mariadb-credentials.sh"]
     expose:
       - "3306"
