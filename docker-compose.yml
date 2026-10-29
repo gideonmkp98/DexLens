@@ -12,6 +12,8 @@ services:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
     volumes:
       - mariadb_data:/var/lib/mysql
+      - ./ops/reset-mariadb-credentials.sh:/usr/local/bin/reset-mariadb-credentials.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/reset-mariadb-credentials.sh"]
     expose:
       - "3306"
     healthcheck:
