@@ -6,10 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.integrations.tcgdex import (
+    TcgdexError,
+    TCGdexProvider,
+    is_digital_set,
+)
 from app.models.card import Card
 from app.models.import_run import ImportRun
 from app.models.set import Set
-from app.services.tcgdex import TcgdexClient, TcgdexError, is_digital_set
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +37,8 @@ class ImportResult:
 class CardImporter:
     """Service to import and synchronize Pokémon cards and sets from TCGdex."""
 
-    def __init__(self, client: TcgdexClient | None = None) -> None:
-        self.client = client or TcgdexClient()
+    def __init__(self, client: TCGdexProvider | None = None) -> None:
+        self.client = client or TCGdexProvider()
 
     def _create_import_run(self, db: Session, scope: str, language: str) -> ImportRun:
         run = ImportRun(

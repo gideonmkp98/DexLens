@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 from difflib import SequenceMatcher
 from typing import Any
 
+from app.integrations.tcgdex.mapper import derive_image_urls as _derive_image_urls
 from app.services.ocr.normalizer import normalize_card_name
 
 
@@ -23,15 +24,6 @@ class CandidateMatch:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
-
-def _derive_image_urls(base_url: str | None) -> tuple[str | None, str | None]:
-    if not base_url:
-        return None, None
-    clean = base_url.rstrip("/")
-    if clean.endswith("/low.webp") or clean.endswith("/high.webp"):
-        clean = clean.rsplit("/", 1)[0]
-    return f"{clean}/low.webp", f"{clean}/high.webp"
 
 
 def _strip_leading_zeros(val: str) -> str:

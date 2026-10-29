@@ -3,6 +3,11 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.config import settings
+from app.integrations.tcgdex.mapper import (
+    derive_image_urls,
+    is_digital_card,
+    is_digital_set,
+)
 from app.schemas.card import (
     CardDetailResponse,
     CardEnrichmentResponse,
@@ -10,30 +15,21 @@ from app.schemas.card import (
     CardSetBrief,
     PaginatedCardsResponse,
 )
+from app.services.card_catalog import CardCatalogService, get_card_catalog_service
 from app.services.detail_cache import DetailCache, catalog_cache, map_card_details
-from app.services.tcgdex import TcgdexClient, is_digital_card, is_digital_set
 
 router = APIRouter(prefix="/cards", tags=["Cards"])
 
-# Reusable client for catalog requests in API process
-_tcgdex_client = TcgdexClient()
+# Reusable service for catalog requests in API process
+_catalog_service = get_card_catalog_service()
+
+# Backward-compatibility alias for test dependency overrides and external callers
+get_tcgdex_client = get_card_catalog_service
+_derive_image_urls = derive_image_urls
 
 # Complete search summaries are larger than individual details. Keep only a
 # handful of queries, shared across all page sizes and page numbers.
 search_cache = DetailCache(max_entries=8)
-
-
-def get_tcgdex_client() -> TcgdexClient:
-    return _tcgdex_client
-
-
-def _derive_image_urls(base_url: str | None) -> tuple[str | None, str | None]:
-    if not base_url:
-        return None, None
-    clean = base_url.rstrip("/")
-    if clean.endswith("/low.webp") or clean.endswith("/high.webp"):
-        clean = clean.rsplit("/", 1)[0]
-    return f"{clean}/low.webp", f"{clean}/high.webp"
 
 
 def _validate_language(language: str) -> str:
@@ -61,7 +57,7 @@ async def list_cards(
     language: str = Query("en", description="Card language code"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(24, ge=1, le=100, description="Items per page"),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> PaginatedCardsResponse:
     """Retrieve paginated cards from catalog cache. Decoupled from MariaDB."""
     clean_lang = _validate_language(language)
@@ -241,7 +237,7 @@ async def list_cards(
 async def get_card(
     external_id: str,
     language: str = Query("en", description="Card language code"),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> CardDetailResponse:
     """Retrieve detailed card metadata and attributes from catalog cache."""
     clean_lang = _validate_language(language)
@@ -315,7 +311,7 @@ async def get_card(
 async def get_card_details(
     external_id: str,
     language: str = Query("en", description="Card language code"),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> CardEnrichmentResponse:
     """Fetch on-demand card enrichment details via catalog cache."""
     clean_lang = _validate_language(language)

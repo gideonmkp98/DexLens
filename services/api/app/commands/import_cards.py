@@ -4,8 +4,8 @@ import logging
 import sys
 
 from app.core.config import settings
+from app.integrations.tcgdex import TCGdexProvider
 from app.services.importer import CardImporter
-from app.services.tcgdex import TcgdexClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,7 +49,7 @@ async def main_async(args: argparse.Namespace) -> int:
         )
         return 1
 
-    async with TcgdexClient() as client:
+    async with TCGdexProvider() as client:
         importer = CardImporter(client=client)
 
         if args.set_id:

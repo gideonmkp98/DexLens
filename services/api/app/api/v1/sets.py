@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.integrations.tcgdex.mapper import is_digital_set
 from app.schemas.set import PaginatedSetsResponse, SetDetailResponse, SetSummaryResponse
+from app.services.card_catalog import CardCatalogService, get_card_catalog_service
 from app.services.detail_cache import catalog_cache
-from app.services.tcgdex import TcgdexClient, is_digital_set
 
 router = APIRouter(prefix="/sets", tags=["Sets"])
 
-# Reusable client for catalog requests in API process
-_tcgdex_client = TcgdexClient()
+# Reusable service for catalog requests in API process
+_catalog_service = get_card_catalog_service()
 
-
-def get_tcgdex_client() -> TcgdexClient:
-    return _tcgdex_client
+# Backward-compatibility alias for test dependency overrides and external callers
+get_tcgdex_client = get_card_catalog_service
 
 
 @router.get("", response_model=PaginatedSetsResponse)
@@ -19,7 +19,7 @@ async def list_sets(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(24, ge=1, le=100, description="Items per page"),
     language: str = Query("en", description="Language code filter"),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> PaginatedSetsResponse:
     """Retrieve paginated list of physical sets from TCGdex catalog cache."""
     clean_lang = language.lower().strip()
@@ -100,7 +100,7 @@ async def list_sets(
 async def get_set(
     external_id: str,
     language: str = Query("en", description="Language code"),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> SetDetailResponse:
     """Retrieve detailed set metadata including card count from catalog cache."""
     clean_lang = language.lower().strip()

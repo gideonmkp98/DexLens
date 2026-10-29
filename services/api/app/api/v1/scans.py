@@ -19,9 +19,10 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.api.v1.cards import _derive_image_urls, get_tcgdex_client
+from app.api.v1.cards import _derive_image_urls
 from app.core.config import settings
 from app.core.database import get_db
+from app.integrations.tcgdex.mapper import is_digital_card
 from app.models.scan import Scan
 from app.schemas.scan import (
     CandidateMatchItem,
@@ -39,6 +40,10 @@ from app.schemas.scan import (
     ScanResponse,
     SearchCandidatesRequest,
     SearchCandidatesResponse,
+)
+from app.services.card_catalog import (
+    CardCatalogService,
+    get_card_catalog_service,
 )
 from app.services.card_detector import (
     InvalidCornersError,
@@ -68,7 +73,6 @@ from app.services.ocr import (
     get_ocr_engine,
 )
 from app.services.ocr.pipeline import recognize_card_image
-from app.services.tcgdex import TcgdexClient, is_digital_card
 
 logger = logging.getLogger(__name__)
 
@@ -950,7 +954,7 @@ async def recognize_card(
     id: str,
     response: Response,
     db: Session = Depends(get_db),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> RecognizeResponse:
     """Run OCR text extraction and catalog matching on the confirmed crop."""
     response.headers["Cache-Control"] = "no-store"
@@ -1227,7 +1231,7 @@ async def search_card_candidates(
     body: SearchCandidatesRequest,
     response: Response,
     db: Session = Depends(get_db),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> SearchCandidatesResponse:
     """Search catalog candidates using user-edited or manual search values."""
     response.headers["Cache-Control"] = "no-store"
@@ -1375,7 +1379,7 @@ async def confirm_catalog_card(
     body: ConfirmCardRequest,
     response: Response,
     db: Session = Depends(get_db),
-    client: TcgdexClient = Depends(get_tcgdex_client),
+    client: CardCatalogService = Depends(get_card_catalog_service),
 ) -> ScanResponse:
     """Explicitly confirm a chosen catalog card with atomic version binding."""
     response.headers["Cache-Control"] = "no-store"

@@ -1,40 +1,150 @@
-from unittest.mock import AsyncMock
+import json
+import urllib.error
+from unittest.mock import AsyncMock, MagicMock
 
-import httpx
 import pytest
+from tcgdexsdk import Card, CardResume, Set, SetResume
+from tcgdexsdk.models.SerieResume import SerieResume
+from tcgdexsdk.models.subs import (
+    CardAbility,
+    CardAttack,
+    CardVariants,
+    SetCardCountResume,
+)
 
-from app.services.tcgdex import (
-    TcgdexClient,
+from app.integrations.tcgdex import (
     TcgdexConnectionError,
     TcgdexError,
     TcgdexInvalidLanguageError,
+    TCGdexProvider,
+    TcgdexRateLimitError,
+    derive_image_urls,
 )
+from app.services.card_catalog import CardCatalogService
 
 
 @pytest.fixture
-def mock_httpx_client():
-    client = AsyncMock(spec=httpx.AsyncClient)
-    return client
+def mock_sdk():
+    sdk = MagicMock()
+    sdk.card = MagicMock()
+    sdk.card.get = AsyncMock()
+    sdk.card.list = AsyncMock()
+    sdk.set = MagicMock()
+    sdk.set.get = AsyncMock()
+    sdk.set.list = AsyncMock()
+    return sdk
+
+
+@pytest.fixture
+def sample_sdk_card():
+    card = Card(
+        id="base1-4",
+        localId="4",
+        name="Charizard",
+        image="https://assets.tcgdex.net/en/base/base1/4",
+        category="Pokemon",
+        illustrator="Mitsuhiro Arita",
+        rarity="Rare Holo",
+        hp=120,
+        types=["Fire"],
+        regulationMark="D",
+        variants=CardVariants(
+            normal=False, reverse=False, holo=True, firstEdition=True, wPromo=False
+        ),
+        set=SetResume(
+            id="base1",
+            name="Base Set",
+            logo=None,
+            symbol=None,
+            cardCount=SetCardCountResume(total=102, official=102),
+        ),
+        attacks=[
+            CardAttack(
+                name="Fire Spin",
+                cost=["Fire", "Fire", "Fire", "Fire"],
+                damage=100,
+                effect=(
+                    "Discard 2 Energy cards attached to Charizard in order "
+                    "to use this attack."
+                ),
+            )
+        ],
+        abilities=[
+            CardAbility(
+                type="Pokemon Power",
+                name="Energy Burn",
+                effect=(
+                    "As often as you like during your turn, you may turn all "
+                    "Energy into Fire."
+                ),
+            )
+        ],
+        dexId=[6],
+        evolveFrom="Charmeleon",
+        description="Spits fire that is hot enough to melt boulders.",
+        level="76",
+        stage="Stage 2",
+        suffix=None,
+        item=None,
+        weaknesses=None,
+        resistances=None,
+        retreat=3,
+        effect=None,
+        trainerType=None,
+        energyType=None,
+        legal=None,
+        boosters=None,
+    )
+    card.sdk = MagicMock()
+    return card
+
+
+@pytest.fixture
+def sample_sdk_set():
+    s = Set(
+        id="base1",
+        name="Base Set",
+        logo="https://assets.tcgdex.net/en/base/base1/logo",
+        symbol="https://assets.tcgdex.net/univ/base/base1/symbol",
+        releaseDate="1999-01-09",
+        cardCount=SetCardCountResume(total=102, official=102),
+        serie=SerieResume(id="base", name="Base", logo=None),
+        cards=[
+            CardResume(
+                id="base1-1",
+                localId="1",
+                name="Alakazam",
+                image="https://assets.tcgdex.net/en/base/base1/1",
+            ),
+            CardResume(
+                id="base1-4",
+                localId="4",
+                name="Charizard",
+                image="https://assets.tcgdex.net/en/base/base1/4",
+            ),
+        ],
+        tcgOnline=None,
+        legal=None,
+        boosters=None,
+        abbreviations=None,
+    )
+    s.sdk = MagicMock()
+    return s
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_query_construction(mock_httpx_client):
-    mock_response = httpx.Response(
-        status_code=200,
-        json=[
-            {
-                "id": "base1-4",
-                "localId": "4",
-                "name": "Charizard",
-                "image": "https://assets.tcgdex.net/en/base/base1/4",
-            }
-        ],
-        request=httpx.Request("GET", "https://api.tcgdex.net/v2/en/cards"),
-    )
-    mock_httpx_client.get.return_value = mock_response
+async def test_get_cards_search_query_construction(mock_sdk):
+    mock_sdk.card.list.return_value = [
+        CardResume(
+            id="base1-4",
+            localId="4",
+            name="Charizard",
+            image="https://assets.tcgdex.net/en/base/base1/4",
+        )
+    ]
 
-    client = TcgdexClient(client=mock_httpx_client)
-    cards = await client.get_cards_search(
+    provider = TCGdexProvider(sdk=mock_sdk)
+    cards = await provider.search_cards(
         name="Charizard",
         local_id="4",
         page=2,
@@ -46,94 +156,197 @@ async def test_get_cards_search_query_construction(mock_httpx_client):
     assert cards[0]["id"] == "base1-4"
     assert cards[0]["name"] == "Charizard"
 
-    mock_httpx_client.get.assert_called_once()
-    called_url, called_kwargs = mock_httpx_client.get.call_args
-    assert called_url[0].endswith("/en/cards")
-    assert called_kwargs["params"] == {
-        "pagination:page": 2,
-        "pagination:itemsPerPage": 12,
-        "name": "Charizard",
-        "localId": "4",
-    }
+    mock_sdk.card.list.assert_called_once()
+    called_query = mock_sdk.card.list.call_args[0][0]
+    built_query = called_query.build()
+    assert "name=Charizard" in built_query
+    assert "localId=4" in built_query
+    assert "pagination%3Apage=2" in built_query
+    assert "pagination%3AitemsPerPage=12" in built_query
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_default_params(mock_httpx_client):
-    mock_response = httpx.Response(
-        status_code=200,
-        json=[],
-        request=httpx.Request("GET", "https://api.tcgdex.net/v2/en/cards"),
-    )
-    mock_httpx_client.get.return_value = mock_response
+async def test_get_cards_search_default_params(mock_sdk):
+    mock_sdk.card.list.return_value = []
 
-    client = TcgdexClient(client=mock_httpx_client)
-    cards = await client.get_cards_search()
+    provider = TCGdexProvider(sdk=mock_sdk)
+    cards = await provider.search_cards()
 
     assert cards == []
-    mock_httpx_client.get.assert_called_once()
-    called_url, called_kwargs = mock_httpx_client.get.call_args
-    assert called_url[0].endswith("/en/cards")
-    assert called_kwargs["params"] == {
-        "pagination:page": 1,
-        "pagination:itemsPerPage": 24,
-    }
+    mock_sdk.card.list.assert_called_once()
+    called_query = mock_sdk.card.list.call_args[0][0]
+    built_query = called_query.build()
+    assert "pagination%3Apage=1" in built_query
+    assert "pagination%3AitemsPerPage=24" in built_query
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_404_returns_empty_list(mock_httpx_client):
-    mock_response = httpx.Response(
-        status_code=404,
-        request=httpx.Request("GET", "https://api.tcgdex.net/v2/en/cards"),
+async def test_get_cards_search_404_returns_empty_list(mock_sdk):
+    err404 = urllib.error.HTTPError(
+        url="https://api.tcgdex.net/v2/en/cards",
+        code=404,
+        msg="Not Found",
+        hdrs=None,
+        fp=None,
     )
-    mock_httpx_client.get.return_value = mock_response
+    mock_sdk.card.list.side_effect = err404
 
-    client = TcgdexClient(client=mock_httpx_client)
-    cards = await client.get_cards_search(name="NonExistentCard")
+    provider = TCGdexProvider(sdk=mock_sdk)
+    cards = await provider.search_cards(name="NonExistentCard")
 
     assert cards == []
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_invalid_response_format_raises(
-    mock_httpx_client,
-):
-    mock_response = httpx.Response(
-        status_code=200,
-        json={"error": "unexpected format"},
-        request=httpx.Request("GET", "https://api.tcgdex.net/v2/en/cards"),
+async def test_get_card_maps_correctly(mock_sdk, sample_sdk_card):
+    mock_sdk.card.get.return_value = sample_sdk_card
+
+    provider = TCGdexProvider(sdk=mock_sdk)
+    card_dict = await provider.get_card("base1-4")
+
+    assert card_dict is not None
+    assert card_dict["id"] == "base1-4"
+    assert card_dict["name"] == "Charizard"
+    assert card_dict["localId"] == "4"
+    assert card_dict["hp"] == 120
+    assert card_dict["category"] == "Pokemon"
+    assert card_dict["illustrator"] == "Mitsuhiro Arita"
+    assert card_dict["rarity"] == "Rare Holo"
+    assert "sdk" not in card_dict
+    assert "sdk" not in card_dict["set"]
+    assert card_dict["attacks"][0]["name"] == "Fire Spin"
+    assert card_dict["abilities"][0]["name"] == "Energy Burn"
+
+
+@pytest.mark.asyncio
+async def test_get_set_maps_correctly(mock_sdk, sample_sdk_set):
+    mock_sdk.set.get.return_value = sample_sdk_set
+
+    provider = TCGdexProvider(sdk=mock_sdk)
+    set_dict = await provider.get_set("base1")
+
+    assert set_dict is not None
+    assert set_dict["id"] == "base1"
+    assert set_dict["name"] == "Base Set"
+    assert set_dict["releaseDate"] == "1999-01-09"
+    assert set_dict["cardCount"]["total"] == 102
+    assert len(set_dict["cards"]) == 2
+    assert set_dict["cards"][0]["name"] == "Alakazam"
+    assert "sdk" not in set_dict
+
+
+@pytest.mark.asyncio
+async def test_get_sets_maps_correctly(mock_sdk):
+    mock_sdk.set.list.return_value = [
+        SetResume(
+            id="base1",
+            name="Base Set",
+            logo="https://assets.tcgdex.net/en/base/base1/logo",
+            symbol=None,
+            cardCount=SetCardCountResume(total=102, official=102),
+        )
+    ]
+
+    provider = TCGdexProvider(sdk=mock_sdk)
+    sets = await provider.get_sets()
+
+    assert len(sets) == 1
+    assert sets[0]["id"] == "base1"
+    assert sets[0]["name"] == "Base Set"
+    assert sets[0]["cardCount"]["total"] == 102
+    assert "sdk" not in sets[0]
+
+
+def test_image_url_helpers(sample_sdk_card):
+    provider = TCGdexProvider()
+    high = provider.get_card_image_url(sample_sdk_card, "high", "webp")
+    low = provider.get_card_image_url(sample_sdk_card, "low", "webp")
+
+    assert high == "https://assets.tcgdex.net/en/base/base1/4/high.webp"
+    assert low == "https://assets.tcgdex.net/en/base/base1/4/low.webp"
+
+    # Testing derive_image_urls helper directly
+    low_derived, high_derived = derive_image_urls("https://assets.tcgdex.net/en/base/base1/4")
+    assert low_derived == "https://assets.tcgdex.net/en/base/base1/4/low.webp"
+    assert high_derived == "https://assets.tcgdex.net/en/base/base1/4/high.webp"
+
+
+@pytest.mark.asyncio
+async def test_not_found_errors_translated_to_none(mock_sdk):
+    err404 = urllib.error.HTTPError(
+        url="https://api.tcgdex.net/v2/en/cards/bad",
+        code=404,
+        msg="Not Found",
+        hdrs=None,
+        fp=None,
     )
-    mock_httpx_client.get.return_value = mock_response
+    mock_sdk.card.get.side_effect = err404
+    mock_sdk.set.get.side_effect = err404
 
-    client = TcgdexClient(client=mock_httpx_client)
-    with pytest.raises(TcgdexError):
-        await client.get_cards_search(name="Whatever")
-
-
-@pytest.mark.asyncio
-async def test_complete_search_omits_provider_pagination(mock_httpx_client):
-    mock_httpx_client.get.return_value = httpx.Response(200, json=[])
-    client = TcgdexClient(client=mock_httpx_client)
-    await client.get_cards_search(name="Pikachu", local_id="001", page=None)
-    assert mock_httpx_client.get.call_args.kwargs["params"] == {
-        "name": "Pikachu",
-        "localId": "001",
-    }
+    provider = TCGdexProvider(sdk=mock_sdk)
+    assert await provider.get_card("bad") is None
+    assert await provider.get_set("bad") is None
 
 
 @pytest.mark.asyncio
-async def test_get_cards_search_unsupported_language(mock_httpx_client):
-    client = TcgdexClient(client=mock_httpx_client)
-    with pytest.raises(TcgdexInvalidLanguageError):
-        await client.get_cards_search(language="klingon")
+async def test_provider_errors_do_not_leak_raw_sdk_exceptions(mock_sdk):
+    # HTTP 500 error translated to TcgdexConnectionError
+    err500 = urllib.error.HTTPError(
+        url="https://api.tcgdex.net/v2/en/cards",
+        code=500,
+        msg="Server Error",
+        hdrs=None,
+        fp=None,
+    )
+    mock_sdk.card.get.side_effect = err500
+    provider = TCGdexProvider(sdk=mock_sdk, max_retries=1, backoff=0.01)
 
-
-@pytest.mark.asyncio
-async def test_get_cards_search_handles_network_failure(mock_httpx_client):
-    mock_httpx_client.get.side_effect = httpx.ConnectError("Connection refused")
-
-    client = TcgdexClient(client=mock_httpx_client, max_retries=1)
     with pytest.raises(TcgdexConnectionError):
-        await client.get_cards_search(name="Pikachu")
+        await provider.get_card("base1-4")
+
+    # HTTP 429 error translated to TcgdexRateLimitError
+    err429 = urllib.error.HTTPError(
+        url="https://api.tcgdex.net/v2/en/cards",
+        code=429,
+        msg="Too Many Requests",
+        hdrs=None,
+        fp=None,
+    )
+    mock_sdk.card.get.side_effect = err429
+    with pytest.raises(TcgdexRateLimitError):
+        await provider.get_card("base1-4")
+
+    # Network error translated to TcgdexConnectionError
+    mock_sdk.card.get.side_effect = urllib.error.URLError("Connection refused")
+    with pytest.raises(TcgdexConnectionError):
+        await provider.get_card("base1-4")
+
+    # Malformed response translated to TcgdexError
+    mock_sdk.card.get.side_effect = json.JSONDecodeError("Expecting value", "doc", 0)
+    with pytest.raises(TcgdexError):
+        await provider.get_card("base1-4")
+
+
+@pytest.mark.asyncio
+async def test_unsupported_language_raises():
+    provider = TCGdexProvider()
+    with pytest.raises(TcgdexInvalidLanguageError):
+        await provider.get_card("base1-4", language="klingon")
+
+
+@pytest.mark.asyncio
+async def test_card_catalog_service_layer(mock_sdk, sample_sdk_card, sample_sdk_set):
+    mock_sdk.card.get.return_value = sample_sdk_card
+    mock_sdk.set.get.return_value = sample_sdk_set
+    provider = TCGdexProvider(sdk=mock_sdk)
+    catalog = CardCatalogService(provider=provider)
+
+    card = await catalog.get_card("base1-4")
+    assert card["id"] == "base1-4"
+    assert card["name"] == "Charizard"
+
+    set_data = await catalog.get_set("base1")
+    assert set_data["id"] == "base1"
 
 
 def test_set_schemas_optional_id_and_card_count():
@@ -143,7 +356,6 @@ def test_set_schemas_optional_id_and_card_count():
         SetSummaryResponse,
     )
 
-    # Test SetSummaryResponse without DB id
     set_summary = SetSummaryResponse(
         external_id="base1",
         name="Base Set",
@@ -157,7 +369,6 @@ def test_set_schemas_optional_id_and_card_count():
     assert set_summary.source == "tcgdex"
     assert set_summary.language == "en"
 
-    # Test SetDetailResponse with string id
     set_detail = SetDetailResponse(
         id="base1",
         external_id="base1",
@@ -167,7 +378,6 @@ def test_set_schemas_optional_id_and_card_count():
     assert set_detail.id == "base1"
     assert set_detail.card_count == 102
 
-    # Test PaginatedSetsResponse has_more default and explicit
     paginated = PaginatedSetsResponse(
         items=[set_summary],
         total=1,
@@ -194,13 +404,11 @@ def test_card_schemas_unified_attributes():
         PaginatedCardsResponse,
     )
 
-    # Test CardSetBrief
     brief1 = CardSetBrief(id="base1", name="Base Set")
     assert brief1.external_id == "base1"
     brief2 = CardSetBrief(external_id="base2", name="Jungle")
     assert brief2.id == "base2"
 
-    # Test CardListItem with string set_id
     card_item = CardListItem(
         external_id="base1-4",
         set_id="base1",
@@ -213,7 +421,6 @@ def test_card_schemas_unified_attributes():
     assert card_item.source == "tcgdex"
     assert card_item.language == "en"
 
-    # Test CardDetailResponse with full unified attributes
     card_detail = CardDetailResponse(
         external_id="base1-4",
         set_id="base1",
@@ -238,7 +445,6 @@ def test_card_schemas_unified_attributes():
     assert card_detail.regulation_mark == "D"
     assert card_detail.attacks[0]["name"] == "Fire Spin"
 
-    # Test PaginatedCardsResponse
     paginated_cards = PaginatedCardsResponse(
         items=[card_item],
         total=100,

@@ -14,3 +14,4 @@ python-multipart>=0.0.9,<1.0.0
 opencv-python-headless>=4.10.0,<6.0.0
 numpy>=1.26.0,<3.0.0
 pytesseract>=0.3.10,<1.0.0
+tcgdex-sdk>=2.3.0,<3.0.0
