@@ -114,8 +114,7 @@ export default function ScanUploadPage() {
           </p>
           <h1>
             Laat je
-            <br />
-            kaart <em>zien.</em>
+            <br /> kaart <em>zien.</em>
           </h1>
           <p className="hero-intro">
             Een oude klassieker of nét uit een booster. Maak een foto en ontdek
@@ -333,4 +332,3 @@ export default function ScanUploadPage() {
     </main>
   );
 }
-

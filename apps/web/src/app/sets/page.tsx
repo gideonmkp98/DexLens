@@ -29,7 +29,9 @@ export default function SetsPage() {
       .catch((err) => {
         if (mounted) {
           setError(
-            err instanceof Error ? err.message : "Sets laden lukt niet."
+            err instanceof Error
+              ? "De setcatalogus is tijdelijk niet bereikbaar. Controleer de verbinding en probeer het opnieuw."
+              : "De sets konden niet worden geladen."
           );
           setLoading(false);
         }
@@ -45,28 +47,20 @@ export default function SetsPage() {
     : 1;
 
   return (
-    <div className="catalog-page mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="content-page catalog-page">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="page-heading">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-zinc-600 dark:border-zinc-800 dark:bg-obsidian-850 dark:text-zinc-400">
-              DE VERZAMELMAP
-            </span>
-            <span className="font-mono text-xs text-zinc-400">POKÉMON TCG</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
-            Ontdek de sets
-          </h1>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 sm:text-sm">
+          <p className="eyebrow">
+            <span className="red-square" /> DE VERZAMELMAP / POKÉMON TCG
+          </p>
+          <h1>Ontdek de sets</h1>
+          <p className="page-intro">
             Blader door uitbreidingen en ontdek de kaarten uit elke generatie.
           </p>
         </div>
 
-        <Link
-          href="/cards"
-          className="font-mono text-xs font-semibold text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-        >
+        <Link href="/cards" className="text-link quiet">
           Bekijk alle kaarten &rarr;
         </Link>
       </div>
@@ -83,18 +77,18 @@ export default function SetsPage() {
             onAction={() => setRetry((n) => n + 1)}
           />
         ) : setsData && setsData.items.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="set-grid">
             {setsData.items.map((s: SetSummary) => {
               const cardCount = s.card_count ?? s.local_card_count ?? 0;
               return (
                 <Link
                   key={s.external_id}
                   href={`/sets/${encodeURIComponent(s.external_id)}`}
-                  className="card-slab group flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-obsidian-900"
+                  className="set-ticket card-slab group"
                 >
                   <div>
                     {/* Top row: Symbol and card count pill */}
-                    <div className="flex items-center justify-between">
+                    <div className="set-ticket-top">
                       <div className="flex items-center gap-2.5">
                         {s.symbol_url ? (
                           <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-800 dark:bg-obsidian-850">
@@ -111,14 +105,12 @@ export default function SetsPage() {
                             S
                           </div>
                         )}
-                        <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                        <span className="set-series">
                           {s.series || "Expansion"}
                         </span>
                       </div>
 
-                      <span className="rounded border border-zinc-200 bg-zinc-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-obsidian-850 dark:text-zinc-300">
-                        {cardCount} kaarten
-                      </span>
+                      <span className="set-count">{cardCount} kaarten</span>
                     </div>
 
                     {/* Logo display if available */}
@@ -146,18 +138,14 @@ export default function SetsPage() {
                       </div>
                     )}
 
-                    <h3 className="mt-3 text-base font-bold text-zinc-900 transition group-hover:text-zinc-600 dark:text-white dark:group-hover:text-zinc-300">
-                      {s.name}
-                    </h3>
+                    <h3>{s.name}</h3>
 
                     {s.release_date && (
-                      <p className="mt-0.5 font-mono text-xs text-zinc-400">
-                        Uitgebracht: {s.release_date}
-                      </p>
+                      <p className="set-date">Uitgebracht: {s.release_date}</p>
                     )}
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-3 font-mono text-xs font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+                  <div className="set-ticket-footer">
                     <span>Bekijk de kaarten</span>
                     <span className="transition group-hover:translate-x-1">
                       &rarr;
@@ -179,17 +167,17 @@ export default function SetsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-10 flex items-center justify-center gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+        <div className="pagination">
           <button
             type="button"
             disabled={page <= 1 || loading}
             onClick={() => setPage(page - 1)}
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-800 dark:bg-obsidian-900 dark:text-zinc-200 dark:hover:bg-obsidian-850"
+            className="ink-button secondary small"
           >
             &larr; Vorige
           </button>
 
-          <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          <span>
             Pagina {page} van {totalPages}
           </span>
 
@@ -197,13 +185,12 @@ export default function SetsPage() {
             type="button"
             disabled={page >= totalPages || loading}
             onClick={() => setPage(page + 1)}
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-800 dark:bg-obsidian-900 dark:text-zinc-200 dark:hover:bg-obsidian-850"
+            className="ink-button secondary small"
           >
             Volgende &rarr;
           </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }
-

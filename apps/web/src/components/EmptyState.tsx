@@ -21,8 +21,8 @@ export default function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-white/10 dark:bg-zinc-900/40 sm:p-12">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+    <div className="empty-state">
+      <div className="empty-state-icon">
         {icon || (
           <svg
             className="h-6 w-6"
@@ -37,27 +37,20 @@ export default function EmptyState({
         )}
       </div>
 
-      <h3 className="mt-4 text-sm font-bold text-slate-900 dark:text-zinc-100">
-        {title}
-      </h3>
-      <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-        {description}
-      </p>
+      <h3>{title}</h3>
+      <p>{description}</p>
 
       {actionLabel && (actionHref || onAction) && (
-        <div className="mt-5">
+        <div className="empty-state-action">
           {actionHref ? (
-            <Link
-              href={actionHref}
-              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
-            >
+            <Link href={actionHref} className="ink-button red small">
               {actionLabel}
             </Link>
           ) : (
             <button
               type="button"
               onClick={onAction}
-              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white"
+              className="ink-button red small"
             >
               {actionLabel}
             </button>

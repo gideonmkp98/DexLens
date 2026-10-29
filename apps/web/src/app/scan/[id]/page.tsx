@@ -130,7 +130,7 @@ export default function ScanResultPage() {
       }
       setCorners(DEFAULT_CORNERS);
       setDetectionMessage(
-        "Automatic detection unavailable. Please adjust corners manually."
+        "Automatische detectie is niet beschikbaar. Zet de hoeken handmatig goed."
       );
       setHasUnsavedChanges(true);
       selectionRevisionRef.current += 1;
@@ -179,7 +179,7 @@ export default function ScanResultPage() {
       } else if (err instanceof Error) {
         setErrorMessage(err.message);
       } else {
-        setErrorMessage("Unable to load card scan from server.");
+        setErrorMessage("De scan kon niet van de server worden geladen.");
       }
     } finally {
       setLoading(false);
@@ -238,7 +238,7 @@ export default function ScanResultPage() {
       if (err instanceof ApiError) {
         if (err.status === 409) {
           setActionError(
-            "The scan was updated by another process. Fetching latest version."
+            "De scan is intussen gewijzigd. De nieuwste versie wordt opgehaald."
           );
           void fetchScan();
         } else {
@@ -246,7 +246,7 @@ export default function ScanResultPage() {
         }
       } else {
         setActionError(
-          "Failed to generate perspective crop. Please try again."
+          "De uitsnede kon niet worden gemaakt. Probeer het opnieuw."
         );
       }
     } finally {
@@ -286,7 +286,9 @@ export default function ScanResultPage() {
           setActionError(err.message);
         }
       } else {
-        setActionError("Failed to confirm crop. Please try again.");
+        setActionError(
+          "De uitsnede kon niet worden bevestigd. Probeer het opnieuw."
+        );
       }
     } finally {
       setIsConfirming(false);
@@ -363,7 +365,7 @@ export default function ScanResultPage() {
 
       if (result.catalog_status === "unavailable") {
         setRecognitionError(
-          "Card catalog is temporarily unreachable. Recognized data is preserved; you can refine search manually below."
+          "De catalogus is tijdelijk niet bereikbaar. De herkende gegevens zijn bewaard; je kunt hieronder handmatig zoeken."
         );
         setShowManualSearch(true);
       }
@@ -377,11 +379,11 @@ export default function ScanResultPage() {
       if (err instanceof ApiError) {
         if (err.status === 504) {
           setRecognitionError(
-            "Recognition timed out. Please try again or refine search manually."
+            "De herkenning duurde te lang. Probeer het opnieuw of zoek handmatig."
           );
         } else if (err.status === 503) {
           setRecognitionError(
-            "Recognition service is temporarily unavailable. You can search manually below."
+            "De herkenningsdienst is tijdelijk niet beschikbaar. Je kunt hieronder handmatig zoeken."
           );
           setShowManualSearch(true);
         } else if (err.status === 409) {
@@ -393,7 +395,9 @@ export default function ScanResultPage() {
           setRecognitionError(err.message);
         }
       } else {
-        setRecognitionError("An error occurred during card recognition.");
+        setRecognitionError(
+          "Er ging iets mis tijdens het herkennen van de kaart."
+        );
       }
     } finally {
       if (activeRecognitionIdRef.current === recognitionId) {
@@ -447,7 +451,9 @@ export default function ScanResultPage() {
       });
 
       if (result.catalog_status === "unavailable") {
-        setRecognitionError("Card catalog is temporarily unreachable.");
+        setRecognitionError(
+          "De kaartencatalogus is tijdelijk niet bereikbaar."
+        );
       }
     } catch (err: unknown) {
       if (
@@ -464,7 +470,7 @@ export default function ScanResultPage() {
           setRecognitionError(err.message);
         }
       } else {
-        setRecognitionError("Failed to search candidates.");
+        setRecognitionError("Het zoeken naar kaarten is niet gelukt.");
       }
     } finally {
       if (activeSearchIdRef.current === searchId) {
@@ -511,7 +517,7 @@ export default function ScanResultPage() {
       if (err instanceof ApiError) {
         if (err.status === 409) {
           setActionError(
-            "Card selection or crop changed in background. Refreshing."
+            "De kaartkeuze of uitsnede is intussen gewijzigd. De pagina wordt ververst."
           );
           void fetchScan();
         } else {
@@ -545,13 +551,15 @@ export default function ScanResultPage() {
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setActionError("Confirmation state changed. Reloading.");
+          setActionError(
+            "De bevestiging is intussen gewijzigd. De pagina wordt ververst."
+          );
           void fetchScan();
         } else {
           setActionError(err.message);
         }
       } else {
-        setActionError("Could not reset card selection.");
+        setActionError("De kaartkeuze kon niet worden hersteld.");
       }
     } finally {
       setIsResettingCard(false);
@@ -563,10 +571,10 @@ export default function ScanResultPage() {
       <main className="mx-auto flex min-h-[60vh] max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
         <div className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-800 dark:border-t-white" />
         <h2 className="mt-4 text-sm font-semibold tracking-wide text-zinc-800 dark:text-zinc-200">
-          Loading Scan Record...
+          Scan laden…
         </h2>
         <p className="mt-1 font-mono text-xs text-zinc-500">
-          Fetching optical alignment and catalog candidate state
+          Uitsnede en kaartresultaten worden opgehaald
         </p>
       </main>
     );
@@ -592,24 +600,24 @@ export default function ScanResultPage() {
             </svg>
           </div>
           <h1 className="mt-4 text-base font-bold text-zinc-900 dark:text-white">
-            Scan Record Not Found
+            Scan niet gevonden
           </h1>
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             {errorMessage ||
-              "This scan either does not exist or expired after the temporary retention window."}
+              "Deze scan bestaat niet of is na de tijdelijke bewaartermijn verlopen."}
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
               href="/scan"
               className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
             >
-              Start New Scan
+              Nieuwe scan starten
             </Link>
             <Link
               href="/cards"
               className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
             >
-              Browse Catalog
+              Bekijk de catalogus
             </Link>
           </div>
         </div>
@@ -637,10 +645,10 @@ export default function ScanResultPage() {
             </svg>
           </div>
           <h1 className="mt-4 text-base font-bold text-rose-950 dark:text-rose-200">
-            Error Loading Scan
+            Scan laden lukt niet
           </h1>
           <p className="mt-2 text-xs text-rose-700 dark:text-rose-400">
-            {errorMessage || "An unexpected error occurred."}
+            {errorMessage || "Er is een onverwachte fout opgetreden."}
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <button
@@ -648,13 +656,13 @@ export default function ScanResultPage() {
               onClick={() => void fetchScan()}
               className="rounded-xl bg-rose-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-rose-600"
             >
-              Retry
+              Opnieuw proberen
             </button>
             <Link
               href="/scan"
               className="rounded-xl border border-zinc-300 px-4 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
-              New Scan
+              Nieuwe scan
             </Link>
           </div>
         </div>
@@ -674,7 +682,7 @@ export default function ScanResultPage() {
   const candidates: CandidateMatchItem[] = scan.candidates || [];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+    <main className="content-page scan-result-page">
       {/* Top Header & Navigation */}
       <div className="mb-6 flex flex-col gap-4 border-b border-slate-200/80 pb-5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -736,7 +744,7 @@ export default function ScanResultPage() {
             <button
               type="button"
               onClick={() => setIsEditingConfirmed(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="result-action secondary inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <svg
                 className="h-3.5 w-3.5 text-slate-400"
@@ -755,10 +763,7 @@ export default function ScanResultPage() {
             </button>
           )}
 
-          <Link
-            href="/scan"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2 text-xs font-black text-white shadow-md shadow-sky-500/20 transition hover:brightness-110 active:scale-95"
-          >
+          <Link href="/scan" className="ink-button red small">
             <svg
               className="h-3.5 w-3.5"
               fill="none"
@@ -849,7 +854,7 @@ export default function ScanResultPage() {
                     </div>
                   )}
                   <span className="absolute bottom-3 right-3 rounded-full bg-black/80 px-2.5 py-1 font-mono text-[10px] font-black text-emerald-400 backdrop-blur-md">
-                    VERIFIED
+                    BEVESTIGD
                   </span>
                 </div>
               </div>
@@ -909,7 +914,7 @@ export default function ScanResultPage() {
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href={`/cards/${encodeURIComponent(scan.confirmed_card.id)}`}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-6 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 active:scale-95"
+                    className="result-action primary inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-6 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 active:scale-95"
                   >
                     <span>Bekijk Kaart Details in Catalogus</span>
                     <span>&rarr;</span>
@@ -919,7 +924,7 @@ export default function ScanResultPage() {
                     type="button"
                     onClick={() => void handleResetCardConfirmation()}
                     disabled={isResettingCard}
-                    className="rounded-2xl border border-slate-200 px-5 py-3.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+                    className="result-action secondary rounded-2xl border border-slate-200 px-5 py-3.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     {isResettingCard ? "Resetten..." : "Opnieuw Matchen"}
                   </button>
@@ -945,7 +950,7 @@ export default function ScanResultPage() {
                   <button
                     type="button"
                     onClick={() => setIsEditingConfirmed(true)}
-                    className="text-xs font-bold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    className="result-action secondary compact text-xs font-bold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   >
                     Wijzigen &rarr;
                   </button>
@@ -1014,7 +1019,7 @@ export default function ScanResultPage() {
                       type="button"
                       onClick={() => void handleRecognizeCard()}
                       disabled={isRecognizing}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 disabled:opacity-60"
+                      className="result-action primary inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 disabled:opacity-60"
                     >
                       {isRecognizing ? (
                         <>
@@ -1032,7 +1037,7 @@ export default function ScanResultPage() {
                     <button
                       type="button"
                       onClick={() => setShowManualSearch(!showManualSearch)}
-                      className="rounded-2xl border border-slate-200 px-5 py-3.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+                      className="result-action secondary rounded-2xl border border-slate-200 px-5 py-3.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       {showManualSearch
                         ? "Verberg Handmatig Zoeken"
@@ -1057,7 +1062,7 @@ export default function ScanResultPage() {
                     <button
                       type="button"
                       onClick={() => setShowManualSearch(!showManualSearch)}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      className="result-action secondary compact rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       {showManualSearch
                         ? "Verberg Zoekfilter"
@@ -1103,7 +1108,7 @@ export default function ScanResultPage() {
                           type="button"
                           onClick={() => void handleConfirmCard(cand.id)}
                           disabled={isConfirmingCard}
-                          className="mt-3 w-full rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 py-2 text-xs font-black text-white shadow-md shadow-sky-500/20 transition hover:brightness-110 disabled:opacity-50"
+                          className="result-action primary mt-3 w-full rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 py-2 text-xs font-black text-white shadow-md shadow-sky-500/20 transition hover:brightness-110 disabled:opacity-50"
                         >
                           {isConfirmingCard ? "Koppelen..." : "Kies Deze Kaart"}
                         </button>
@@ -1145,7 +1150,7 @@ export default function ScanResultPage() {
                     <button
                       type="submit"
                       disabled={isSearching}
-                      className="rounded-xl bg-slate-900 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                      className="result-action primary rounded-xl bg-slate-900 py-2.5 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
                     >
                       {isSearching ? "Zoeken..." : "Zoek Kaart"}
                     </button>
@@ -1191,21 +1196,21 @@ export default function ScanResultPage() {
                     <button
                       type="button"
                       onClick={() => handleRotate("left")}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+                      className="result-action secondary rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       &larr; 90° Links
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRotate("right")}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+                      className="result-action secondary rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       90° Rechts &rarr;
                     </button>
                     <button
                       type="button"
                       onClick={handleResetCorners}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-400 dark:hover:bg-slate-800"
+                      className="result-action secondary rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-50 dark:border-white/10 dark:text-slate-400 dark:hover:bg-slate-800"
                     >
                       Herstel Hoeken
                     </button>
@@ -1216,7 +1221,7 @@ export default function ScanResultPage() {
                       type="button"
                       onClick={handleGeneratePreview}
                       disabled={isCropping}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/60 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60"
+                      className="result-action utility inline-flex items-center gap-1.5 rounded-xl border border-sky-400/60 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60"
                     >
                       {isCropping ? (
                         <>
@@ -1234,7 +1239,7 @@ export default function ScanResultPage() {
                       type="button"
                       onClick={handleConfirmCrop}
                       disabled={isConfirming || hasUnsavedChanges}
-                      className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2 text-xs font-black text-white shadow-md shadow-sky-500/20 transition hover:brightness-110 disabled:opacity-50"
+                      className="result-action primary rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2 text-xs font-black text-white shadow-md shadow-sky-500/20 transition hover:brightness-110 disabled:opacity-50"
                     >
                       {isConfirming
                         ? "Vastzetten..."
@@ -1277,7 +1282,7 @@ export default function ScanResultPage() {
                     type="button"
                     onClick={handleConfirmCrop}
                     disabled={isConfirming || hasUnsavedChanges}
-                    className="mt-5 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="result-action primary mt-5 w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
                   >
                     {isConfirming
                       ? "Uitsnede vastzetten..."
@@ -1295,7 +1300,7 @@ export default function ScanResultPage() {
       {/* ------------------------------------------------------------- */}
       <details className="mt-12 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 font-mono text-xs dark:border-white/10 dark:bg-vault-950/60">
         <summary className="cursor-pointer font-bold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-          Systeem Telemetrie &amp; OCR Data (Ontwikkelaars)
+          Scangegevens &amp; OCR-resultaat (voor ontwikkelaars)
         </summary>
         <div className="mt-4 space-y-2 text-[11px] text-slate-600 dark:text-slate-400">
           <p>Scan UID: {scan.id}</p>
