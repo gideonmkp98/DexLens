@@ -66,13 +66,13 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000}
     container_name: tcg_web
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000}
     ports:
       - "${WEB_PORT}:3000"
     depends_on:

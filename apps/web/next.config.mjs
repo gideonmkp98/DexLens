@@ -1,7 +1,19 @@
+const apiInternalUrl = (
+  process.env.API_INTERNAL_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiInternalUrl}/api/:path*`,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

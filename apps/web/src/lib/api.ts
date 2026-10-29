@@ -118,9 +118,9 @@ export interface CardEnrichmentResponse {
   details: CardEnrichmentDetails | null;
 }
 
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-).replace(/\/+$/, "");
+// Browser requests stay on the web app's origin. Next.js proxies /api requests
+// to the API container, so production does not expose an internal Docker host.
+const API_BASE_URL = "";
 
 /**
  * Fetch backend health status from /api/v1/health.

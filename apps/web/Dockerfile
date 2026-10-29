@@ -19,8 +19,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG API_INTERNAL_URL=http://api:8000
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
@@ -32,6 +32,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV API_INTERNAL_URL=http://api:8000
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
