@@ -43,7 +43,8 @@ class TCGdexProvider:
         client: Any | None = None,
     ) -> None:
         self.base_url = (
-            base_url or getattr(settings, "TCGDEX_BASE_URL", "https://api.tcgdex.net/v2")
+            base_url
+            or getattr(settings, "TCGDEX_BASE_URL", "https://api.tcgdex.net/v2")
         ).rstrip("/")
         self.timeout = (
             timeout

@@ -8,9 +8,10 @@ export default function MobileNavigation() {
       {(
         [
           ["/", "Start", "01"],
-          ["/scan", "Scannen", "02"],
-          ["/cards", "Kaarten", "03"],
-          ["/sets", "Sets", "04"],
+          ["/collection", "Collectie", "02"],
+          ["/scan", "Scannen", "03"],
+          ["/cards", "Kaarten", "04"],
+          ["/sets", "Sets", "05"],
         ] as const
       ).map(([href, label, num]) => (
         <Link

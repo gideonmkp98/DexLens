@@ -15,6 +15,10 @@ const nextConfig = {
     ];
   },
   images: {
+    dangerouslyAllowSVG: false,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    formats: ["image/webp"],
     remotePatterns: [
       {
         protocol: "https",

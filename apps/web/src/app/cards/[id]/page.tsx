@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import CardImage from "@/components/CardImage";
 import EmptyState from "@/components/EmptyState";
-import { CardDetail, getCard } from "@/lib/api";
+import AddToCollectionModal from "@/components/AddToCollectionModal";
+import { CardDetail, CollectionItem, getCard } from "@/lib/api";
 
 export default function CardDetailPage() {
   const params = useParams();
@@ -13,6 +14,9 @@ export default function CardDetailPage() {
   const [card, setCard] = useState<CardDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [addedItem, setAddedItem] = useState<CollectionItem | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cardId) {
@@ -95,9 +99,48 @@ export default function CardDetailPage() {
               priority
             />
           </div>
-          <Link href="/scan" className="ink-button red">
-            Scan jouw exemplaar <span aria-hidden="true">↗</span>
-          </Link>
+          <div className="profile-art-actions mt-4 flex w-full flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="ink-button red w-full"
+            >
+              + Voeg toe aan collectie
+            </button>
+            <Link href="/scan" className="ink-button secondary w-full">
+              Scan jouw exemplaar <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+
+          {successToast && (
+            <div
+              role="status"
+              className="mt-3 flex w-full flex-col gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+            >
+              <div className="flex items-center gap-1.5">
+                <svg
+                  className="h-4 w-4 shrink-0 text-emerald-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M4.5 12.75l6 6 9-13.5"
+                  />
+                </svg>
+                <span>{successToast}</span>
+              </div>
+              <Link
+                href="/collection"
+                className="text-sky-600 underline hover:no-underline dark:text-sky-400"
+              >
+                Bekijk in je collectie &rarr;
+              </Link>
+            </div>
+          )}
         </section>
 
         <section className="profile-copy">
@@ -204,6 +247,20 @@ export default function CardDetailPage() {
           )}
         </section>
       </div>
+
+      {card && (
+        <AddToCollectionModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          card={card}
+          onSuccess={(item) => {
+            setAddedItem(item);
+            setSuccessToast(
+              `"${card.name}" is toegevoegd aan je persoonlijke collectie!`
+            );
+          }}
+        />
+      )}
     </main>
   );
 }

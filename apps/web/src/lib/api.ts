@@ -724,3 +724,301 @@ export async function resetCatalogCardConfirmation(
 
   return res.json() as Promise<ScanResponse>;
 }
+
+// -------------------------------------------------------------
+// Phase 6: Personal Collection & Scan Library Types & API
+// -------------------------------------------------------------
+
+export type CollectionCondition =
+  | "mint"
+  | "near_mint"
+  | "lightly_played"
+  | "moderately_played"
+  | "heavily_played"
+  | "damaged";
+
+export type CollectionVariant =
+  | "normal"
+  | "holo"
+  | "reverse_holo"
+  | "first_edition"
+  | "promo"
+  | "masterball"
+  | "pokeball";
+
+export interface CollectionItem {
+  id: string;
+  card_id: string;
+  provider: string;
+  card_name: string;
+  set_id: string;
+  set_name: string;
+  collector_number: string;
+  card_image_url: string | null;
+  quantity: number;
+  language: string;
+  variant: CollectionVariant;
+  condition: CollectionCondition;
+  notes: string | null;
+  purchase_price: number | string | null;
+  currency: string | null;
+  acquired_at: string | null;
+  source_scan_id: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CollectionListResponse {
+  items: CollectionItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+export interface CollectionSetDistributionItem {
+  set_id: string;
+  set_name: string;
+  count: number;
+  total_cards: number;
+}
+
+export interface CollectionStats {
+  total_cards: number;
+  unique_cards: number;
+  total_sets: number;
+  duplicate_count: number;
+  condition_distribution: Record<string, number>;
+  set_distribution: CollectionSetDistributionItem[];
+  recent_additions: CollectionItem[];
+}
+
+export interface CreateCollectionItemRequest {
+  card_id: string;
+  provider?: string;
+  card_name?: string | null;
+  set_id?: string | null;
+  set_name?: string | null;
+  collector_number?: string | null;
+  card_image_url?: string | null;
+  quantity?: number;
+  language?: string;
+  variant?: CollectionVariant;
+  condition?: CollectionCondition;
+  notes?: string | null;
+  purchase_price?: number | null;
+  currency?: string | null;
+  acquired_at?: string | null;
+  source_scan_id?: string | null;
+}
+
+export interface UpdateCollectionItemRequest {
+  quantity?: number;
+  condition?: CollectionCondition;
+  variant?: CollectionVariant;
+  notes?: string | null;
+  purchase_price?: number | null;
+  currency?: string | null;
+  acquired_at?: string | null;
+  expected_version: number;
+}
+
+export interface AddFromScanRequest {
+  condition?: CollectionCondition;
+  variant?: CollectionVariant;
+  quantity?: number;
+  notes?: string | null;
+  purchase_price?: number | null;
+  currency?: string | null;
+  acquired_at?: string | null;
+}
+
+/**
+ * Retrieve personal collection items with filtering, sorting, and pagination.
+ */
+export async function getCollection(params?: {
+  q?: string;
+  query?: string;
+  set_id?: string;
+  condition?: string;
+  language?: string;
+  variant?: string;
+  sort?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<CollectionListResponse> {
+  const searchParams = new URLSearchParams();
+  const qVal = params?.q ?? params?.query;
+  if (qVal) searchParams.set("query", qVal);
+  if (params?.set_id) searchParams.set("set_id", params.set_id);
+  if (params?.condition) searchParams.set("condition", params.condition);
+  if (params?.language) searchParams.set("language", params.language);
+  if (params?.variant) searchParams.set("variant", params.variant);
+  if (params?.sort) searchParams.set("sort", params.sort);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const queryStr = searchParams.toString();
+  const url = `${API_BASE_URL}/api/v1/collection${queryStr ? `?${queryStr}` : ""}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Ophalen van collectie mislukt");
+  }
+
+  return res.json() as Promise<CollectionListResponse>;
+}
+
+/**
+ * Retrieve a single collection item by UUID.
+ */
+export async function getCollectionItem(id: string): Promise<CollectionItem> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/collection/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, `Collectie-item ${id} niet gevonden`);
+  }
+
+  return res.json() as Promise<CollectionItem>;
+}
+
+/**
+ * Retrieve aggregated collection summary metrics and distribution stats.
+ */
+export async function getCollectionStats(): Promise<CollectionStats> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/collection/stats`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Ophalen van collectiestatistieken mislukt");
+  }
+
+  return res.json() as Promise<CollectionStats>;
+}
+
+/**
+ * Manually add a card specimen to personal collection.
+ */
+export async function createCollectionItem(
+  data: CreateCollectionItemRequest
+): Promise<CollectionItem> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/collection`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Toevoegen aan collectie mislukt");
+  }
+
+  return res.json() as Promise<CollectionItem>;
+}
+
+/**
+ * Update editable attributes of a collection item with optimistic concurrency.
+ */
+export async function updateCollectionItem(
+  id: string,
+  data: UpdateCollectionItemRequest
+): Promise<CollectionItem> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/collection/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Bijwerken van collectie-item mislukt");
+  }
+
+  return res.json() as Promise<CollectionItem>;
+}
+
+/**
+ * Remove a card specimen from personal collection.
+ */
+export async function deleteCollectionItem(id: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/collection/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok && res.status !== 204) {
+    throw await parseApiError(res, "Verwijderen van kaart mislukt");
+  }
+}
+
+/**
+ * Add a verified, confirmed scan card to personal collection (idempotent).
+ */
+export async function addScanToCollection(
+  scanId: string,
+  data?: AddFromScanRequest
+): Promise<CollectionItem> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(scanId)}/collection`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      body: data ? JSON.stringify(data) : undefined,
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Scan toevoegen aan collectie mislukt");
+  }
+
+  return res.json() as Promise<CollectionItem>;
+}
+
+/** Return the collection item linked to this exact scan, if already added. */
+export async function getScanCollectionItem(
+  scanId: string
+): Promise<CollectionItem | null> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scans/${encodeURIComponent(scanId)}/collection`,
+    { cache: "no-store" }
+  );
+
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw await parseApiError(res, "Collectiestatus van scan ophalen mislukt");
+  }
+  return res.json() as Promise<CollectionItem>;
+}

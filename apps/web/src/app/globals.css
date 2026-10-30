@@ -1856,3 +1856,31 @@ button:disabled {
     min-height: 44px;
   }
 }
+
+/* ------------------------------------------------------------- */
+/* Phase 6: Personal Collection & Scan Library Styles             */
+/* ------------------------------------------------------------- */
+
+.collection-card-tile {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s,
+    border-color 0.18s;
+}
+
+.collection-card-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 3px 5px 0 var(--shadow);
+  border-color: var(--red);
+}
+
+.collection-page h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 900;
+  letter-spacing: -2px;
+}

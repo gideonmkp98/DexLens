@@ -6,14 +6,17 @@ import { useParams } from "next/navigation";
 import { CornerSelector } from "@/components/CornerSelector";
 import CardImage from "@/components/CardImage";
 import {
+  addScanToCollection,
   ApiError,
   CandidateMatchItem,
+  CollectionItem,
   confirmCatalogCard,
   confirmCrop,
   CropCorners,
   cropScan,
   detectCard,
   getScan,
+  getScanCollectionItem,
   getScanCropImageUrl,
   getScanImageUrl,
   recognizeCard,
@@ -100,6 +103,16 @@ export default function ScanResultPage() {
   const [editSetId, setEditSetId] = useState<string>("");
   const [showManualSearch, setShowManualSearch] = useState<boolean>(false);
 
+  // Phase 6 Collection state
+  const [collectionItem, setCollectionItem] = useState<CollectionItem | null>(
+    null
+  );
+  const [isAddingToCollection, setIsAddingToCollection] =
+    useState<boolean>(false);
+  const [collectionSuccessMsg, setCollectionSuccessMsg] = useState<
+    string | null
+  >(null);
+
   // Run automatic detection with race condition protection
   const runAutoDetection = useCallback(async (scanId: string) => {
     setIsDetecting(true);
@@ -172,6 +185,16 @@ export default function ScanResultPage() {
       setEditName(initialName);
       setEditNumber(initialNumber);
       setEditSetId(initialSetCode);
+
+      if (data.confirmed_card) {
+        getScanCollectionItem(data.id)
+          .then((item) => {
+            setCollectionItem(item);
+          })
+          .catch(() => {
+            // Background check failure is non-fatal
+          });
+      }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setErrorStatus(err.status);
@@ -566,6 +589,29 @@ export default function ScanResultPage() {
     }
   };
 
+  const handleAddToCollection = async () => {
+    if (!scan || !scan.confirmed_card) return;
+    setIsAddingToCollection(true);
+    setActionError(null);
+    setCollectionSuccessMsg(null);
+
+    try {
+      const item = await addScanToCollection(scan.id);
+      setCollectionItem(item);
+      setCollectionSuccessMsg(
+        "Kaart succesvol toegevoegd aan je persoonlijke collectie!"
+      );
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setActionError(err.message);
+      } else {
+        setActionError("Kaart kon niet aan de collectie worden toegevoegd.");
+      }
+    } finally {
+      setIsAddingToCollection(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
@@ -882,6 +928,24 @@ export default function ScanResultPage() {
                     <span className="font-mono text-xs font-bold text-slate-500">
                       #{scan.confirmed_card.number}
                     </span>
+                    {collectionItem && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                        <svg
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M4.5 12.75l6 6 9-13.5"
+                          />
+                        </svg>
+                        In collectie ({collectionItem.quantity}×)
+                      </span>
+                    )}
                   </div>
 
                   <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl">
@@ -909,9 +973,92 @@ export default function ScanResultPage() {
                       </p>
                     </div>
                   </div>
+
+                  {collectionSuccessMsg && (
+                    <div
+                      role="status"
+                      className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className="h-4 w-4 shrink-0 text-emerald-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M4.5 12.75l6 6 9-13.5"
+                          />
+                        </svg>
+                        <span>{collectionSuccessMsg}</span>
+                      </div>
+                      <Link
+                        href="/collection"
+                        className="text-sky-600 underline hover:no-underline dark:text-sky-400"
+                      >
+                        Bekijk in je collectie &rarr;
+                      </Link>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  {collectionItem ? (
+                    <Link
+                      href="/collection"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/15 px-5 py-3.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-500/25 dark:text-emerald-300"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M4.5 12.75l6 6 9-13.5"
+                        />
+                      </svg>
+                      <span>In collectie ✓</span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleAddToCollection()}
+                      disabled={isAddingToCollection}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3.5 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-400 active:scale-95 disabled:opacity-50"
+                    >
+                      {isAddingToCollection ? (
+                        <>
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                          <span>Toevoegen…</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d="M12 4.5v15m7.5-7.5h-15"
+                            />
+                          </svg>
+                          <span>Voeg toe aan collectie</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
                   <Link
                     href={`/cards/${encodeURIComponent(scan.confirmed_card.id)}`}
                     className="result-action primary inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-6 py-3.5 text-xs font-black text-white shadow-lg shadow-sky-500/30 transition hover:brightness-110 active:scale-95"

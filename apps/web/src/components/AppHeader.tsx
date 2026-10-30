@@ -19,6 +19,7 @@ export default function AppHeader() {
           {(
             [
               ["/", "Start"],
+              ["/collection", "Collectie"],
               ["/cards", "Kaarten"],
               ["/sets", "Sets"],
             ] as const

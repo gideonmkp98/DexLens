@@ -216,6 +216,49 @@ def test_detect_card_on_rotated_synthetic_image(tmp_path: Path) -> None:
     validate_corners(corners)
 
 
+def test_detect_card_ignores_square_textured_playmat_boundary(tmp_path: Path) -> None:
+    """A large square background must not outrank the portrait card contour."""
+    rng = np.random.default_rng(42)
+    size = 900
+    base = np.full((size, size, 3), (28, 35, 48), dtype=np.int16)
+
+    # High-frequency playmat texture creates strong contours near the frame,
+    # matching the real-world failure mode from an uploaded square photo.
+    texture = rng.integers(-18, 19, (size, size, 1), dtype=np.int16)
+    img = np.clip(base + texture, 0, 255).astype(np.uint8)
+    cv2.rectangle(img, (2, 5), (897, 898), (85, 95, 110), 6)
+
+    expected_left, expected_top = 235, 115
+    expected_right, expected_bottom = 665, 785
+    cv2.rectangle(
+        img,
+        (expected_left, expected_top),
+        (expected_right, expected_bottom),
+        (20, 205, 245),
+        -1,
+    )
+    cv2.rectangle(
+        img,
+        (expected_left + 24, expected_top + 32),
+        (expected_right - 24, expected_bottom - 32),
+        (155, 165, 190),
+        -1,
+    )
+
+    path = tmp_path / "card_on_square_textured_playmat.jpg"
+    _save_image_to_path(img, path)
+
+    detected, corners, _, score = detect_card_corners(path)
+
+    assert detected is True
+    assert score > 0.50
+    validate_corners(corners)
+    assert 0.23 <= corners.top_left.x <= 0.30
+    assert 0.10 <= corners.top_left.y <= 0.16
+    assert 0.70 <= corners.bottom_right.x <= 0.77
+    assert 0.84 <= corners.bottom_right.y <= 0.90
+
+
 def test_detect_card_no_card_found(tmp_path: Path) -> None:
     # Uniform noise / plain background with no card
     img = np.random.randint(100, 120, (600, 800, 3), dtype=np.uint8)

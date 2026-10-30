@@ -25,6 +25,9 @@ export default function HomePage() {
             <Link href="/scan" className="ink-button red">
               Scan je kaart <span aria-hidden="true">↗</span>
             </Link>
+            <Link href="/collection" className="ink-button secondary">
+              Mijn collectie
+            </Link>
             <Link href="/cards" className="text-link">
               Duik in de catalogus →
             </Link>
@@ -77,11 +80,12 @@ export default function HomePage() {
         <span>BEKIJK DE HELE SET</span>
       </div>
       <section className="home-explore">
-        <div>
+        <div className="home-explore-intro">
           <p className="eyebrow">BLADEREN MAG OOK</p>
           <h2>Het begint bij één kaart.</h2>
           <p>
-            Zoek een bekende naam of bekijk de kaarten uit een hele uitbreiding.
+            Zoek een bekende naam, bekijk een hele uitbreiding of beheer je
+            eigen verzameling.
           </p>
         </div>
         <Link href="/cards" className="explore-ticket">
@@ -97,6 +101,13 @@ export default function HomePage() {
             Open een set <span>↗</span>
           </h3>
           <p>Van de klassiekers tot recente releases.</p>
+        </Link>
+        <Link href="/collection" className="explore-ticket">
+          <span className="ticket-number">03 / VERZAMELING</span>
+          <h3>
+            Jouw collectie <span>↗</span>
+          </h3>
+          <p>Beheer je exemplaren, condities en dubbelen.</p>
         </Link>
       </section>
     </main>

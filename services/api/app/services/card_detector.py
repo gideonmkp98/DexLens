@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 # Standard Pokémon card dimensions: 63 mm x 88 mm => ~0.7159 aspect ratio (portrait)
 POKEMON_CARD_ASPECT_RATIO = 63.0 / 88.0  # ~0.7159
 INVERSE_ASPECT_RATIO = 88.0 / 63.0  # ~1.3968
+# Allow perspective distortion, but never accept an almost-square playmat or
+# image boundary as a card. The previous 0.28 tolerance admitted ratios up to
+# ~0.996 and caused large background contours to outrank the actual card.
+MAX_CARD_ASPECT_DEVIATION = 0.18
 
 
 class Point(BaseModel):
@@ -433,7 +437,7 @@ def detect_card_corners(
                 aspect = min(w_est, h_est) / max(w_est, h_est)
 
                 ratio_diff = abs(aspect - POKEMON_CARD_ASPECT_RATIO)
-                if ratio_diff > 0.28:
+                if ratio_diff > MAX_CARD_ASPECT_DEVIATION:
                     continue
 
                 # Parallelism of opposite edges
@@ -484,7 +488,7 @@ def detect_card_corners(
                 seen_polys.append(ordered_pts)
 
                 # 1. Aspect score (0 to 1, higher is closer to ~0.716)
-                aspect_score = max(0.0, 1.0 - (ratio_diff / 0.22))
+                aspect_score = max(0.0, 1.0 - (ratio_diff / MAX_CARD_ASPECT_DEVIATION))
 
                 # 2. Area score (monotonic sqrt favors larger outer card boundary)
                 area_score = math.sqrt(norm_area)

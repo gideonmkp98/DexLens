@@ -24,6 +24,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.integrations.tcgdex.mapper import is_digital_card
 from app.models.scan import Scan
+from app.schemas.collection import AddFromScanRequest, CollectionItemResponse
 from app.schemas.scan import (
     CandidateMatchItem,
     ConfirmCardRequest,
@@ -61,6 +62,7 @@ from app.services.catalog.provider_cache import (
     recognition_cache,
 )
 from app.services.catalog.visual_matcher import rerank_by_artwork
+from app.services.collection import CollectionService, InvalidScanStateError
 from app.services.crop_service import CropProcessingError, perform_crop_and_warp
 from app.services.image_processor import (
     process_and_normalize_image,
@@ -1650,3 +1652,70 @@ def reset_catalog_card_confirmation(
     db.expire_all()
     scan = db.query(Scan).filter(Scan.id == scan_id).first()
     return _build_scan_response(scan)
+
+
+@router.get("/{id}/collection", response_model=CollectionItemResponse)
+async def get_scan_collection_item(
+    id: str,
+    response: Response,
+    db: Session = Depends(get_db),
+    catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+) -> CollectionItemResponse:
+    """Return the collection item linked to this exact scan, if one exists."""
+    response.headers["Cache-Control"] = "no-store"
+    scan_id = _validate_uuid(id)
+    service = CollectionService(db=db, catalog_service=catalog_service)
+    item = await service.get_item_for_scan(scan_id)
+    if item is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "COLLECTION_ITEM_NOT_FOUND",
+                "message": "This scan has not been added to the collection.",
+            },
+        )
+    return CollectionItemResponse.model_validate(item)
+
+
+@router.post("/{id}/collection", response_model=CollectionItemResponse)
+async def add_scan_to_collection(
+    id: str,
+    response: Response,
+    body: AddFromScanRequest | None = None,
+    db: Session = Depends(get_db),
+    catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+) -> CollectionItemResponse:
+    """Add a verified, confirmed scan card to personal collection.
+
+    Idempotent: Repeated calls return the existing collection item with HTTP 200.
+    Initial creation returns HTTP 201.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    scan_id = _validate_uuid(id)
+    service = CollectionService(db=db, catalog_service=catalog_service)
+    req_body = body or AddFromScanRequest()
+
+    try:
+        item, was_created = await service.add_from_scan(scan_id, req_body)
+    except InvalidScanStateError as exc:
+        if exc.code in ("SCAN_NOT_FOUND", "SCAN_EXPIRED"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+        if exc.code == "SCAN_NOT_CONFIRMED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "SCAN_NOT_CONFIRMED", "message": exc.message},
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+    if was_created:
+        response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
+
+    return CollectionItemResponse.model_validate(item)

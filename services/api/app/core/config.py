@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # Phase 5: OCR and Recognition Configuration
     OCR_ENGINE: str = "tesseract"
-    OCR_TIMEOUT_SECONDS: float = 6.0
+    OCR_TIMEOUT_SECONDS: float = 15.0
     OCR_MAX_CONCURRENCY: int = 3
     OCR_MAX_IMAGE_DIMENSION: int = 2000
 

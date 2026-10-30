@@ -22,6 +22,7 @@ services:
       start_period: 10s
 
   api:
+    image: tgc-scanner-api-dev
     build:
       context: ./services/api
       dockerfile: Dockerfile
@@ -38,6 +39,15 @@ services:
       - uploads_data:/app/uploads
     ports:
       - "${API_PORT:-8000}:8000"
+    # The source bind mount can replace the image's normalized entrypoint with
+    # a Windows CRLF copy. Normalize it after mounting and before execution.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed -i 's/\r$//' /app/entrypoint.sh
+        exec /app/entrypoint.sh "$$@"
+      - --
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       db:
@@ -64,6 +74,7 @@ services:
         condition: service_healthy
 
   web:
+    image: tgc-scanner-web-dev
     build:
       context: ./apps/web
       dockerfile: Dockerfile
@@ -75,15 +86,19 @@ services:
     env_file:
       - .env
     environment:
+      # Server-side Next.js rewrites run inside this container and must address
+      # the API by its Docker service name, never by localhost.
+      API_INTERNAL_URL: ${DEV_API_INTERNAL_URL:-http://api:8000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       WATCHPACK_POLLING: "true"
       NODE_ENV: development
     volumes:
       - ./apps/web:/app
-      - /app/node_modules
-      - /app/.next
+      - web_node_modules_dev:/app/node_modules
+      - web_next_dev:/app/.next
     ports:
       - "${WEB_PORT:-3000}:3000"
+    command: ["npm", "run", "dev"]
     depends_on:
       api:
         condition: service_healthy
@@ -91,3 +106,5 @@ services:
 volumes:
   mariadb_data:
   uploads_data:
+  web_node_modules_dev:
+  web_next_dev:

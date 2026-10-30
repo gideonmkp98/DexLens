@@ -1,10 +1,14 @@
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.collection import CollectionItem
 
 
 def _utcnow() -> datetime:
@@ -221,6 +225,13 @@ class Scan(Base):
         DateTime,
         nullable=True,
         default=None,
+    )
+
+    # Relationships
+    collection_items: Mapped[list["CollectionItem"]] = relationship(
+        "CollectionItem",
+        back_populates="scan",
+        passive_deletes=True,
     )
 
     def __repr__(self) -> str:

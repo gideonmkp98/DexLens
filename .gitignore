@@ -28,9 +28,12 @@ ENV/
 # Testing & Linters
 .pytest_cache/
 .ruff_cache/
+*.tsbuildinfo
 .coverage
 htmlcov/
 .mypy_cache/
+test-results/
+playwright-report/
 
 # IDE & OS
 .vscode/

@@ -5,6 +5,15 @@ from app.schemas.card import (
     CardSetBrief,
     PaginatedCardsResponse,
 )
+from app.schemas.collection import (
+    AddFromScanRequest,
+    CollectionCreateRequest,
+    CollectionItemResponse,
+    CollectionListResponse,
+    CollectionSetDistributionItem,
+    CollectionStatsResponse,
+    CollectionUpdateRequest,
+)
 from app.schemas.health import HealthResponse
 from app.schemas.scan import ErrorDetail, ErrorResponse, ScanResponse
 from app.schemas.set import (
@@ -14,10 +23,17 @@ from app.schemas.set import (
 )
 
 __all__ = [
+    "AddFromScanRequest",
     "CardDetailResponse",
     "CardEnrichmentResponse",
     "CardListItem",
     "CardSetBrief",
+    "CollectionCreateRequest",
+    "CollectionItemResponse",
+    "CollectionListResponse",
+    "CollectionSetDistributionItem",
+    "CollectionStatsResponse",
+    "CollectionUpdateRequest",
     "ErrorDetail",
     "ErrorResponse",
     "HealthResponse",

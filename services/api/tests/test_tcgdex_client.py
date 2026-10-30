@@ -266,7 +266,9 @@ def test_image_url_helpers(sample_sdk_card):
     assert low == "https://assets.tcgdex.net/en/base/base1/4/low.webp"
 
     # Testing derive_image_urls helper directly
-    low_derived, high_derived = derive_image_urls("https://assets.tcgdex.net/en/base/base1/4")
+    low_derived, high_derived = derive_image_urls(
+        "https://assets.tcgdex.net/en/base/base1/4"
+    )
     assert low_derived == "https://assets.tcgdex.net/en/base/base1/4/low.webp"
     assert high_derived == "https://assets.tcgdex.net/en/base/base1/4/high.webp"
 

@@ -1,0 +1,92 @@
+services:
+  db:
+    image: ${MARIADB_IMAGE:-mariadb:11.4}
+    container_name: tcg_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-tcg}
+      MARIADB_USER: ${MARIADB_USER:-tcg_user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-tcg_password}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-tcg_root_password}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api-test:
+    image: tgc-scanner-api-dev
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: tcg_api_test
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Strictly connect to isolated test database
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER:-tcg_user}:${MARIADB_PASSWORD:-tcg_password}@db:3306/tcg_test
+      ENVIRONMENT: testing
+      CORS_ORIGINS: http://localhost:3001,http://127.0.0.1:3001,http://localhost:3000,http://127.0.0.1:3000
+      UPLOAD_DIRECTORY: /app/uploads/test_scans
+    volumes:
+      - ./services/api:/app
+      - uploads_test_data:/app/uploads
+    ports:
+      - "8001:8000"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed -i 's/\r$//' /app/entrypoint.sh
+        exec /app/entrypoint.sh "$$@"
+      - --
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  web-test:
+    image: tgc-scanner-web-dev
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: dev
+    container_name: tcg_web_test
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      API_INTERNAL_URL: http://api-test:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+      WATCHPACK_POLLING: "true"
+      NODE_ENV: development
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules_dev:/app/node_modules
+      - web_next_test:/app/.next
+    ports:
+      - "3001:3000"
+    command: ["npm", "run", "dev"]
+    depends_on:
+      api-test:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:
+  uploads_test_data:
+  web_node_modules_dev:
+  web_next_test:

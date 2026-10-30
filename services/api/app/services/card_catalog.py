@@ -55,9 +55,7 @@ class CardCatalogService:
             language=language,
         )
 
-    async def get_set(
-        self, set_id: str, language: str = "en"
-    ) -> dict[str, Any] | None:
+    async def get_set(self, set_id: str, language: str = "en") -> dict[str, Any] | None:
         """Fetch set details through provider."""
         return await self.provider.get_set(set_id, language=language)
 

@@ -1,5 +1,7 @@
 import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -12,6 +14,7 @@ from app.api.v1.cards import get_tcgdex_client
 from app.core.config import settings
 from app.core.database import get_db
 from app.main import app
+from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.scan import Scan
 from app.services import crop_service
 from tests.conftest import TestingSessionLocal, test_engine
@@ -899,3 +902,308 @@ def test_mariadb_confirmation_rejected_with_stale_search_version(
     assert conf_ok.status_code == 200
     assert conf_ok.json()["confirmed_card"]["id"] == "base1-58"
     app.dependency_overrides.pop(get_tcgdex_client, None)
+
+
+def _create_confirmed_scan_fixture(
+    db: Session,
+    card_id: str,
+    card_name: str,
+    set_name: str,
+    collector_number: str,
+    set_id: str = "base1",
+) -> Scan:
+    now_utc = datetime.now(UTC).replace(tzinfo=None)
+    scan = Scan(
+        id=str(uuid.uuid4()),
+        status="confirmed",
+        image_path="/app/uploads/scans/test.jpg",
+        content_type="image/jpeg",
+        width=800,
+        height=1100,
+        file_size=200000,
+        expires_at=now_utc + timedelta(hours=24),
+        crop_status="confirmed",
+        confirmed_card_id=card_id,
+        confirmed_card_name=card_name,
+        confirmed_card_set_name=set_name,
+        confirmed_card_number=collector_number,
+        user_search_provider_set_id=set_id,
+    )
+    db.add(scan)
+    db.commit()
+    db.refresh(scan)
+    return scan
+
+
+def test_mariadb_collection_concurrent_update_vs_update() -> None:
+    """Two concurrent PATCH requests use the same expected_version.
+
+    Exactly one succeeds (HTTP 200).
+    Exactly one receives HTTP 409 (VERSION_CONFLICT).
+    Final quantity and version match the winning update.
+    """
+    setup_db = TestingSessionLocal()
+    item = CollectionItem(
+        id=str(uuid.uuid4()),
+        card_id="base1-4",
+        provider="tcgdex",
+        card_name="Charizard",
+        set_id="base1",
+        set_name="Base Set",
+        collector_number="4",
+        quantity=1,
+        language="en",
+        variant="holo",
+        condition="near_mint",
+        version=1,
+    )
+    setup_db.add(item)
+    setup_db.commit()
+    item_id = item.id
+    setup_db.close()
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def worker(worker_id: int, new_qty: int):
+        client = TestClient(app)
+        barrier.wait(timeout=10)
+        resp = client.patch(
+            f"/api/v1/collection/{item_id}",
+            json={"quantity": new_qty, "expected_version": 1},
+        )
+        results[worker_id] = (resp.status_code, resp.json())
+
+    t1 = threading.Thread(target=worker, args=(1, 5))
+    t2 = threading.Thread(target=worker, args=(2, 10))
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    codes = [results[1][0], results[2][0]]
+    assert 200 in codes, f"Expected one 200: {results}"
+    assert 409 in codes, f"Expected one 409: {results}"
+
+    winner_id = 1 if results[1][0] == 200 else 2
+    loser_id = 2 if winner_id == 1 else 1
+    assert results[loser_id][1]["detail"]["code"] == "VERSION_CONFLICT"
+
+    verify_db = TestingSessionLocal()
+    final_item = (
+        verify_db.query(CollectionItem).filter(CollectionItem.id == item_id).one()
+    )
+    assert final_item.version == 2
+    expected_qty = 5 if winner_id == 1 else 10
+    assert final_item.quantity == expected_qty
+    verify_db.close()
+
+
+def test_mariadb_collection_concurrent_first_add_vs_first_add() -> None:
+    """Two independent scans of the same grouped card are added concurrently.
+
+    Exactly one collection grouping row exists afterward.
+    Quantity is exactly 2.
+    Both scan links exist in collection_scan_links.
+    Neither request returns an unhandled database error (HTTP 500).
+    """
+    setup_db = TestingSessionLocal()
+    scan1 = _create_confirmed_scan_fixture(
+        setup_db, "base1-58", "Pikachu", "Base Set", "58"
+    )
+    scan2 = _create_confirmed_scan_fixture(
+        setup_db, "base1-58", "Pikachu", "Base Set", "58"
+    )
+    s1_id = scan1.id
+    s2_id = scan2.id
+    setup_db.close()
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def worker(worker_id: int, scan_id: str):
+        client = TestClient(app)
+        barrier.wait(timeout=10)
+        resp = client.post(
+            f"/api/v1/scans/{scan_id}/collection",
+            json={"variant": "normal", "condition": "near_mint", "quantity": 1},
+        )
+        results[worker_id] = (resp.status_code, resp.json())
+
+    t1 = threading.Thread(target=worker, args=(1, s1_id))
+    t2 = threading.Thread(target=worker, args=(2, s2_id))
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    assert results[1][0] in (200, 201), f"Unexpected status: {results[1]}"
+    assert results[2][0] in (200, 201), f"Unexpected status: {results[2]}"
+
+    verify_db = TestingSessionLocal()
+    items = (
+        verify_db.query(CollectionItem)
+        .filter(
+            CollectionItem.card_id == "base1-58",
+            CollectionItem.variant == "normal",
+            CollectionItem.condition == "near_mint",
+        )
+        .all()
+    )
+    assert len(items) == 1, f"Expected exactly 1 grouped item: {items}"
+    grouped_item = items[0]
+    assert grouped_item.quantity == 2
+
+    links = (
+        verify_db.query(CollectionScanLink)
+        .filter(CollectionScanLink.collection_item_id == grouped_item.id)
+        .all()
+    )
+    assert len(links) == 2
+    linked_scan_ids = {lnk.scan_id for lnk in links}
+    assert linked_scan_ids == {s1_id, s2_id}
+    verify_db.close()
+
+
+def test_mariadb_collection_concurrent_same_scan_vs_same_scan() -> None:
+    """Two requests add the same scan concurrently.
+
+    Quantity increments exactly once (quantity == 1).
+    Both requests resolve to the same collection item.
+    The repeated request returns the existing item safely (HTTP 200).
+    """
+    setup_db = TestingSessionLocal()
+    scan = _create_confirmed_scan_fixture(
+        setup_db, "base1-2", "Blastoise", "Base Set", "2"
+    )
+    s_id = scan.id
+    setup_db.close()
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def worker(worker_id: int):
+        client = TestClient(app)
+        barrier.wait(timeout=10)
+        resp = client.post(
+            f"/api/v1/scans/{s_id}/collection",
+            json={"variant": "holo", "condition": "mint", "quantity": 1},
+        )
+        results[worker_id] = (resp.status_code, resp.json())
+
+    t1 = threading.Thread(target=worker, args=(1,))
+    t2 = threading.Thread(target=worker, args=(2,))
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    codes = [results[1][0], results[2][0]]
+    assert all(c in (200, 201) for c in codes), f"Expected 200/201: {results}"
+
+    verify_db = TestingSessionLocal()
+    items = (
+        verify_db.query(CollectionItem)
+        .filter(CollectionItem.card_id == "base1-2")
+        .all()
+    )
+    assert len(items) == 1
+    assert items[0].quantity == 1
+
+    links = (
+        verify_db.query(CollectionScanLink)
+        .filter(CollectionScanLink.scan_id == s_id)
+        .all()
+    )
+    assert len(links) == 1
+    verify_db.close()
+
+
+def test_mariadb_collection_concurrent_delete_vs_update() -> None:
+    """Concurrent DELETE vs PATCH on the same collection item.
+
+    Deterministic behavior:
+    - If delete commits first, update receives HTTP 404 (or 409).
+    - If update commits first, delete receives HTTP 204, then item is gone.
+    - No orphan scan links remain.
+    - No unhandled deadlock becomes HTTP 500.
+    """
+    setup_db = TestingSessionLocal()
+    scan = _create_confirmed_scan_fixture(
+        setup_db, "base1-15", "Venusaur", "Base Set", "15"
+    )
+
+    item = CollectionItem(
+        id=str(uuid.uuid4()),
+        card_id="base1-15",
+        provider="tcgdex",
+        card_name="Venusaur",
+        set_id="base1",
+        set_name="Base Set",
+        collector_number="15",
+        quantity=1,
+        language="en",
+        variant="holo",
+        condition="near_mint",
+        version=1,
+    )
+    setup_db.add(item)
+    setup_db.commit()
+
+    link = CollectionScanLink(scan_id=scan.id, collection_item_id=item.id)
+    setup_db.add(link)
+    setup_db.commit()
+
+    item_id = item.id
+    setup_db.close()
+
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def delete_worker():
+        client = TestClient(app)
+        barrier.wait(timeout=10)
+        resp = client.delete(f"/api/v1/collection/{item_id}")
+        results["delete"] = (resp.status_code, resp.text)
+
+    def update_worker():
+        client = TestClient(app)
+        barrier.wait(timeout=10)
+        resp = client.patch(
+            f"/api/v1/collection/{item_id}",
+            json={"quantity": 3, "expected_version": 1},
+        )
+        results["update"] = (
+            resp.status_code,
+            resp.json() if resp.status_code != 204 else None,
+        )
+
+    t1 = threading.Thread(target=delete_worker)
+    t2 = threading.Thread(target=update_worker)
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    assert results["delete"][0] in (
+        204,
+        404,
+    ), f"Delete returned unexpected: {results['delete']}"
+    assert results["update"][0] in (
+        200,
+        404,
+        409,
+    ), f"Update returned unexpected: {results['update']}"
+
+    verify_db = TestingSessionLocal()
+    item_remaining = (
+        verify_db.query(CollectionItem).filter(CollectionItem.id == item_id).first()
+    )
+    if item_remaining is None:
+        orphans = (
+            verify_db.query(CollectionScanLink)
+            .filter(CollectionScanLink.collection_item_id == item_id)
+            .all()
+        )
+        assert len(orphans) == 0, f"Found orphan scan links: {orphans}"
+    verify_db.close()

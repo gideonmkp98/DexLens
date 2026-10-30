@@ -18,7 +18,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-RUN chmod +x /app/entrypoint.sh
+# Windows checkouts can give shell scripts CRLF line endings. Normalize the
+# entrypoint inside the Linux image so its shebang always resolves correctly.
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Parallel scan requests already have an application-level concurrency bound.
 # Avoid multiplying that by Tesseract's internal OpenMP worker count.

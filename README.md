@@ -1,9 +1,12 @@
-# Pokémon TCG Scanner — Phase 5: OCR-Based Card Identification, Catalog Candidate Matching & User Confirmation
+# Pokémon TCG Scanner — Phase 6: Personal Collection & Scan Library
 
-A production-minded Pokémon TCG scanner web application. Phase 5 delivers local OCR text extraction on confirmed card crops, structured card info normalization, catalog candidate retrieval and explainable ranking via TCGdex, user-editable search fields and manual search fallback, explicit candidate confirmation, and persistent side-by-side comparison across browser reloads.
+A production-minded Pokémon TCG scanner and collection management web application. Building on Phase 5's optical recognition and catalog matching, Phase 6 delivers a persistent personal collection store: seamless conversion from confirmed card scans into inventory records, manual additions from the card catalog, condition and foil variant tracking, atomic quantity adjustments, duplicate trade binder analytics, optimistic concurrency control, and a rich, collector-oriented Dutch interface.
 
 > [!NOTE]
-> **Phase 5 Scope & Clarification**: This phase delivers robust local OCR extraction on confirmed crops, explainable catalog matching, editable search fields, manual search fallback, and atomic persistence of the user-confirmed card. Live camera streams, price estimation, condition grading, and multi-card scanning remain out of scope.
+> **Phase 6 Scope & Architectural Principles**:
+> - **Catalog vs. Inventory Separation**: TCGdex remains the external catalog authority. The database stores only personal inventory records with immutable catalog snapshots (`card_name`, `set_id`, `set_name`, `collector_number`, `card_image_url`) so cards remain permanently viewable offline without cloning the full TCGdex catalog.
+> - **Privacy & Provenance**: Expired or purged scans never delete or corrupt collection specimens (`ON DELETE SET NULL` foreign keys).
+> - **Authentication & Market Pricing Out of Scope**: The app remains single-user/local-first with clean service boundaries ready for multi-tenancy in future phases. Financial portfolio valuations and live market pricing are strictly reserved for later phases.
 
 ---
 
@@ -50,6 +53,19 @@ A production-minded Pokémon TCG scanner web application. Phase 5 delivers local
                   ──> Side-by-side view: cropped user photo alongside official catalog image
                   ──> Persistent state preserved across browser reloads
                   ──> Optional: "Andere kaart kiezen" resets selection without losing confirmed crop
+
+6. Personal Collection & Inventory Management (Phase 6):
+   User (Browser) ──> Click "Voeg toe aan collectie" on confirmed scan or catalog card (/cards/[id])
+                  ──> POST /api/v1/scans/{id}/collection (idempotent, derives snapshot from confirmed card)
+                  ──> POST /api/v1/collection (manual catalog card addition with variant, condition, price)
+                  ──> Persisted in MariaDB (collection_items table) with OCC versioning & loose scan FK
+                  ──> View and manage inventory at /collection:
+                      - Filter by expansion set, condition (NM/LP/MP/HP/DMG), variant (Holo/Reverse/etc.), language
+                      - Instant search across card names, collector numbers, set names, notes
+                      - Grid & compact list views with quantity badges and duplicate trade binder counts
+                      - In-app modal for atomic quantity (+ / -) adjustments and optimistic-locked updates
+                      - Safe delete flow with accessible confirmation modal
+                      - Fast server-side statistics (/api/v1/collection/stats) without external API dependencies
 ```
 
 ---
@@ -160,6 +176,195 @@ Payload:
 }
 ```
 
+### 10. List Collection (Phase 6)
+`GET /api/v1/collection`
+
+Query Parameters: `q`, `set_id`, `condition`, `language`, `variant`, `sort` (`recent`, `name_asc`, `name_desc`, `set_asc`, `number_asc`, `quantity_desc`), `page`, `page_size`.
+
+Returns `CollectionListResponse` containing collection items with snapshots, quantities, conditions, and pagination metadata.
+
+### 11. Manually Add to Collection (Phase 6)
+`POST /api/v1/collection`
+
+Payload:
+```json
+{
+  "card_id": "base1-4",
+  "variant": "holo",
+  "condition": "mint",
+  "quantity": 1,
+  "purchase_price": "249.50",
+  "currency": "EUR",
+  "acquired_at": "2026-10-30",
+  "notes": "Bought at card show, mint candidate"
+}
+```
+
+### 12. Add Confirmed Scan to Collection (Phase 6)
+`POST /api/v1/scans/{scan_id}/collection`
+
+Converts a confirmed card scan into an inventory item. Idempotent: repeated calls safely return the existing record without duplicate creation. Rejects unconfirmed or expired scans.
+
+Payload (optional overrides):
+```json
+{
+  "variant": "normal",
+  "condition": "near_mint",
+  "quantity": 1
+}
+```
+
+### 13. Get Collection Item (Phase 6)
+`GET /api/v1/collection/{entry_id}`
+
+Returns single collection item with full snapshots and provenance.
+
+### 14. Update Collection Item (Phase 6)
+`PATCH /api/v1/collection/{entry_id}`
+
+Supports optimistic concurrency locking via `expected_version`. Increments `version` on change.
+
+Payload:
+```json
+{
+  "quantity": 2,
+  "condition": "near_mint",
+  "expected_version": 1
+}
+```
+
+### 15. Delete Collection Item (Phase 6)
+`DELETE /api/v1/collection/{entry_id}`
+
+Safely removes a card entry from personal inventory. Returns HTTP 204 No Content.
+
+### 16. Get Collection Statistics (Phase 6)
+`GET /api/v1/collection/stats`
+
+Fast server-side MariaDB analytics:
+- `total_cards`: Physical count (sum of quantities)
+- `unique_cards`: Distinct card entries
+- `total_sets`: Number of represented sets
+- `duplicate_count`: Excess trade binder copies
+- `condition_distribution`: Breakdown by condition
+- `set_distribution`: Top expansion sets in collection
+- `recent_additions`: Recently added specimens
+
+---
+
+## Tech Stack
+
+### Frontend (`apps/web`)
+- **Next.js 14** (App Router, Standalone production build)
+- **TypeScript** (Strict mode)
+- **Tailwind CSS** (Custom collectible & elemental palette)
+- **Centralized Typed API Client** (`src/lib/api.ts`)
+- **ESLint** & **Prettier**
+
+### Backend (`services/api`)
+- **FastAPI** (`/api/v1` versioned REST routing)
+- **Python 3.12**
+- **TCGdex Python SDK** (`tcgdexsdk` official SDK for typed catalog queries & detail retrieval)
+- **SQLAlchemy 2.0** & **Alembic**
+- **PyMySQL** & **Cryptography**
+- **Pydantic Settings v2**
+- **HTTPX** (Async HTTP client with retry backoff)
+- **OpenCV & Pillow** (Card boundary detection, perspective transform, CLAHE contrast enhancement)
+- **Tesseract OCR 5.5.0** (Fast, local multi-ROI OCR extraction)
+- **Ruff** (Linter & formatter)
+- **Pytest** & **pytest-asyncio**
+
+### Database & Infrastructure
+- **MariaDB 11.4** (Containerized with healthchecks)
+- **Docker** & **Docker Compose**
+
+---
+
+## Environment Setup
+
+Copy `.env.example` to `.env` in the repository root:
+
+```bash
+cp .env.example .env
+```
+
+Key environment configuration variables:
+
+| Variable | Description | Default |
+|---|---|---|
+| `ENVIRONMENT` | Runtime environment (`development`, `production`) | `development` |
+| `NEXT_PUBLIC_API_URL` | Base URL used by the frontend to reach FastAPI | `http://localhost:8000` |
+| `API_PORT` | Host port exposed for FastAPI | `8000` |
+| `WEB_PORT` | Host port exposed for Next.js | `3000` |
+| `CORS_ORIGINS` | Allowed CORS origins for the API | `http://localhost:3000,http://127.0.0.1:3000` |
+| `DATABASE_URL` | MariaDB SQLAlchemy connection string | `mysql+pymysql://tcg_user:tcg_password@db:3306/tcg` |
+| `MARIADB_DATABASE` | MariaDB database name | `tcg` |
+| `MARIADB_USER` | MariaDB application user | `tcg_user` |
+| `MARIADB_PASSWORD` | MariaDB application password | `tcg_password` |
+| `MARIADB_ROOT_PASSWORD` | MariaDB root password | `tcg_root_password` |
+| `TCGDEX_BASE_URL` | Base REST endpoint for TCGdex API | `https://api.tcgdex.net/v2` |
+| `TCGDEX_HTTP_TIMEOUT` | HTTP client timeout in seconds | `10.0` |
+| `IMPORT_MAX_RETRIES` | Max retries for transient HTTP errors | `3` |
+| `DETAIL_CACHE_TTL_SECONDS` | In-memory fresh cache TTL | `21600` (6h) |
+| `DETAIL_CACHE_MAX_ENTRIES` | In-memory LRU max entries | `1000` |
+| `DETAIL_CACHE_MAX_STALE_SECONDS` | Max stale age for fallback | `86400` (24h) |
+| `DETAIL_CACHE_FAILED_COOLDOWN_SECONDS` | Cooldown after failed provider fetch | `60` |
+
+---
+
+## Running with Docker Compose
+
+### Development Mode (Recommended)
+
+Starts Next.js (with hot-reload and polling) and FastAPI with local volume mounts:
+
+```bash
+# Build and start services in development mode
+docker compose -f docker-compose.dev.yml up -d
+
+# Follow container logs
+docker compose -f docker-compose.dev.yml logs -f
+
+# Follow logs for a specific service (e.g. web or api)
+docker compose -f docker-compose.dev.yml logs -f web
+docker compose -f docker-compose.dev.yml logs -f api
+
+# Stop development stack
+docker compose -f docker-compose.dev.yml down
+```
+
+### Production Stack
+
+Starts the optimized production container stack:
+
+```bash
+# Build and start all services
+docker compose up --build -d
+
+# Check running container status
+docker compose ps
+
+# Follow logs
+docker compose logs -f
+
+# Stop production stack
+docker compose down
+```
+
+### Rebuilding Individual Services
+
+When changing frontend or backend code without rebuilding the entire stack:
+
+```bash
+# Rebuild and restart only the web frontend
+docker compose build web
+docker compose up -d --no-deps web
+
+# Rebuild and restart only the backend API
+docker compose build api
+docker compose up -d --no-deps api
+```
+
 ---
 
 ## Database Migrations
@@ -167,7 +372,14 @@ Payload:
 Apply Alembic migrations to update MariaDB:
 
 ```bash
+# Upgrade to latest migration revision
 docker compose exec api alembic upgrade head
+
+# Rollback one migration revision
+docker compose exec api alembic downgrade -1
+
+# Show current migration revision
+docker compose exec api alembic current
 ```
 
 The database schema includes:
@@ -178,6 +390,41 @@ The database schema includes:
 - `0005`: Phase 5 recognition & confirmed card fields (`recognition_status`, `recognition_id`, `ocr_crop_version`, `ocr_raw_text`, `recognized_name`, `recognized_number`, `recognized_set_code`, `ocr_confidence`, `search_version`, `candidate_matches`, `confirmed_card_id`, `confirmed_card_name`, `confirmed_card_set_name`, `confirmed_card_number`, `confirmed_card_image_url`, `card_confirmed_at`).
 - `0006`: Phase 5 search persistence, catalog status & card selection versioning (`card_selection_version`, `catalog_status`, `catalog_error`, `user_search_name`, `user_search_number`, `user_search_set_code`, `user_search_provider_set_id`).
 - `0007`: Persist structured OCR field confidence and source regions in the `recognition_evidence` JSON column.
+- `0008`: Create `collection_items` table with card snapshots, quantity, condition, variant, pricing, notes, optimistic concurrency `version`, and `ON DELETE SET NULL` foreign key to `scans.id`.
+
+---
+
+## Importing the Card Index (Optional CLI Utility)
+
+Populate MariaDB with card sets and card summaries for offline queries:
+
+```bash
+# Import a single set (e.g. Base Set - 102 cards)
+docker compose exec api python -m app.commands.import_cards --set base1 --language en
+
+# Import Jungle (base2 - 64 physical cards)
+docker compose exec api python -m app.commands.import_cards --set base2 --language en
+
+# Import all eligible physical sets (excludes digital-only TCG Pocket)
+docker compose exec api python -m app.commands.import_cards --all --language en
+```
+
+---
+
+## Frontend Web Routes
+
+Access the web interface at `http://localhost:3000`:
+
+- `/`: Home page with camera scan launcher, live stats, quick filter chips, and collection link.
+- `/collection`: Personal collection library with set/condition/variant filtering, instant search, grid & list views, quantity tracking, edit dialog, safe delete modal, and stats overview.
+- `/scan`: Mobile-first camera scanner viewfinder with aspect framing reticle and photo upload.
+- `/scan/[id]`: Interactive card crop adjustment, live crop preview, OCR recognition, candidate matching, verified specimen slab, and "Voeg toe aan collectie" action.
+- `/cards`: Card catalog visual browser with name, number, and expansion set filters.
+- `/cards/[id]`: Detailed card specimen view with artwork, HP, attacks, abilities, variants, illustrator info, and "+ Voeg toe aan collectie" modal.
+- `/cards/[id]`: Detailed card specimen view with artwork, HP, attacks, abilities, variants, and illustrator info.
+- `/sets`: Complete expansion sets directory with set symbols, logos, and card counts.
+- `/sets/[id]`: Set detail view showing set statistics and a paginated list of cards in that set.
+- `/debug`: System telemetry and database connectivity status.
 
 ---
 
@@ -186,7 +433,7 @@ The database schema includes:
 ### Backend Tests & Linters
 
 ```bash
-# Run full test suite in Docker against MariaDB (232 passed in ~32s)
+# Run full test suite in Docker against MariaDB (289 passed in ~90s)
 docker compose exec api pytest
 
 # Ruff code quality and format checks
@@ -194,7 +441,7 @@ docker compose exec api ruff check /app
 docker compose exec api ruff format --check /app
 ```
 
-### Frontend Typecheck, Lint & Build
+### Frontend Typecheck, Lint, Format & Production Build
 
 ```bash
 # Type check with TypeScript strict mode
@@ -206,14 +453,18 @@ npm.cmd --prefix apps/web run lint
 # Check code formatting with Prettier
 npm.cmd --prefix apps/web run format:check
 
-# Verify Next.js production build
+# Verify Next.js production standalone build
 npm.cmd --prefix apps/web run build
 ```
 
-### Browser End-to-End Verification (Playwright)
+### Browser End-to-End Verification (Playwright on Isolated `_test` Stack)
 
 ```bash
-services\api\.venv\Scripts\python services/api/tests/verify_phase5_browser_flow.py
+# Start the dedicated E2E test stack on port 3001 connected strictly to MariaDB tcg_test
+docker compose -f docker-compose.test.yml up -d
+
+# Run automated end-to-end browser test suite (covering all 9 Phase 6 flows: upload, crop, recognize, confirm, duplicate grouping, idempotency, atomic edit, stale 409 rejection, reload persistence, manual catalog addition, safe deletion, existing upload workflow, and database safety guard verification)
+npm.cmd --prefix apps/web run test:e2e
 ```
 
 ### Recognition Quality Benchmark
@@ -221,4 +472,3 @@ services\api\.venv\Scripts\python services/api/tests/verify_phase5_browser_flow.
 ```bash
 docker compose exec api python tests/evaluate_recognition_quality.py
 ```
-"# DexLens" 
