@@ -40,7 +40,11 @@ export default function AppHeader() {
         <div className="header-actions">
           <ThemeToggle />
           <Link className="ink-button red small" href="/scan">
-            Scan een kaart <span aria-hidden="true">↗</span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+              <span>Live Scanner</span>
+            </span>
+            <span aria-hidden="true">◎</span>
           </Link>
         </div>
       </div>

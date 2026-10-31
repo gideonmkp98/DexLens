@@ -54,39 +54,53 @@ This skill enforces a comprehensive, repeatable verification process before clos
 
 ### Gate 9: Comprehensive Backend Test Suite
 - [ ] Run `docker compose -f docker-compose.dev.yml exec api pytest`
-  - Full suite must pass (baseline: >= 285 tests).
+  - Full suite must pass (baseline: >= 308 tests).
 
 ### Gate 10: Real MariaDB Concurrency Testing
 - [ ] Run `docker compose -f docker-compose.dev.yml exec api pytest tests/test_concurrency_mariadb.py -vv`
   - Concurrency tests (optimistic locking conflicts, duplicate grouping merges, identical scan idempotency) must pass against real MariaDB InnoDB engine.
 
-### Gate 11: End-to-End Browser Flow Coverage (Playwright)
-- [ ] Run `npm.cmd --prefix apps/web run test:e2e`
-  - Must cover 9 mandatory flows:
-    1. Upload -> detect -> crop -> OCR -> candidate confirmation -> add to collection
-    2. Second independent scan of same card -> same collection tile with quantity increment (x2)
-    3. Repeating same scan -> no additional increment
-    4. Edit quantity using expected version
-    5. Stale concurrent edit -> HTTP 409
-    6. Reload -> persistence remains correct
-    7. Manual catalog addition
-    8. Safe deletion
-    9. Existing upload workflow remains functional
+### Gate 11: Camera Quality & Client Analysis Unit Testing
+- [ ] Run `npm.cmd --prefix apps/web run test:camera`
+  - All 16 unit tests covering BT.601 luminance, specular glare, discrete Laplacian variance, motion MAD, and stability cooldown state machine must pass.
+
+### Gate 12: End-to-End Browser Flow Coverage (Playwright)
+- [ ] Run `npm.cmd --prefix apps/web run test:e2e` against isolated stack (`http://localhost:3001`)
+  - Must cover both `collection-flow.spec.ts` and `live-scan-flow.spec.ts` across all 19 Phase 7 scenarios:
+    1. Supported-camera happy path with mocked media stream
+    2. Camera permission denied UI fallback
+    3. No camera hardware available fallback
+    4. Unsupported browser fallback
+    5. Manual capture flow
+    6. Automatic capture flow after consecutive stable frames
+    7. No automatic capture during blur, motion, or glare
+    8. Retake action
+    9. Recognition success and slab display
+    10. Low-confidence alternatives selection and manual correction
+    11. Add to collection from live match modal
+    12. Duplicate scan grouping (x2)
+    13. Idempotent repeat scan request
+    14. Scan next card in same session without leaving scanner
+    15. Upload-photo fallback remains fully functional
+    16. Camera media tracks stop on unmount and navigation
+    17. Mobile viewport and orientation change resilience
+    18. Light and dark mode rendering
+    19. Preflight safety guard refuses non-test databases
   - Verify database safety guard refuses destructive reset on non-test databases.
 
-### Gate 12: Next.js Standalone Production Build
+### Gate 13: Next.js Standalone Production Build
 - [ ] Run `npm.cmd --prefix apps/web run build`
   - Verifies static page generation, dynamic routes, and `.next/standalone` production output.
 
-### Gate 13: Sharp Native Image Optimization Verification
+### Gate 14: Sharp Native Image Optimization Verification
 - [ ] Verify `sharp` is installed in `dependencies` and loads inside Node.js standalone runtime.
 
-### Gate 14: Docker Production Stack Validation
+### Gate 15: Docker Production Stack Validation
 - [ ] Run `docker compose build`
 - [ ] Run `docker compose up -d`
 - [ ] Verify health status of `tcg_db`, `tcg_api`, `tcg_web` containers via `docker compose ps`.
 
-### Gate 15: Clean Working Tree & Git Hygiene
+### Gate 16: Clean Working Tree & Git Hygiene
 - [ ] Run `git diff --check`
   - No trailing whitespace or broken line endings.
 - [ ] Verify `.gitignore` and `.prettierignore` protect generated artifacts (`test-results/`, `playwright-report/`).

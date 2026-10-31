@@ -65,7 +65,21 @@
 
 ## 6. Phase Audit Execution
 
-Before declaring readiness or advancing to Phase 7:
+Before declaring readiness or advancing between phases:
 1. Invoke the audit protocol defined in `.agents/skills/phase-readiness-audit/SKILL.md`.
-2. Execute all 15 verification gates sequentially.
+2. Execute all 16 verification gates sequentially.
 3. Record exact outputs and command exit codes in the phase readiness report.
+
+---
+
+## 7. Live Camera & Scan Sessions Architecture (Phase 7)
+
+- **Browser-First Camera Management:**
+  `useCamera` encapsulates `navigator.mediaDevices.getUserMedia` with mobile rear camera preference (`facingMode: { ideal: "environment" }`), device switching, and torch toggling.
+  On unmount, navigation, or error, every active `MediaStreamTrack` MUST be explicitly stopped via `track.stop()`.
+- **Client-Side Offscreen Quality Engine:**
+  Frame analysis operates on a 320×240 offscreen canvas every 180ms (~5-6 FPS) to conserve CPU. Frames are evaluated against BT.601 luminance (exposure), specular glare ratio, $3 \times 3$ Laplacian kernel sharpness, and motion MAD before triggering server upload.
+- **Single-Roundtrip Server Execution:**
+  `POST /api/v1/scan-sessions/{session_id}/capture` accepts a multipart image frame and executes automatic OpenCV card detection, perspective warp, local OCR, and catalog candidate ranking in a single roundtrip, returning `LiveCaptureResponse`.
+- **Continuous Multi-Card Sessions:**
+  `scan_sessions` table (Alembic `0011`) tracks active scanning sessions. *"Volgende kaart scannen"* rearms the camera viewfinder instantly without navigation or session re-creation.

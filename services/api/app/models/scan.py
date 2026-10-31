@@ -2,13 +2,14 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.collection import CollectionItem
+    from app.models.scan_session import ScanSession
 
 
 def _utcnow() -> datetime:
@@ -53,6 +54,17 @@ class Scan(Base):
         DateTime,
         nullable=False,
         index=True,
+    )
+    session_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey(
+            "scan_sessions.id",
+            ondelete="SET NULL",
+            name="fk_scans_session_id_scan_sessions",
+        ),
+        nullable=True,
+        index=True,
+        default=None,
     )
 
     # Phase 4: Card detection, cropping, rotation, and confirmation
@@ -228,6 +240,10 @@ class Scan(Base):
     )
 
     # Relationships
+    session: Mapped["ScanSession | None"] = relationship(
+        "ScanSession",
+        back_populates="scans",
+    )
     collection_items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem",
         back_populates="scan",

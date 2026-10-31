@@ -26,6 +26,13 @@ async function performScanUploadAndConfirmation(page: Page): Promise<string> {
   await expect(page).toHaveTitle(/DexLens/);
   await page.waitForLoadState("domcontentloaded");
 
+  const uploadTab = page
+    .locator('nav[aria-label="Scan methode selectie"]')
+    .getByRole("button", { name: "Foto uploaden" });
+  if (await uploadTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await uploadTab.click();
+  }
+
   const fileChooserInput = page.locator(
     'input[aria-label="Kies een kaartfoto"]'
   );
@@ -368,9 +375,17 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
     await page.goto("/scan");
     await expect(page).toHaveTitle(/DexLens/);
 
+    const uploadTab = page
+      .locator('nav[aria-label="Scan methode selectie"]')
+      .getByRole("button", { name: "Foto uploaden" });
+    if (await uploadTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await uploadTab.click();
+    }
+
     const fileChooserInput = page.locator(
       'input[aria-label="Kies een kaartfoto"]'
     );
+    await expect(fileChooserInput).toBeAttached({ timeout: 15000 });
     await fileChooserInput.setInputFiles(FIXTURE_IMAGE_PATH);
 
     const uploadBtn = page.getByRole("button", {

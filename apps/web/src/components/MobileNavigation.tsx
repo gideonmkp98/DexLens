@@ -8,8 +8,8 @@ export default function MobileNavigation() {
       {(
         [
           ["/", "Start", "01"],
-          ["/collection", "Collectie", "02"],
-          ["/scan", "Scannen", "03"],
+          ["/scan", "Live Scan", "02"],
+          ["/collection", "Collectie", "03"],
           ["/cards", "Kaarten", "04"],
           ["/sets", "Sets", "05"],
         ] as const
@@ -21,6 +21,9 @@ export default function MobileNavigation() {
             (href === "/" ? pathname === href : pathname.startsWith(href))
               ? "page"
               : undefined
+          }
+          className={
+            href === "/scan" ? "font-bold text-[var(--red)]" : undefined
           }
         >
           <span aria-hidden="true">{num}</span>

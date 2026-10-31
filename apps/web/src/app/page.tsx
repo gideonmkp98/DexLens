@@ -23,7 +23,11 @@ export default function HomePage() {
           </p>
           <div className="hero-buttons">
             <Link href="/scan" className="ink-button red">
-              Scan je kaart <span aria-hidden="true">↗</span>
+              <span className="flex items-center gap-2">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                <span>Live Scanner</span>
+              </span>
+              <span aria-hidden="true">◎</span>
             </Link>
             <Link href="/collection" className="ink-button secondary">
               Mijn collectie
@@ -33,7 +37,7 @@ export default function HomePage() {
             </Link>
           </div>
           <p className="small-note">
-            Eén foto. Controleer de uitsnede. Vind jouw kaart.
+            Real-time live camera herkenning & instant collectiebevestiging.
           </p>
         </div>
         <div className="card-showcase">

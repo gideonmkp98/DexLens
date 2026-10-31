@@ -1022,3 +1022,152 @@ export async function getScanCollectionItem(
   }
   return res.json() as Promise<CollectionItem>;
 }
+
+// -------------------------------------------------------------
+// Phase 7: Live Scan & Go Session Types & API
+// -------------------------------------------------------------
+
+export interface ScanSessionResponse {
+  id: string;
+  status: "active" | "completed" | "abandoned" | string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  total_scans: number;
+}
+
+export interface ScanSessionItemResponse {
+  scan_id: string;
+  session_id: string | null;
+  status: string;
+  crop_status: string;
+  created_at: string;
+  image_url: string;
+  crop_image_url: string | null;
+  best_match: CandidateMatchItem | null;
+  candidates: CandidateMatchItem[];
+  confirmed_card: ConfirmedCardInfo | null;
+  in_collection: boolean;
+  collection_quantity: number;
+  collection_item_id: string | null;
+}
+
+export interface ScanSessionDetailResponse {
+  id: string;
+  status: "active" | "completed" | "abandoned" | string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  total_scans: number;
+  items: ScanSessionItemResponse[];
+}
+
+export interface LiveCaptureResponse {
+  scan: ScanResponse;
+  detected: boolean;
+  corners: CropCorners | null;
+  candidates: CandidateMatchItem[];
+  best_match: CandidateMatchItem | null;
+  in_collection: boolean;
+  collection_quantity: number;
+  collection_item_id: string | null;
+  session_id: string;
+  session_status: string;
+}
+
+/**
+ * Create a new live scan session for continuous camera scanning.
+ */
+export async function createScanSession(): Promise<ScanSessionResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/scan-sessions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({}),
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Aanmaken van scansessie mislukt");
+  }
+
+  return res.json() as Promise<ScanSessionResponse>;
+}
+
+/**
+ * Retrieve scan session details including scanned items.
+ */
+export async function getScanSession(
+  id: string
+): Promise<ScanSessionDetailResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scan-sessions/${encodeURIComponent(id)}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Ophalen van scansessie mislukt");
+  }
+
+  return res.json() as Promise<ScanSessionDetailResponse>;
+}
+
+/**
+ * Capture a live camera frame within an active scan session.
+ * Sends multipart/form-data with the image file.
+ */
+export async function captureLiveScanFrame(
+  sessionId: string,
+  imageFile: File | Blob
+): Promise<LiveCaptureResponse> {
+  const formData = new FormData();
+  if (imageFile instanceof File) {
+    formData.append("file", imageFile);
+  } else {
+    formData.append("file", imageFile, "live_frame.jpg");
+  }
+
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scan-sessions/${encodeURIComponent(sessionId)}/capture`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      body: formData,
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Vastleggen van live scanframe mislukt");
+  }
+
+  return res.json() as Promise<LiveCaptureResponse>;
+}
+
+/**
+ * Mark an active scan session as completed.
+ */
+export async function completeScanSession(
+  id: string
+): Promise<ScanSessionResponse> {
+  const res = await fetch(
+    `${API_BASE_URL}/api/v1/scan-sessions/${encodeURIComponent(id)}/complete`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Afronden van scansessie mislukt");
+  }
+
+  return res.json() as Promise<ScanSessionResponse>;
+}

@@ -6,6 +6,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.middleware import RequestSizeLimitMiddleware
 from app.services.image_processor import ImageValidationError
+from app.services.scan_session import ScanSessionError
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -27,6 +28,16 @@ app.add_middleware(
 @app.exception_handler(ImageValidationError)
 async def handle_image_validation_error(
     request: Request, exc: ImageValidationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ScanSessionError)
+async def handle_scan_session_error(
+    request: Request, exc: ScanSessionError
 ) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,

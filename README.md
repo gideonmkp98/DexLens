@@ -1,12 +1,14 @@
-# Pokémon TCG Scanner — Phase 6: Personal Collection & Scan Library
+# Pokémon TCG Scanner — Phase 7: Live Scan & Go
 
-A production-minded Pokémon TCG scanner and collection management web application. Building on Phase 5's optical recognition and catalog matching, Phase 6 delivers a persistent personal collection store: seamless conversion from confirmed card scans into inventory records, manual additions from the card catalog, condition and foil variant tracking, atomic quantity adjustments, duplicate trade binder analytics, optimistic concurrency control, and a rich, collector-oriented Dutch interface.
+A production-minded Pokémon TCG scanner and collection management web application. Building on Phase 5's optical recognition and Phase 6's persistent collection and inventory store, Phase 7 delivers **Live Scan & Go**: a browser-first, mobile-optimized live camera viewfinder with real-time offscreen quality analysis (exposure, glare, Laplacian sharpness, and motion MAD), automatic stability-triggered capture, multi-card continuous scanning sessions, single-roundtrip server recognition, bottom-sheet match confirmation, and 1-click collection persistence.
 
 > [!NOTE]
-> **Phase 6 Scope & Architectural Principles**:
-> - **Catalog vs. Inventory Separation**: TCGdex remains the external catalog authority. The database stores only personal inventory records with immutable catalog snapshots (`card_name`, `set_id`, `set_name`, `collector_number`, `card_image_url`) so cards remain permanently viewable offline without cloning the full TCGdex catalog.
-> - **Privacy & Provenance**: Expired or purged scans never delete or corrupt collection specimens (`ON DELETE SET NULL` foreign keys).
-> - **Authentication & Market Pricing Out of Scope**: The app remains single-user/local-first with clean service boundaries ready for multi-tenancy in future phases. Financial portfolio valuations and live market pricing are strictly reserved for later phases.
+> **Phase 7 Architectural Principles**:
+> - **Live-First with Zero-Loss Fallback**: Live camera scanning is the primary, zero-click experience on mobile and desktop devices. The upload-based workflow (`/scan`) remains 100% supported as an interactive fallback and manual alternative.
+> - **Client-Side Offscreen Quality Engine**: Camera frame quality is evaluated locally at ~5-6 FPS (every 180ms) on a 320×240 offscreen canvas before triggering server upload, preventing blurry or glary server requests.
+> - **Single-Roundtrip Live Processing**: Endpoint `POST /api/v1/scan-sessions/{id}/capture` bundles edge detection, perspective warp, OCR, and catalog candidate ranking into a single HTTP roundtrip.
+> - **Multi-Card Continuous Scanning**: Users can scan multiple cards in a single session without ever leaving the live viewfinder.
+> - **Isolated Test Safety**: Automated E2E testing runs exclusively on a dedicated test stack (`docker-compose.test.yml`, port 3001, database `tcg_test`) with a hard preflight safety guard refusing non-test databases.
 
 ---
 
@@ -66,6 +68,24 @@ A production-minded Pokémon TCG scanner and collection management web applicati
                       - In-app modal for atomic quantity (+ / -) adjustments and optimistic-locked updates
                       - Safe delete flow with accessible confirmation modal
                       - Fast server-side statistics (/api/v1/collection/stats) without external API dependencies
+
+7. Live Scan & Go (Phase 7):
+   User (Browser) ──> Open /scan (defaults to full-screen live camera viewfinder)
+                  ──> Request camera stream via navigator.mediaDevices.getUserMedia ({ facingMode: "environment" })
+                  ──> Offscreen canvas analysis (~5-6 FPS, 320x240):
+                      - Exposure (BT.601 luminance: 0.299R + 0.587G + 0.114B)
+                      - Specular glare ratio (<0.08)
+                      - Discrete Laplacian sharpness variance (>120)
+                      - Motion stability MAD (<12.0)
+                      - Card aspect ratio check (~0.71)
+                  ──> Real-time HUD pill guidance ("Kaart gereed", "Houd stil", "Minder weerspiegeling", etc.)
+                  ──> Auto-trigger after K=3 consecutive READY frames (or manual shutter button)
+                  ──> POST /api/v1/scan-sessions/{id}/capture (single-roundtrip frame upload)
+                      - Auto OpenCV card contour & perspective warp
+                      - High-speed OCR ROI text extraction & TCGdex ranking
+                  ──> LiveScanMatchModal: displays candidate card slab with confidence score
+                  ──> 1-Click "Voeg toe aan collectie" OR 1-Click alternative candidate selection
+                  ──> "Volgende kaart scannen": immediate re-arm without closing viewfinder; increments session tray
 ```
 
 ---
@@ -249,6 +269,28 @@ Fast server-side MariaDB analytics:
 - `condition_distribution`: Breakdown by condition
 - `set_distribution`: Top expansion sets in collection
 - `recent_additions`: Recently added specimens
+
+### 17. Create Live Scan Session (Phase 7)
+`POST /api/v1/scan-sessions`
+
+Initializes an active multi-card scanning session.
+Returns `ScanSessionResponse` with UUID, status `active`, and timestamps.
+
+### 18. Capture Live Frame & Process Single-Roundtrip (Phase 7)
+`POST /api/v1/scan-sessions/{session_id}/capture` (multipart/form-data)
+
+Uploads a live camera frame, executes automatic OpenCV card detection, perspective warp, local OCR, and catalog candidate ranking in a single call.
+Returns `LiveCaptureResponse` containing the created `scan_id`, cropped image URL, candidate matches, OCR evidence, and confidence score.
+
+### 19. Get Live Scan Session Details (Phase 7)
+`GET /api/v1/scan-sessions/{session_id}`
+
+Returns `ScanSessionDetailResponse` containing session status and full list of captured scan items with confirmed cards and collection addition status.
+
+### 20. Complete Live Scan Session (Phase 7)
+`POST /api/v1/scan-sessions/{session_id}/complete`
+
+Marks session as `completed` with completion timestamp.
 
 ---
 

@@ -99,7 +99,7 @@ def _get_storage_dir() -> Path:
     return storage_dir
 
 
-def _serialize_candidate(c: object) -> CandidateMatchItem:
+def serialize_candidate(c: object) -> CandidateMatchItem:
     if isinstance(c, CandidateMatchItem):
         return c
     if isinstance(c, dict):
@@ -120,7 +120,10 @@ def _serialize_candidate(c: object) -> CandidateMatchItem:
     )
 
 
-def _build_scan_response(scan: Scan) -> ScanResponse:
+_serialize_candidate = serialize_candidate
+
+
+def build_scan_response(scan: Scan) -> ScanResponse:
     crop_image_url = None
     if scan.crop_path:
         crop_image_url = f"/api/v1/scans/{scan.id}/crop/image?v={scan.crop_version}"
@@ -299,6 +302,9 @@ def _build_scan_response(scan: Scan) -> ScanResponse:
         candidates=candidates,
         confirmed_card=confirmed_card,
     )
+
+
+_build_scan_response = build_scan_response
 
 
 def _get_active_scan(scan_id: str, db: Session) -> tuple[Scan, Path]:

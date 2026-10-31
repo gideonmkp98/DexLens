@@ -3,6 +3,7 @@ from app.models.card import Card
 from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.import_run import ImportRun
 from app.models.scan import Scan
+from app.models.scan_session import ScanSession
 from app.models.set import Set
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     "CollectionScanLink",
     "ImportRun",
     "Scan",
+    "ScanSession",
     "Set",
 ]

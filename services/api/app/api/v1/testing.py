@@ -39,7 +39,10 @@ def reset_test_database(db: Session = Depends(get_db)) -> dict[str, str]:
 
     try:
         # Guarantee all model tables exist in the isolated test database
-        Base.metadata.create_all(bind=engine)
+        try:
+            Base.metadata.create_all(bind=engine, checkfirst=True)
+        except Exception:
+            pass
         db.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         for table in reversed(Base.metadata.sorted_tables):
             db.execute(table.delete())

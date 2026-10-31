@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "test:camera": "node --experimental-transform-types --test src/lib/camera/cardQualityAnalyzer.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
