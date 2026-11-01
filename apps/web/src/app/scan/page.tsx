@@ -128,9 +128,9 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-80px)] flex-col bg-[var(--paper)]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--paper)]">
       {/* Top Segment Mode Switcher Bar */}
-      <div className="border-b border-[var(--line)] bg-[var(--surface)] px-4 py-2.5">
+      <div className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-3 py-2 sm:px-4 sm:py-2.5">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <nav
             aria-label="Scan methode selectie"
@@ -193,9 +193,12 @@ export default function ScanPage() {
 
       {/* Mode View: Live Scanner (Default) or File Upload Workflow */}
       {scanMode === "live" ? (
-        <LiveCameraScanner onSwitchToUpload={() => setScanMode("upload")} />
+        <LiveCameraScanner
+          className="min-h-0 flex-1"
+          onSwitchToUpload={() => setScanMode("upload")}
+        />
       ) : (
-        <main className="collector-page scan-page flex-1">
+        <main className="collector-page scan-page min-h-0 flex-1 overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="section-topline">
             <Link href="/">DexLens</Link>
             <span>/</span>

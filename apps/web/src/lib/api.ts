@@ -1124,7 +1124,8 @@ export async function getScanSession(
  */
 export async function captureLiveScanFrame(
   sessionId: string,
-  imageFile: File | Blob
+  imageFile: File | Blob,
+  idempotencyKey?: string
 ): Promise<LiveCaptureResponse> {
   const formData = new FormData();
   if (imageFile instanceof File) {
@@ -1137,7 +1138,10 @@ export async function captureLiveScanFrame(
     `${API_BASE_URL}/api/v1/scan-sessions/${encodeURIComponent(sessionId)}/capture`,
     {
       method: "POST",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+      },
       cache: "no-store",
       body: formData,
     }

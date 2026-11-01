@@ -11,6 +11,7 @@ import {
   computeGlareRatio,
   computeLaplacianVariance,
   computeFrameMAD,
+  computeExposureCompensatedMAD,
   analyzeCardFrame,
   CardStabilityTracker,
   estimateCardFraming,
@@ -208,14 +209,36 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       assert.equal(mad, 0);
     });
 
-    test("flags camera movement when MAD exceeds motion threshold", () => {
-      const buf1 = createTestBuffer(50, 50, 100, 100, 100);
-      const buf2 = createTestBuffer(50, 50, 125, 125, 125); // delta = 25 > 12
+    test("ignores a uniform exposure adjustment between frames", () => {
+      const first = rgbaToGrayscale(
+        createTestBuffer(50, 50, 100, 100, 100).data,
+        50,
+        50
+      );
+      const second = rgbaToGrayscale(
+        createTestBuffer(50, 50, 125, 125, 125).data,
+        50,
+        50
+      );
+      assert.equal(computeExposureCompensatedMAD(second, first), 0);
+    });
+
+    test("flags spatial camera movement when compensated MAD is too high", () => {
+      const buf1 = createCheckerboardBuffer(50, 50, 5);
+      const buf2 = createCheckerboardBuffer(50, 50, 5);
+      for (let y = 0; y < 50; y++) {
+        for (let x = 0; x < 25; x++) {
+          const idx = (y * 50 + x) * 4;
+          buf2.data[idx] = 220;
+          buf2.data[idx + 1] = 220;
+          buf2.data[idx + 2] = 220;
+        }
+      }
       const result = analyzeCardFrame(buf2, buf1);
       assert.equal(result.status, QualityStatus.UNSTABLE);
       assert.equal(result.feedback, "Houd stil");
       assert.equal(result.isReady, false);
-      assert.ok(result.metrics.motionMAD > 12);
+      assert.ok(result.metrics.motionMAD > 18);
     });
   });
 
@@ -268,7 +291,7 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       assert.equal(eval3.inCooldown, false);
     });
 
-    test("resets consecutive counter if an unstable frame occurs", () => {
+    test("uses hysteresis for a single unstable frame", () => {
       const tracker = new CardStabilityTracker(3, 2000);
       const readyResult = {
         status: QualityStatus.READY,
@@ -294,9 +317,9 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       tracker.evaluate(readyResult, 1150);
       assert.equal(tracker.getConsecutiveReadyCount(), 2);
 
-      // Wobble occurs -> reset
+      // A brief wobble should reduce confidence instead of erasing all progress.
       const evalReset = tracker.evaluate(unstableResult, 1300);
-      assert.equal(evalReset.consecutiveReadyCount, 0);
+      assert.equal(evalReset.consecutiveReadyCount, 1);
       assert.equal(evalReset.isReadyForCapture, false);
     });
 

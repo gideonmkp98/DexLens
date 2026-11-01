@@ -18,11 +18,27 @@ import {
   ImageDataLike,
   QualityAnalysisResult,
   QualityStatus,
+  RectCoords,
   StabilityEvaluation,
   useCamera,
 } from "@/lib/camera";
 import LiveScanMatchModal from "./LiveScanMatchModal";
 import ScanSessionTray from "./ScanSessionTray";
+
+const PROCESSING_STAGES = [
+  "Foto vastgelegd",
+  "Kaart wordt uitgesneden",
+  "Tekst wordt gelezen",
+  "Catalogus wordt vergeleken",
+  "Beste match bepalen",
+] as const;
+
+function createCaptureRequestKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export interface LiveCameraScannerProps {
   onSwitchToUpload?: () => void;
@@ -48,11 +64,14 @@ export default function LiveCameraScanner({
     toggleTorch,
     captureFrame,
     captureDownscaledFrame,
+    mapDisplayToVideoCoords,
     clearError,
   } = useCamera({
-    autoStart: true,
+    autoStart: false,
     preferredFacingMode: "environment",
   });
+
+  const [cameraRequested, setCameraRequested] = useState<boolean>(false);
 
   // Session state
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -66,7 +85,7 @@ export default function LiveCameraScanner({
     useState<boolean>(false);
 
   // Quality analysis & auto-capture
-  const [autoCaptureEnabled, setAutoCaptureEnabled] = useState<boolean>(true);
+  const [captureMode, setCaptureMode] = useState<"auto" | "manual">("auto");
   const [qualityResult, setQualityResult] =
     useState<QualityAnalysisResult | null>(null);
   const [stability, setStability] = useState<StabilityEvaluation | null>(null);
@@ -76,12 +95,21 @@ export default function LiveCameraScanner({
     new CardStabilityTracker(3, 2200)
   );
   const prevFrameRef = useRef<ImageDataLike | null>(null);
+  const reticleRef = useRef<HTMLDivElement | null>(null);
+  const analysisPausedRef = useRef<boolean>(false);
+  const analysisGraceUntilRef = useRef<number>(0);
 
   // Match modal
   const [activeCaptureResult, setActiveCaptureResult] =
     useState<LiveCaptureResponse | null>(null);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState<boolean>(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [processingPreview, setProcessingPreview] = useState<string | null>(
+    null
+  );
+  const [processingStage, setProcessingStage] = useState<number>(0);
+  const lastCapturedBlobRef = useRef<Blob | null>(null);
+  const lastIdempotencyKeyRef = useRef<string | null>(null);
 
   // Initialize or fetch active scan session
   useEffect(() => {
@@ -130,78 +158,137 @@ export default function LiveCameraScanner({
     }
   }, []);
 
+  const processCapturedBlob = useCallback(
+    async (blob: Blob, idempotencyKey: string) => {
+      try {
+        let targetSessionId = sessionId;
+        if (!targetSessionId) {
+          const createdSession = await createScanSession();
+          targetSessionId = createdSession.id;
+          setSessionId(createdSession.id);
+        }
+
+        const result = await captureLiveScanFrame(
+          targetSessionId,
+          blob,
+          idempotencyKey
+        );
+        stabilityTrackerRef.current.markCaptured();
+
+        const newItem: ScanSessionItemResponse = {
+          scan_id: result.scan.id,
+          session_id: result.session_id,
+          status: result.scan.status,
+          crop_status: result.scan.crop_status || "confirmed",
+          created_at: result.scan.created_at,
+          image_url: result.scan.image_url,
+          crop_image_url: result.scan.crop_image_url ?? null,
+          best_match: result.best_match,
+          candidates: result.candidates,
+          confirmed_card: result.scan.confirmed_card ?? null,
+          in_collection: result.in_collection,
+          collection_quantity: result.collection_quantity,
+          collection_item_id: result.collection_item_id,
+        };
+
+        setSessionItems((prev) => {
+          if (prev.some((item) => item.scan_id === newItem.scan_id))
+            return prev;
+          return [newItem, ...prev];
+        });
+        setActiveCaptureResult(result);
+        setIsMatchModalOpen(true);
+        void refreshSession(targetSessionId);
+      } catch (err) {
+        setCaptureError(
+          err instanceof Error
+            ? err.message
+            : "Vastleggen van de kaart is niet gelukt. Probeer opnieuw."
+        );
+        stabilityTrackerRef.current.reset();
+      } finally {
+        setIsCapturing(false);
+        isCapturingRef.current = false;
+      }
+    },
+    [refreshSession, sessionId]
+  );
+
   // Full-resolution capture handler
   const handleCapture = useCallback(async () => {
-    if (isCapturingRef.current || isMatchModalOpen) return;
+    if (isCapturingRef.current || isMatchModalOpen || !isStreaming) return;
     isCapturingRef.current = true;
     setIsCapturing(true);
+    setProcessingStage(0);
     setCaptureError(null);
-
     triggerHaptic();
 
     try {
-      // 1. Capture high-res frame from video feed
       const frame = await captureFrame();
-
-      // 2. Ensure active session
-      let targetSessionId = sessionId;
-      if (!targetSessionId) {
-        const createdSession = await createScanSession();
-        targetSessionId = createdSession.id;
-        setSessionId(createdSession.id);
-      }
-
-      // 3. Send frame to live capture endpoint
-      const result = await captureLiveScanFrame(targetSessionId, frame.blob);
-
-      // 4. Mark stability tracker cooldown
-      stabilityTrackerRef.current.markCaptured();
-
-      // 5. Append to session items
-      const newItem: ScanSessionItemResponse = {
-        scan_id: result.scan.id,
-        session_id: result.session_id,
-        status: result.scan.status,
-        crop_status: result.scan.crop_status || "confirmed",
-        created_at: result.scan.created_at,
-        image_url: result.scan.image_url,
-        crop_image_url: result.scan.crop_image_url ?? null,
-        best_match: result.best_match,
-        candidates: result.candidates,
-        confirmed_card: result.scan.confirmed_card ?? null,
-        in_collection: result.in_collection,
-        collection_quantity: result.collection_quantity,
-        collection_item_id: result.collection_item_id,
-      };
-
-      setSessionItems((prev) => [newItem, ...prev]);
-
-      // 6. Open match modal with results
-      setActiveCaptureResult(result);
-      setIsMatchModalOpen(true);
-
-      // Refresh full session in background
-      if (targetSessionId) {
-        void refreshSession(targetSessionId);
-      }
+      const requestKey = createCaptureRequestKey();
+      lastCapturedBlobRef.current = frame.blob;
+      lastIdempotencyKeyRef.current = requestKey;
+      setProcessingPreview(frame.dataUrl);
+      await processCapturedBlob(frame.blob, requestKey);
     } catch (err) {
       setCaptureError(
         err instanceof Error
           ? err.message
           : "Vastleggen van de kaart is niet gelukt. Probeer opnieuw."
       );
-      stabilityTrackerRef.current.reset();
-    } finally {
       setIsCapturing(false);
       isCapturingRef.current = false;
     }
   }, [
     captureFrame,
     isMatchModalOpen,
-    refreshSession,
-    sessionId,
+    isStreaming,
+    processCapturedBlob,
     triggerHaptic,
   ]);
+
+  const retryLastCapture = useCallback(async () => {
+    const blob = lastCapturedBlobRef.current;
+    const requestKey = lastIdempotencyKeyRef.current;
+    if (!blob || !requestKey || isCapturingRef.current) return;
+    isCapturingRef.current = true;
+    setIsCapturing(true);
+    setProcessingStage(1);
+    setCaptureError(null);
+    await processCapturedBlob(blob, requestKey);
+  }, [processCapturedBlob]);
+
+  useEffect(() => {
+    if (!isCapturing) return;
+    const intervalId = window.setInterval(() => {
+      setProcessingStage((current) =>
+        Math.min(current + 1, PROCESSING_STAGES.length - 1)
+      );
+    }, 850);
+    return () => window.clearInterval(intervalId);
+  }, [isCapturing]);
+
+  const handleStartCamera = useCallback(async () => {
+    setCameraRequested(true);
+    setCaptureError(null);
+    analysisGraceUntilRef.current = Date.now() + 1600;
+    await startCamera();
+  }, [startCamera]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      analysisPausedRef.current = document.hidden;
+      prevFrameRef.current = null;
+      stabilityTrackerRef.current.reset();
+      setStability(null);
+      if (!document.hidden) {
+        analysisGraceUntilRef.current = Date.now() + 900;
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   // Quality analysis polling loop (~180ms)
   useEffect(() => {
@@ -213,8 +300,26 @@ export default function LiveCameraScanner({
     const runAnalysisCycle = () => {
       if (!isActive) return;
 
-      if (!isCapturingRef.current && !isMatchModalOpen) {
-        const downscaled = captureDownscaledFrame(320, 240);
+      if (
+        !analysisPausedRef.current &&
+        Date.now() >= analysisGraceUntilRef.current &&
+        !isCapturingRef.current &&
+        !isMatchModalOpen
+      ) {
+        const reticle = reticleRef.current;
+        const video = videoRef.current;
+        let sourceRect: RectCoords | undefined;
+        if (reticle && video) {
+          const reticleBounds = reticle.getBoundingClientRect();
+          const videoBounds = video.getBoundingClientRect();
+          sourceRect = mapDisplayToVideoCoords({
+            x: reticleBounds.left - videoBounds.left,
+            y: reticleBounds.top - videoBounds.top,
+            width: reticleBounds.width,
+            height: reticleBounds.height,
+          });
+        }
+        const downscaled = captureDownscaledFrame(180, 252, sourceRect);
         if (downscaled) {
           const result = analyzeCardFrame(downscaled, prevFrameRef.current);
           prevFrameRef.current = downscaled;
@@ -224,7 +329,7 @@ export default function LiveCameraScanner({
           setStability(evalResult);
 
           // Auto-capture trigger
-          if (autoCaptureEnabled && evalResult.isReadyForCapture) {
+          if (captureMode === "auto" && evalResult.isReadyForCapture) {
             void handleCapture();
           }
         }
@@ -240,11 +345,13 @@ export default function LiveCameraScanner({
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [
-    autoCaptureEnabled,
+    captureMode,
     captureDownscaledFrame,
     handleCapture,
     isMatchModalOpen,
     isStreaming,
+    mapDisplayToVideoCoords,
+    videoRef,
   ]);
 
   // Camera switcher
@@ -256,6 +363,8 @@ export default function LiveCameraScanner({
     const nextIndex = (currentIndex + 1) % devices.length;
     const nextDevice = devices[nextIndex];
     if (nextDevice?.deviceId) {
+      analysisGraceUntilRef.current = Date.now() + 1600;
+      prevFrameRef.current = null;
       await switchCamera(nextDevice.deviceId);
     }
   };
@@ -264,14 +373,24 @@ export default function LiveCameraScanner({
   const handleNextCard = () => {
     setIsMatchModalOpen(false);
     setActiveCaptureResult(null);
+    setProcessingPreview(null);
+    setCaptureError(null);
+    lastCapturedBlobRef.current = null;
+    lastIdempotencyKeyRef.current = null;
     stabilityTrackerRef.current.reset();
+    analysisGraceUntilRef.current = Date.now() + 700;
   };
 
   // Retake current frame
   const handleRetake = () => {
     setIsMatchModalOpen(false);
     setActiveCaptureResult(null);
+    setProcessingPreview(null);
+    setCaptureError(null);
+    lastCapturedBlobRef.current = null;
+    lastIdempotencyKeyRef.current = null;
     stabilityTrackerRef.current.reset();
+    analysisGraceUntilRef.current = Date.now() + 700;
   };
 
   // Complete session
@@ -314,10 +433,7 @@ export default function LiveCameraScanner({
 
   return (
     <div
-      className={`relative flex min-h-[580px] w-full select-none flex-col overflow-hidden bg-slate-950 text-white ${className}`}
-      style={{
-        height: "calc(100dvh - 75px)",
-      }}
+      className={`relative flex h-full min-h-0 w-full select-none flex-col overflow-hidden bg-slate-950 text-white ${className}`}
     >
       {/* Background Camera Video Stream */}
       <video
@@ -334,6 +450,43 @@ export default function LiveCameraScanner({
         className="bg-radial-gradient pointer-events-none absolute inset-0 from-transparent via-slate-950/30 to-slate-950/80"
         aria-hidden="true"
       />
+
+      {!cameraRequested && !isStreaming && !cameraError && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950 px-6 text-center">
+          <div className="max-w-sm">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-400/10 text-2xl">
+              ◎
+            </div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-emerald-300">
+              Live Scan &amp; Go
+            </p>
+            <h1 className="mt-3 text-2xl font-black tracking-tight">
+              Klaar om je kaart te scannen?
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Je camera wordt pas gestart nadat je hieronder toestemming geeft.
+              Alleen de foto die je vastlegt wordt verzonden.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleStartCamera()}
+              disabled={isCameraLoading}
+              className="mt-6 min-h-12 w-full rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 shadow-lg transition hover:bg-emerald-400 disabled:opacity-60"
+            >
+              {isCameraLoading ? "Camera starten…" : "Scanner starten"}
+            </button>
+            {onSwitchToUpload && (
+              <button
+                type="button"
+                onClick={onSwitchToUpload}
+                className="mt-3 min-h-11 w-full rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white"
+              >
+                Liever een foto uploaden
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Error Banner Overlay (if camera access fails) */}
       {cameraError && (
@@ -353,7 +506,7 @@ export default function LiveCameraScanner({
               type="button"
               onClick={() => {
                 clearError();
-                void startCamera();
+                void handleStartCamera();
               }}
               className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-500"
             >
@@ -376,9 +529,28 @@ export default function LiveCameraScanner({
       {captureError && (
         <div
           role="alert"
-          className="absolute inset-x-4 top-20 z-40 mx-auto max-w-md rounded-xl border border-amber-500/50 bg-amber-950/90 p-3 text-xs text-amber-200 shadow-xl backdrop-blur-sm"
+          className="absolute inset-x-4 top-20 z-[60] mx-auto max-w-md rounded-xl border border-amber-500/50 bg-amber-950/95 p-4 text-sm text-amber-100 shadow-xl backdrop-blur-sm"
         >
-          {captureError}
+          <p className="font-bold">Verwerking niet gelukt</p>
+          <p className="mt-1 text-xs text-amber-200">{captureError}</p>
+          <div className="mt-3 flex gap-2">
+            {lastCapturedBlobRef.current && (
+              <button
+                type="button"
+                onClick={() => void retryLastCapture()}
+                className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-black text-amber-950"
+              >
+                Opnieuw verwerken
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRetake}
+              className="rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-bold"
+            >
+              Nieuwe foto
+            </button>
+          </div>
         </div>
       )}
 
@@ -421,26 +593,30 @@ export default function LiveCameraScanner({
 
         {/* Action Controls: Auto-capture, Torch & Camera Switch */}
         <div className="flex items-center gap-2">
-          {/* Auto-capture toggle pill */}
+          {/* Explicit capture mode selector */}
           <button
             type="button"
-            onClick={() => setAutoCaptureEnabled((v) => !v)}
+            onClick={() => {
+              setCaptureMode((mode) => (mode === "auto" ? "manual" : "auto"));
+              stabilityTrackerRef.current.reset();
+              setStability(null);
+            }}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow backdrop-blur-md transition ${
-              autoCaptureEnabled
+              captureMode === "auto"
                 ? "border-emerald-400/50 bg-emerald-950/80 text-emerald-300"
-                : "border-white/20 bg-slate-950/70 text-slate-400"
+                : "border-white/30 bg-slate-950/80 text-white"
             }`}
-            title="Schakel automatisch vastleggen in of uit"
-            aria-pressed={autoCaptureEnabled}
+            title="Wissel tussen automatisch en handmatig vastleggen"
+            aria-pressed={captureMode === "auto"}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                autoCaptureEnabled
+                captureMode === "auto"
                   ? "animate-pulse bg-emerald-400"
-                  : "bg-slate-500"
+                  : "bg-white"
               }`}
             />
-            <span>Auto</span>
+            <span>{captureMode === "auto" ? "Auto" : "Handmatig"}</span>
           </button>
 
           {/* Torch toggle (if supported by track) */}
@@ -504,10 +680,11 @@ export default function LiveCameraScanner({
       </header>
 
       {/* Viewfinder Center: Optical Card Framing Reticle */}
-      <main className="relative flex flex-1 items-center justify-center p-4">
+      <main className="relative flex min-h-0 flex-1 items-center justify-center px-4 py-2">
         {/* Reticle bounding box (63mm x 88mm aspect ratio ~ 0.71) */}
         <div
-          className={`relative aspect-card w-full max-w-[280px] rounded-3xl border-2 transition-colors duration-300 sm:max-w-[310px] ${
+          ref={reticleRef}
+          className={`relative aspect-card h-[min(54dvh,430px)] max-h-full max-w-[78vw] rounded-3xl border-2 transition-colors duration-300 ${
             isCardReady
               ? "border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.35)]"
               : "border-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.2)]"
@@ -576,66 +753,135 @@ export default function LiveCameraScanner({
       </main>
 
       {/* Bottom Shutter & Controls Section */}
-      <footer className="relative z-20 flex flex-col items-center justify-center pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
-        {/* Primary Shutter Button with Auto-Capture Progress Ring */}
-        <div className="relative flex items-center justify-center">
-          {/* SVG Progress Ring */}
-          <svg
-            className="pointer-events-none -rotate-90"
-            width={96}
-            height={96}
-            viewBox="0 0 96 96"
-            aria-hidden="true"
-          >
-            <circle
-              cx={48}
-              cy={48}
-              r={ringRadius}
-              className="stroke-white/10"
-              strokeWidth={5}
-              fill="transparent"
-            />
-            {autoCaptureEnabled && (
+      <footer className="relative z-20 flex shrink-0 flex-col items-center justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+        {captureMode === "manual" ? (
+          <div className="relative flex items-center justify-center">
+            <svg
+              className="pointer-events-none -rotate-90"
+              width={84}
+              height={84}
+              viewBox="0 0 96 96"
+              aria-hidden="true"
+            >
               <circle
                 cx={48}
                 cy={48}
                 r={ringRadius}
-                className="stroke-emerald-400 transition-all duration-200"
+                className="stroke-white/10"
                 strokeWidth={5}
-                strokeDasharray={ringCircumference}
-                strokeDashoffset={ringOffset}
-                strokeLinecap="round"
                 fill="transparent"
               />
-            )}
-          </svg>
-
-          {/* Physical Shutter Button */}
-          <button
-            type="button"
-            onClick={handleCapture}
-            disabled={isCapturing || !isStreaming}
-            className="h-18 w-18 absolute flex items-center justify-center rounded-full border-4 border-slate-900 bg-white shadow-2xl transition hover:scale-105 active:scale-95 disabled:opacity-50"
-            aria-label="Maak een foto van de kaart"
-          >
-            {isCapturing ? (
-              <span className="border-3 h-6 w-6 animate-spin rounded-full border-emerald-600 border-t-transparent" />
-            ) : (
+              <circle
+                cx={48}
+                cy={48}
+                r={ringRadius}
+                className="stroke-white/40"
+                strokeWidth={5}
+                fill="transparent"
+              />
+            </svg>
+            <button
+              type="button"
+              onClick={handleCapture}
+              disabled={isCapturing || !isStreaming}
+              className="absolute flex h-16 w-16 items-center justify-center rounded-full border-4 border-slate-900 bg-white shadow-2xl transition hover:scale-105 active:scale-95 disabled:opacity-50"
+              aria-label="Maak een foto van de kaart"
+            >
               <div
-                className={`h-14 w-14 rounded-full border-2 border-slate-900 transition-colors ${
+                className={`h-12 w-12 rounded-full border-2 border-slate-900 transition-colors ${
                   isCardReady ? "bg-emerald-500" : "bg-red-600"
                 }`}
               />
-            )}
-          </button>
-        </div>
-
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-          {autoCaptureEnabled
-            ? "Auto-capture actief"
-            : "Druk om vast te leggen"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/75 px-3 py-2 shadow-xl backdrop-blur-md">
+            <div className="relative h-10 w-10 shrink-0">
+              <svg
+                className="-rotate-90"
+                width={40}
+                height={40}
+                viewBox="0 0 96 96"
+                aria-hidden="true"
+              >
+                <circle
+                  cx={48}
+                  cy={48}
+                  r={ringRadius}
+                  className="stroke-white/15"
+                  strokeWidth={8}
+                  fill="transparent"
+                />
+                <circle
+                  cx={48}
+                  cy={48}
+                  r={ringRadius}
+                  className="stroke-emerald-400 transition-all duration-200"
+                  strokeWidth={8}
+                  strokeDasharray={ringCircumference}
+                  strokeDashoffset={ringOffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black text-white">
+                Automatisch scannen
+              </p>
+              <p className="truncate text-[11px] text-slate-300">
+                {feedbackText}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCapture}
+              disabled={isCapturing || !isStreaming}
+              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              Nu vastleggen
+            </button>
+          </div>
+        )}
+        <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+          {captureMode === "auto"
+            ? "De scanner legt vanzelf vast"
+            : "Tik om vast te leggen"}
         </p>
       </footer>
+
+      {isCapturing && (
+        <div
+          className="absolute inset-0 z-[70] flex items-center justify-center bg-slate-950/90 px-6 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+          aria-label={PROCESSING_STAGES[processingStage]}
+        >
+          <div className="w-full max-w-sm text-center">
+            {processingPreview && (
+              <div
+                className="mx-auto aspect-card h-[min(46dvh,360px)] rounded-2xl border border-white/15 bg-cover bg-center shadow-2xl"
+                style={{ backgroundImage: `url(${processingPreview})` }}
+                aria-hidden="true"
+              />
+            )}
+            <div className="mx-auto mt-5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-[width] duration-500"
+                style={{
+                  width: `${((processingStage + 1) / PROCESSING_STAGES.length) * 100}%`,
+                }}
+              />
+            </div>
+            <p className="mt-3 text-base font-black text-white">
+              {PROCESSING_STAGES[processingStage]}
+            </p>
+            <p className="mt-1 text-xs text-slate-300">
+              Blijf op deze pagina; je resultaat verschijnt automatisch.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Floating Multi-Card Session Tray */}
       <ScanSessionTray

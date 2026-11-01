@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import Depends, UploadFile
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -96,6 +97,37 @@ class ScanSessionService:
     ) -> None:
         self.db = db
         self.catalog_service = catalog_service
+
+    def _build_live_capture_response(
+        self,
+        scan: Scan,
+        session: ScanSession,
+    ) -> LiveCaptureResponse:
+        """Serialize a completed capture, including safe idempotent replays."""
+        raw_candidates = (
+            scan.candidate_matches if isinstance(scan.candidate_matches, list) else []
+        )
+        candidates = [serialize_candidate(candidate) for candidate in raw_candidates]
+        best_match = candidates[0] if candidates else None
+        collection_items = (
+            self.db.query(CollectionItem)
+            .filter(CollectionItem.card_id == best_match.id)
+            .all()
+            if best_match
+            else []
+        )
+        return LiveCaptureResponse(
+            scan=build_scan_response(scan),
+            detected=scan.crop_status == "confirmed",
+            corners=scan.corners,
+            candidates=candidates,
+            best_match=best_match,
+            in_collection=bool(collection_items),
+            collection_quantity=sum(item.quantity for item in collection_items),
+            collection_item_id=(collection_items[0].id if collection_items else None),
+            session_id=session.id,
+            session_status=session.status,
+        )
 
     def create_session(self) -> ScanSessionResponse:
         """Create a new active scan session."""
@@ -313,6 +345,7 @@ class ScanSessionService:
         self,
         session_id: str,
         image_input: UploadFile | bytes,
+        idempotency_key: str | None = None,
     ) -> LiveCaptureResponse:
         """Live frame capture, boundary detection, perspective warp, and recognition."""
         session = (
@@ -326,6 +359,20 @@ class ScanSessionService:
                 f"Scan session '{session_id}' is '{session.status}' "
                 "and cannot accept captures."
             )
+
+        if idempotency_key:
+            existing = (
+                self.db.query(Scan)
+                .filter(
+                    Scan.session_id == session_id,
+                    Scan.capture_idempotency_key == idempotency_key,
+                )
+                .first()
+            )
+            if existing is not None:
+                if isinstance(image_input, UploadFile):
+                    await image_input.close()
+                return self._build_live_capture_response(existing, session)
 
         scan_id = str(uuid.uuid4())
         storage_dir = Path(settings.UPLOAD_DIRECTORY).resolve()
@@ -373,6 +420,7 @@ class ScanSessionService:
         scan = Scan(
             id=scan_id,
             session_id=session.id,
+            capture_idempotency_key=idempotency_key,
             status="uploaded",
             image_path=f"{scan_id}.jpg",
             content_type="image/jpeg",
@@ -386,7 +434,24 @@ class ScanSessionService:
             rotation=0,
         )
         self.db.add(scan)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            target_path.unlink(missing_ok=True)
+            if not idempotency_key:
+                raise
+            existing = (
+                self.db.query(Scan)
+                .filter(
+                    Scan.session_id == session_id,
+                    Scan.capture_idempotency_key == idempotency_key,
+                )
+                .first()
+            )
+            if existing is None:
+                raise
+            return self._build_live_capture_response(existing, session)
         self.db.refresh(scan)
 
         detected, corners, message, score = await run_in_threadpool(
@@ -529,41 +594,11 @@ class ScanSessionService:
             self.db.refresh(scan)
             candidates = []
 
-        serialized_candidates = [serialize_candidate(c) for c in candidates]
-        best_match = serialized_candidates[0] if serialized_candidates else None
-
-        in_coll = False
-        coll_qty = 0
-        coll_item_id = None
-
-        if best_match:
-            coll_items = (
-                self.db.query(CollectionItem)
-                .filter(CollectionItem.card_id == best_match.id)
-                .all()
-            )
-            if coll_items:
-                in_coll = True
-                coll_qty = sum(item.quantity for item in coll_items)
-                coll_item_id = coll_items[0].id
-
         session.updated_at = datetime.now(UTC).replace(tzinfo=None)
         self.db.commit()
         self.db.refresh(session)
 
-        scan_resp = build_scan_response(scan)
-        return LiveCaptureResponse(
-            scan=scan_resp,
-            detected=detected,
-            corners=corners,
-            candidates=serialized_candidates,
-            best_match=best_match,
-            in_collection=in_coll,
-            collection_quantity=coll_qty,
-            collection_item_id=coll_item_id,
-            session_id=session.id,
-            session_status=session.status,
-        )
+        return self._build_live_capture_response(scan, session)
 
 
 def get_scan_session_service(

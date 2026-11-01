@@ -2,7 +2,16 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -20,6 +29,13 @@ class Scan(Base):
     """Scan database record for uploaded cards in Phase 3 and Phase 4."""
 
     __tablename__ = "scans"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "capture_idempotency_key",
+            name="uq_scans_session_capture_key",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -64,6 +80,11 @@ class Scan(Base):
         ),
         nullable=True,
         index=True,
+        default=None,
+    )
+    capture_idempotency_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
         default=None,
     )
 

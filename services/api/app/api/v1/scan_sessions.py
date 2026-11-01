@@ -5,6 +5,7 @@ from fastapi import (
     APIRouter,
     Depends,
     File,
+    Header,
     HTTPException,
     Request,
     Response,
@@ -96,6 +97,13 @@ async def capture_frame(
         ...,
         description="Camera frame image for live card detection and recognition",
     ),
+    idempotency_key: str | None = Header(
+        default=None,
+        alias="Idempotency-Key",
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    ),
     service: ScanSessionService = Depends(get_scan_session_service),
 ) -> LiveCaptureResponse:
     """Live frame capture: detects card bounds and runs recognition."""
@@ -116,7 +124,11 @@ async def capture_frame(
         )
 
     try:
-        return await service.capture_frame(session_id=session_id, image_input=file)
+        return await service.capture_frame(
+            session_id=session_id,
+            image_input=file,
+            idempotency_key=idempotency_key,
+        )
     except ScanSessionError as err:
         raise HTTPException(
             status_code=err.status_code,

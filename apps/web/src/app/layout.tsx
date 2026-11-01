@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import AppHeader from "@/components/AppHeader";
-import MobileNavigation from "@/components/MobileNavigation";
-import Footer from "@/components/Footer";
+import AppChrome from "@/components/AppChrome";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,12 +36,7 @@ export default function RootLayout({
         <a className="skip-link" href="#main-content">
           Naar de inhoud
         </a>
-        <AppHeader />
-        <div id="main-content" className="flex-1">
-          {children}
-        </div>
-        <Footer />
-        <MobileNavigation />
+        <AppChrome>{children}</AppChrome>
       </body>
     </html>
   );

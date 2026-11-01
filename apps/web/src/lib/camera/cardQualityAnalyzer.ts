@@ -25,7 +25,7 @@ export const DEFAULT_ANALYZER_OPTIONS: Required<QualityAnalyzerOptions> = {
   maxLuminance: 220,
   maxGlareRatio: 0.04, // 4% of pixels saturated
   minSharpness: 45, // Laplacian variance
-  maxMotionMAD: 12.0, // Mean absolute pixel difference
+  maxMotionMAD: 18.0, // Exposure-compensated mean absolute pixel difference
   targetAspectRatio: 63 / 88, // ~0.7159 (standard Pokémon TCG card)
   aspectRatioTolerance: 0.15,
 };
@@ -149,6 +149,36 @@ export function computeFrameMAD(
 }
 
 /**
+ * Measures spatial motion while discounting uniform auto-exposure changes.
+ * Phone cameras frequently adjust exposure and white balance while the card is
+ * already still; treating that global brightness shift as motion made the
+ * scanner oscillate on "Houd stil".
+ */
+export function computeExposureCompensatedMAD(
+  currGray: Float32Array,
+  prevGray: Float32Array
+): number {
+  const length = Math.min(currGray.length, prevGray.length);
+  if (length === 0) return 0;
+
+  let currSum = 0;
+  let prevSum = 0;
+  for (let i = 0; i < length; i++) {
+    currSum += currGray[i] ?? 0;
+    prevSum += prevGray[i] ?? 0;
+  }
+  const exposureDelta = (currSum - prevSum) / length;
+
+  let residual = 0;
+  for (let i = 0; i < length; i++) {
+    residual += Math.abs(
+      (currGray[i] ?? 0) - (prevGray[i] ?? 0) - exposureDelta
+    );
+  }
+  return residual / length;
+}
+
+/**
  * Evaluates whether card framing matches the expected Pokémon card aspect ratio
  * and occupies sufficient area in the downscaled frame.
  */
@@ -264,7 +294,7 @@ export function analyzeCardFrame(
   let motionMAD = 0;
   if (prevData && prevData.width === width && prevData.height === height) {
     const prevGray = rgbaToGrayscale(prevData.data, width, height);
-    motionMAD = computeFrameMAD(currGray, prevGray);
+    motionMAD = computeExposureCompensatedMAD(currGray, prevGray);
   }
 
   const framing = estimateCardFraming(
@@ -383,7 +413,9 @@ export class CardStabilityTracker {
     if (result.status === QualityStatus.READY && !inCooldown) {
       this.consecutiveReadyCount++;
     } else {
-      this.consecutiveReadyCount = 0;
+      // Hysteresis: a single noisy autofocus or hand-held frame should not
+      // erase all progress. Persistent poor frames still decay to zero fast.
+      this.consecutiveReadyCount = Math.max(0, this.consecutiveReadyCount - 1);
     }
 
     const isReadyForCapture =

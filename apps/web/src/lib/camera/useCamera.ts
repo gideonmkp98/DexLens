@@ -56,7 +56,8 @@ export interface UseCameraResult {
   captureFrame: () => Promise<CapturedFrame>;
   captureDownscaledFrame: (
     targetWidth?: number,
-    targetHeight?: number
+    targetHeight?: number,
+    sourceRect?: RectCoords
   ) => ImageDataLike | null;
   mapDisplayToVideoCoords: (displayRect: RectCoords) => RectCoords;
   clearError: () => void;
@@ -520,7 +521,11 @@ export function useCamera({
    * for non-blocking client-side card quality analysis.
    */
   const captureDownscaledFrame = useCallback(
-    (targetWidth = 320, targetHeight = 240): ImageDataLike | null => {
+    (
+      targetWidth = 320,
+      targetHeight = 240,
+      sourceRect?: RectCoords
+    ): ImageDataLike | null => {
       const video = videoRef.current;
       if (
         !video ||
@@ -544,7 +549,37 @@ export function useCamera({
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return null;
 
-      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+      if (sourceRect) {
+        const sourceX = Math.max(
+          0,
+          Math.min(sourceRect.x, video.videoWidth - 1)
+        );
+        const sourceY = Math.max(
+          0,
+          Math.min(sourceRect.y, video.videoHeight - 1)
+        );
+        const sourceWidth = Math.max(
+          1,
+          Math.min(sourceRect.width, video.videoWidth - sourceX)
+        );
+        const sourceHeight = Math.max(
+          1,
+          Math.min(sourceRect.height, video.videoHeight - sourceY)
+        );
+        ctx.drawImage(
+          video,
+          sourceX,
+          sourceY,
+          sourceWidth,
+          sourceHeight,
+          0,
+          0,
+          targetWidth,
+          targetHeight
+        );
+      } else {
+        ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+      }
       return ctx.getImageData(0, 0, targetWidth, targetHeight);
     },
     []
@@ -583,11 +618,13 @@ export function useCamera({
       const intrinsicW = displayRect.width / scale;
       const intrinsicH = displayRect.height / scale;
 
+      const x = Math.max(0, Math.min(intrinsicX, videoW));
+      const y = Math.max(0, Math.min(intrinsicY, videoH));
       return {
-        x: Math.max(0, Math.min(intrinsicX, videoW)),
-        y: Math.max(0, Math.min(intrinsicY, videoH)),
-        width: Math.min(intrinsicW, videoW),
-        height: Math.min(intrinsicH, videoH),
+        x,
+        y,
+        width: Math.max(1, Math.min(intrinsicW, videoW - x)),
+        height: Math.max(1, Math.min(intrinsicH, videoH - y)),
       };
     },
     []

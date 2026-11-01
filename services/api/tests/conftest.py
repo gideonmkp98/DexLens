@@ -54,7 +54,13 @@ TestingSessionLocal = sessionmaker(
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
-    """Create all tables in the test database once per session."""
+    """Recreate the isolated test schema once per session.
+
+    Dropping first prevents an interrupted prior run or an E2E reset from leaving
+    tables with an older model shape; the database-name guard above guarantees
+    that this can never target a non-test database.
+    """
+    Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)

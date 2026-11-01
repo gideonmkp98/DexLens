@@ -503,6 +503,36 @@ def test_api_capture_frame_not_detected_fallback(client: TestClient):
         assert data["scan"]["crop_status"] == "none"
 
 
+def test_api_capture_frame_idempotency_key_replays_same_scan(
+    client: TestClient, db: Session
+):
+    """Retrying the same camera request must not create a duplicate scan."""
+    session_id = client.post("/api/v1/scan-sessions").json()["id"]
+    files = {"file": ("frame.jpg", _create_test_image(), "image/jpeg")}
+    headers = {"Idempotency-Key": "capture-retry-12345678"}
+
+    with patch(
+        "app.services.scan_session.detect_card_corners",
+        return_value=(False, None, "No card detected", 0.0),
+    ) as detector:
+        first = client.post(
+            f"/api/v1/scan-sessions/{session_id}/capture",
+            files=files,
+            headers=headers,
+        )
+        second = client.post(
+            f"/api/v1/scan-sessions/{session_id}/capture",
+            files={"file": ("frame.jpg", _create_test_image(), "image/jpeg")},
+            headers=headers,
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["scan"]["id"] == first.json()["scan"]["id"]
+    assert db.query(Scan).filter(Scan.session_id == session_id).count() == 1
+    assert detector.call_count == 1
+
+
 def test_api_capture_frame_closed_session(client: TestClient):
     """POST /api/v1/scan-sessions/{id}/capture returns 409 if session is completed."""
     create_resp = client.post("/api/v1/scan-sessions")

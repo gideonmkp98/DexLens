@@ -161,7 +161,10 @@ async function setupMockCamera(page: Page, options: MockCameraOptions = {}) {
         sw: number,
         sh: number
       ) {
-        if (sw === 320 && sh === 240 && (window as any).__cameraMock) {
+        if (
+          ((sw === 320 && sh === 240) || (sw === 180 && sh === 252)) &&
+          (window as any).__cameraMock
+        ) {
           sampleCounter++;
           const curMode = (window as any).__cameraMock.mode;
           return getSyntheticImageData(sw, sh, curMode, sampleCounter);
@@ -265,6 +268,24 @@ async function setupMockCamera(page: Page, options: MockCameraOptions = {}) {
   );
 }
 
+async function startLiveScanner(page: Page) {
+  const startButton = page.getByRole("button", { name: "Scanner starten" });
+  try {
+    await expect(startButton).toBeVisible({ timeout: 5000 });
+    // The button can be server-rendered a moment before React attaches handlers.
+    await page.waitForTimeout(350);
+    await startButton.click();
+    try {
+      await expect(startButton).not.toBeVisible({ timeout: 1500 });
+    } catch {
+      await startButton.click();
+      await expect(startButton).not.toBeVisible({ timeout: 5000 });
+    }
+  } catch {
+    // Unsupported-browser tests intentionally have no live scanner start action.
+  }
+}
+
 test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   // SAFETY RULE 1: Hard safety guard verifying connection to isolated test database
   test.beforeAll(async ({ request }) => {
@@ -298,6 +319,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
     await expect(page).toHaveTitle(/DexLens/);
 
     // Live scanner is active by default
@@ -308,11 +330,11 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     const liveModeBtn = page.getByRole("button", { name: /Live Scanner/i });
     await expect(liveModeBtn).toHaveAttribute("aria-pressed", "true");
 
-    // Shutter button is visible and enabled
+    // Switch to manual so the quality HUD can be observed without auto-capturing.
+    await page.getByRole("button", { name: "Auto" }).click();
     const shutterBtn = page.getByRole("button", {
       name: "Maak een foto van de kaart",
     });
-    await expect(shutterBtn).toBeVisible();
     await expect(shutterBtn).toBeEnabled();
 
     // HUD guidance pill is rendered with "Kaart gereed"
@@ -326,6 +348,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("2. Camera permission denied UI fallback", async ({ page }) => {
     await setupMockCamera(page, { mode: "denied" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     // Error alert banner displays Dutch guidance (filter out next-route-announcer)
     const alert = page
@@ -356,6 +379,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("3. No camera hardware available fallback", async ({ page }) => {
     await setupMockCamera(page, { mode: "not_found" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const alert = page
       .getByRole("alert")
@@ -396,13 +420,16 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("5. Manual capture flow", async ({ page }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     // Disable auto-capture so we explicitly test manual shutter trigger
-    const autoToggleBtn = page.getByRole("button", { name: "Auto" });
+    const autoToggleBtn = page.getByTitle(
+      "Wissel tussen automatisch en handmatig vastleggen"
+    );
     await expect(autoToggleBtn).toBeVisible({ timeout: 10000 });
     await autoToggleBtn.click();
     await expect(autoToggleBtn).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByText("Druk om vast te leggen")).toBeVisible();
+    await expect(page.getByText("Tik om vast te leggen")).toBeVisible();
 
     // Click shutter button and wait for capture API response
     const shutterBtn = page.getByRole("button", {
@@ -428,6 +455,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     // Auto-capture is on by default. Wait for 3 stable frames to trigger capture automatically
     const capturePromise = page.waitForResponse(
@@ -450,8 +478,9 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     // 7a. Test Poor Lighting
     await setupMockCamera(page, { mode: "poor_lighting" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
-    await expect(page.getByText("Meer licht nodig")).toBeVisible({
+    await expect(page.getByText("Meer licht nodig").first()).toBeVisible({
       timeout: 10000,
     });
     // Wait to confirm auto-capture does not trigger
@@ -462,7 +491,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.evaluate(() => {
       (window as any).__cameraMock.mode = "glare";
     });
-    await expect(page.getByText("Minder weerspiegeling")).toBeVisible({
+    await expect(page.getByText("Minder weerspiegeling").first()).toBeVisible({
       timeout: 10000,
     });
     await page.waitForTimeout(800);
@@ -472,7 +501,9 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.evaluate(() => {
       (window as any).__cameraMock.mode = "motion";
     });
-    await expect(page.getByText("Houd stil")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Houd stil").first()).toBeVisible({
+      timeout: 10000,
+    });
     await page.waitForTimeout(800);
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
   });
@@ -483,6 +514,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("8. Retake action", async ({ page }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     // Wait for capture modal
     const modal = page.locator('[role="dialog"]');
@@ -508,6 +540,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("9. Recognition success and slab display", async ({ page }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -531,6 +564,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -572,6 +606,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -607,6 +642,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("12. Duplicate scan grouping", async ({ page, request }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -627,6 +663,12 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     });
     await nextBtn.click();
     await expect(modal).not.toBeVisible();
+
+    const modeToggle = page.getByTitle(
+      "Wissel tussen automatisch en handmatig vastleggen"
+    );
+    await modeToggle.click();
+    await expect(modeToggle).toHaveAttribute("aria-pressed", "false");
 
     // Trigger second scan
     const shutterBtn = page.getByRole("button", {
@@ -673,6 +715,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("13. Idempotent repeat scan request", async ({ page, request }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -708,6 +751,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
@@ -718,6 +762,12 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     });
     await nextBtn.click();
     await expect(modal).not.toBeVisible();
+
+    const modeToggle = page.getByTitle(
+      "Wissel tussen automatisch en handmatig vastleggen"
+    );
+    await modeToggle.click();
+    await expect(modeToggle).toHaveAttribute("aria-pressed", "false");
 
     // Verify session tray shows 1 scan item
     await expect(page.getByText(/1 kaart gescand|Sessie/i).first()).toBeVisible(
@@ -747,6 +797,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     // Switch to photo upload mode tab via top mode navigation
     const uploadTabBtn = page
@@ -839,17 +890,17 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     await expect(
       page.locator('video[aria-label="Live camera videofeed"]')
     ).toBeVisible({ timeout: 10000 });
 
-    // Client-side navigation to /collection
-    const collectionLink = page
-      .getByRole("link", { name: "Collectie" })
-      .first();
-    await collectionLink.click();
-    await page.waitForURL(/\/collection/);
+    // Switching to upload mode unmounts the camera scanner without reloading.
+    await page
+      .locator('nav[aria-label="Scan methode selectie"]')
+      .getByRole("button", { name: "Foto uploaden" })
+      .click();
 
     // Verify track.stop() was called during component unmount
     const wasStopped = await page.evaluate(
@@ -866,12 +917,11 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   }) => {
     // 17a. Portrait iPhone 14
     await page.setViewportSize({ width: 390, height: 844 });
-    await setupMockCamera(page, { mode: "card" });
+    await setupMockCamera(page, { mode: "poor_lighting" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
-    const shutterBtn = page.getByRole("button", {
-      name: "Maak een foto van de kaart",
-    });
+    const shutterBtn = page.getByRole("button", { name: "Nu vastleggen" });
     await expect(shutterBtn).toBeVisible({ timeout: 10000 });
 
     // Verify no horizontal overflow
@@ -879,11 +929,24 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
       () => document.documentElement.scrollWidth > window.innerWidth
     );
     expect(hasHorizontalOverflow).toBe(false);
+    const hasVerticalDocumentScroll = await page.evaluate(
+      () => document.documentElement.scrollHeight > window.innerHeight + 1
+    );
+    expect(hasVerticalDocumentScroll).toBe(false);
+    const portraitButtonBox = await shutterBtn.boundingBox();
+    expect(portraitButtonBox).not.toBeNull();
+    expect(
+      (portraitButtonBox?.y ?? 0) + (portraitButtonBox?.height ?? 0)
+    ).toBeLessThanOrEqual(844);
 
     // 17b. Landscape orientation
     await page.setViewportSize({ width: 844, height: 390 });
     await page.waitForTimeout(300);
     await expect(shutterBtn).toBeVisible();
+    const hasLandscapeDocumentScroll = await page.evaluate(
+      () => document.documentElement.scrollHeight > window.innerHeight + 1
+    );
+    expect(hasLandscapeDocumentScroll).toBe(false);
   });
 
   // =========================================================================
@@ -892,6 +955,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("18. Light and dark mode rendering", async ({ page }) => {
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
+    await startLiveScanner(page);
 
     const container = page.locator("div.bg-slate-950").first();
     await expect(container).toBeVisible({ timeout: 10000 });
