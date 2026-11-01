@@ -435,6 +435,7 @@ export default function LiveCameraScanner({
 
   return (
     <div
+      data-testid="live-camera-scanner"
       className={`relative flex h-full min-h-0 w-full select-none flex-col overflow-hidden bg-[#171c16] text-[#f3efdf] ${className}`}
     >
       {/* Background Camera Video Stream */}

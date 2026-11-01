@@ -437,7 +437,7 @@ The database schema includes:
 - `0009`: Add database indexes on `collection_items` for user, card, set, condition, variant, and acquisition date.
 - `0010`: Normalize collection duplicates into single records with summed quantity; enforce unique constraint on `(user_id, card_id, variant, condition)`.
 - `0011`: Add Phase 7 live scan tables (`scan_sessions`, `session_scans`) and card orientation tracking (`card_orientation`).
-- `0012`: Add `live_captures` table with unique `idempotency_key` and serialized responses for capture replay.
+- `0012`: Add nullable `capture_idempotency_key` to `scans` with a unique constraint on `(session_id, capture_idempotency_key)` so retried live captures replay the existing scan result.
 
 ---
 

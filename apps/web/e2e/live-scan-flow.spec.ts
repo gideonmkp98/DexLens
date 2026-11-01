@@ -959,10 +959,56 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
       (portraitButtonBox?.y ?? 0) + (portraitButtonBox?.height ?? 0)
     ).toBeLessThanOrEqual(844);
 
+    // Create a real session item before checking the layout regression that
+    // originally occurred on mobile. A tray without items is not rendered.
+    const capturePromise = page.waitForResponse(
+      (resp) => resp.url().includes("/capture") && resp.status() === 200
+    );
+    await shutterBtn.click();
+    await capturePromise;
+
+    const modal = page.locator('[role="dialog"]');
+    await expect(modal).toBeVisible({ timeout: 10000 });
+    // A deliberately poor frame can have no candidate, so use the universal
+    // retry action instead of the success-only "Volgende kaart" action.
+    await modal
+      .getByRole("button", { name: /Opnieuw scannen/i })
+      .first()
+      .click();
+    await expect(modal).not.toBeVisible();
+
+    const scannerControls = page.getByRole("contentinfo");
+    const sessionTray = page.getByRole("complementary", {
+      name: "Huidige scansessie",
+    });
+    await expect(scannerControls).toBeVisible();
+    await expect(sessionTray).toBeVisible();
+
+    async function expectControlsAboveSessionTray() {
+      const controlsBox = await scannerControls.boundingBox();
+      const trayBox = await sessionTray.boundingBox();
+      expect(controlsBox).not.toBeNull();
+      expect(trayBox).not.toBeNull();
+      expect(
+        (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
+      ).toBeLessThanOrEqual((trayBox?.y ?? 0) + 1);
+    }
+
+    await expectControlsAboveSessionTray();
+
+    const trayToggle = sessionTray.getByRole("button", {
+      name: /kaart gescand/i,
+    });
+    await trayToggle.click();
+    await expect(page.locator("#scan-session-tray-drawer")).toBeVisible();
+    await page.getByRole("button", { name: "Sluiten ✕" }).click();
+    await expect(page.locator("#scan-session-tray-drawer")).not.toBeVisible();
+
     // 17b. Landscape orientation
     await page.setViewportSize({ width: 844, height: 390 });
     await page.waitForTimeout(300);
     await expect(shutterBtn).toBeVisible();
+    await expectControlsAboveSessionTray();
     const hasLandscapeDocumentScroll = await page.evaluate(
       () => document.documentElement.scrollHeight > window.innerHeight + 1
     );
@@ -973,18 +1019,27 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   // SCENARIO 18: Light and dark mode rendering
   // =========================================================================
   test("18. Light and dark mode rendering", async ({ page }) => {
-    await setupMockCamera(page, { mode: "card" });
+    await setupMockCamera(page, { mode: "poor_lighting" });
     await page.goto("/scan");
     await startLiveScanner(page);
 
-    const container = page.locator("div.bg-slate-950").first();
+    const container = page.getByTestId("live-camera-scanner");
     await expect(container).toBeVisible({ timeout: 10000 });
 
-    // Verify dark mode class toggle
+    await page.evaluate(() => {
+      document.documentElement.classList.remove("dark");
+    });
+    await expect(container).toHaveCSS("background-color", "rgb(23, 28, 22)");
+    await expect(container).toHaveCSS("color", "rgb(243, 239, 223)");
+
+    // The camera workspace deliberately uses the same high-contrast chrome in
+    // both site themes so the live video controls remain consistently legible.
     await page.evaluate(() => {
       document.documentElement.classList.add("dark");
     });
     await expect(container).toBeVisible();
+    await expect(container).toHaveCSS("background-color", "rgb(23, 28, 22)");
+    await expect(container).toHaveCSS("color", "rgb(243, 239, 223)");
 
     // Verify optical reticle glow styling
     const reticle = page.locator("main div.aspect-card");

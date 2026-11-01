@@ -104,7 +104,7 @@ All automated quality gates have been executed and verified on the current codeb
 | Gate # | Quality Check | Executed Command | Direct Execution Evidence | Status |
 |:---:|---|---|---|:---:|
 | **1** | Production Dependency Audit | `npm.cmd --prefix apps/web audit --omit=dev` | **0 vulnerabilities** (clean) | **PASS** |
-| **2** | Full Dependency Audit | `npm.cmd --prefix apps/web audit` | 19 moderate dev tooling warnings (documented) | **PASS** |
+| **2** | Full Dependency Audit | `npm.cmd --prefix apps/web audit` | 19 moderate development-tooling vulnerabilities; command exits 1. Production dependency audit remains clean. | **WARN** |
 | **3** | Frontend TypeScript Strict Check | `npm.cmd --prefix apps/web run typecheck` | `tsc --noEmit` — 0 errors | **PASS** |
 | **4** | Frontend ESLint Validation | `npm.cmd --prefix apps/web run lint` | 0 errors, 0 warnings | **PASS** |
 | **5** | Frontend Prettier Formatting | `npm.cmd --prefix apps/web run format:check` | All matched files use Prettier style | **PASS** |
@@ -149,8 +149,10 @@ The Playwright test suite (`apps/web/e2e/live-scan-flow.spec.ts` and `apps/web/e
 16. **Camera media tracks stop on unmount and navigation**: Navigating away invokes `track.stop()`.
 17. **Mobile viewport & orientation change resilience**:
     - Tested at 390×844 portrait: verifies `scrollWidth <= innerWidth`, `scrollHeight <= innerHeight + 1`, shutter button bottom $\le 844$.
-    - Tested at 844×390 landscape: verifies `scrollHeight <= innerHeight + 1`.
-18. **Light and dark mode rendering**: Contrast compliance and visible HUD elements in both themes.
+    - Creates a captured session item and measures the scanner controls against the collapsed session tray at 390×844, proving their bounding boxes do not overlap on mobile.
+    - Expands and collapses the populated mobile session tray before rotating.
+    - Tested at 844×390 landscape: rechecks both document overflow and scanner-controls/session-tray separation.
+18. **Light and dark mode rendering**: Targets the scanner through a stable test ID and verifies its intentional high-contrast DexLens camera chrome remains visible and legible in both site theme states.
 19. **Preflight safety guard refuses non-test databases**: Verification that destructive reset fails on non-test databases.
 20–23. **Phase 6 Collection Regression Flows 1–9**: End-to-end collection persistence, quantity edits, optimistic concurrency conflict (409), manual catalog card additions, and safe card deletion.
 
