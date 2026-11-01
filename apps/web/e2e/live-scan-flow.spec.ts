@@ -270,20 +270,17 @@ async function setupMockCamera(page: Page, options: MockCameraOptions = {}) {
 
 async function startLiveScanner(page: Page) {
   const startButton = page.getByRole("button", { name: "Scanner starten" });
-  try {
-    await expect(startButton).toBeVisible({ timeout: 5000 });
-    // The button can be server-rendered a moment before React attaches handlers.
-    await page.waitForTimeout(350);
+  await expect(startButton).toBeVisible({ timeout: 10000 });
+  // The button can be server-rendered a moment before React attaches handlers.
+  await page.waitForTimeout(500);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     await startButton.click();
-    try {
-      await expect(startButton).not.toBeVisible({ timeout: 1500 });
-    } catch {
-      await startButton.click();
-      await expect(startButton).not.toBeVisible({ timeout: 5000 });
+    if (!(await startButton.isVisible())) {
+      return;
     }
-  } catch {
-    // Unsupported-browser tests intentionally have no live scanner start action.
+    await page.waitForTimeout(500);
   }
+  await expect(startButton).not.toBeVisible({ timeout: 5000 });
 }
 
 test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
@@ -664,6 +661,20 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await nextBtn.click();
     await expect(modal).not.toBeVisible();
 
+    const scannerControls = page.getByRole("contentinfo");
+    const sessionTray = page.getByRole("complementary", {
+      name: "Huidige scansessie",
+    });
+    await expect(scannerControls).toBeVisible();
+    await expect(sessionTray).toBeVisible();
+    const controlsBox = await scannerControls.boundingBox();
+    const trayBox = await sessionTray.boundingBox();
+    expect(controlsBox).not.toBeNull();
+    expect(trayBox).not.toBeNull();
+    expect(
+      (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
+    ).toBeLessThanOrEqual((trayBox?.y ?? 0) + 1);
+
     const modeToggle = page.getByTitle(
       "Wissel tussen automatisch en handmatig vastleggen"
     );
@@ -775,6 +786,15 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
         timeout: 10000,
       }
     );
+
+    // Verify session tray can expand and collapse cleanly
+    const trayToggle = page.getByRole("button", { name: /kaart gescand/i });
+    await expect(trayToggle).toBeVisible({ timeout: 10000 });
+    await trayToggle.click();
+    await expect(page.locator("#scan-session-tray-drawer")).toBeVisible();
+    await expect(page.getByText(/Sessiegeschiedenis/i)).toBeVisible();
+    await page.getByRole("button", { name: "Sluiten ✕" }).click();
+    await expect(page.locator("#scan-session-tray-drawer")).not.toBeVisible();
 
     // Capture a second card
     const shutterBtn = page.getByRole("button", {

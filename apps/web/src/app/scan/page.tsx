@@ -134,13 +134,13 @@ export default function ScanPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <nav
             aria-label="Scan methode selectie"
-            className="flex items-center gap-1.5 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-1 text-xs"
+            className="flex items-center gap-1.5 rounded-[5px] border border-[var(--line)] bg-[var(--paper)] p-1 text-xs shadow-[3px_3px_0_var(--shadow)]"
           >
             <button
               type="button"
               onClick={() => setScanMode("live")}
               disabled={!hasCameraSupport}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 font-bold transition ${
+              className={`flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold transition ${
                 scanMode === "live"
                   ? "bg-[#c6372e] text-white shadow-sm"
                   : "text-[var(--muted)] hover:text-[var(--ink)] disabled:opacity-40"
@@ -160,7 +160,7 @@ export default function ScanPage() {
             <button
               type="button"
               onClick={() => setScanMode("upload")}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 font-bold transition ${
+              className={`flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold transition ${
                 scanMode === "upload"
                   ? "bg-[#c6372e] text-white shadow-sm"
                   : "text-[var(--muted)] hover:text-[var(--ink)]"

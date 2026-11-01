@@ -11,7 +11,7 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
 
   if (isScannerWorkspace) {
     return (
-      <div className="h-[100dvh] min-h-0 overflow-hidden bg-slate-950">
+      <div className="h-[100dvh] min-h-0 overflow-hidden bg-[#20251f]">
         <div id="main-content" className="h-full min-h-0 overflow-hidden">
           {children}
         </div>

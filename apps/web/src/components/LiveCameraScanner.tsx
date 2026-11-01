@@ -430,10 +430,12 @@ export default function LiveCameraScanner({
     qualityResult?.feedback ||
     "Plaats de kaart in het kader";
   const isCardReady = qualityResult?.status === QualityStatus.READY;
+  const hasSessionItems =
+    sessionItems.length > 0 || (session?.total_scans ?? 0) > 0;
 
   return (
     <div
-      className={`relative flex h-full min-h-0 w-full select-none flex-col overflow-hidden bg-slate-950 text-white ${className}`}
+      className={`relative flex h-full min-h-0 w-full select-none flex-col overflow-hidden bg-[#171c16] text-[#f3efdf] ${className}`}
     >
       {/* Background Camera Video Stream */}
       <video
@@ -447,23 +449,24 @@ export default function LiveCameraScanner({
 
       {/* Dimming vignette & dark contrast overlay */}
       <div
-        className="bg-radial-gradient pointer-events-none absolute inset-0 from-transparent via-slate-950/30 to-slate-950/80"
+        className="bg-radial-gradient pointer-events-none absolute inset-0 from-transparent via-[#171c16]/30 to-[#10150f]/85"
         aria-hidden="true"
       />
 
       {!cameraRequested && !isStreaming && !cameraError && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950 px-6 text-center">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#20251f] px-6 text-center">
           <div className="max-w-sm">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-400/10 text-2xl">
-              ◎
-            </div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-emerald-300">
+            <span
+              className="pokeball mx-auto mb-6 block h-16 w-16 rotate-[-12deg]"
+              aria-hidden="true"
+            />
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-[#eb6b5d]">
               Live Scan &amp; Go
             </p>
             <h1 className="mt-3 text-2xl font-black tracking-tight">
               Klaar om je kaart te scannen?
             </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
+            <p className="mt-3 text-sm leading-6 text-[#b6bbaa]">
               Je camera wordt pas gestart nadat je hieronder toestemming geeft.
               Alleen de foto die je vastlegt wordt verzonden.
             </p>
@@ -471,7 +474,7 @@ export default function LiveCameraScanner({
               type="button"
               onClick={() => void handleStartCamera()}
               disabled={isCameraLoading}
-              className="mt-6 min-h-12 w-full rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 shadow-lg transition hover:bg-emerald-400 disabled:opacity-60"
+              className="mt-6 min-h-12 w-full rounded-[5px] border border-[#252923] bg-[#c6372e] px-5 py-3 text-sm font-black text-[#fff9ee] shadow-[4px_4px_0_#10150f] transition hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_#10150f] disabled:opacity-60"
             >
               {isCameraLoading ? "Camera starten…" : "Scanner starten"}
             </button>
@@ -479,7 +482,7 @@ export default function LiveCameraScanner({
               <button
                 type="button"
                 onClick={onSwitchToUpload}
-                className="mt-3 min-h-11 w-full rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-bold text-white"
+                className="mt-3 min-h-11 w-full rounded-[5px] border border-[#4b5347] bg-[#2a3028] px-5 py-2.5 text-sm font-bold text-[#f3efdf]"
               >
                 Liever een foto uploaden
               </button>
@@ -492,15 +495,15 @@ export default function LiveCameraScanner({
       {cameraError && (
         <div
           role="alert"
-          className="absolute inset-x-4 top-20 z-40 mx-auto max-w-md rounded-2xl border border-rose-500/50 bg-slate-950/95 p-5 text-center shadow-2xl backdrop-blur-md"
+          className="bg-[#20251f]/98 absolute inset-x-4 top-20 z-40 mx-auto max-w-md rounded-[5px] border border-[#eb6b5d] p-5 text-center shadow-[5px_5px_0_#10150f]"
         >
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/20 text-rose-400">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-[3px] border border-[#eb6b5d]/50 bg-[#eb6b5d]/15 text-[#eb6b5d]">
             !
           </div>
-          <h2 className="text-sm font-bold text-white">
+          <h2 className="text-sm font-black text-[#f3efdf]">
             Cameratoegang niet mogelijk
           </h2>
-          <p className="mt-1 text-xs text-slate-300">{cameraError.message}</p>
+          <p className="mt-1 text-xs text-[#b6bbaa]">{cameraError.message}</p>
           <div className="mt-4 flex justify-center gap-3">
             <button
               type="button"
@@ -508,7 +511,7 @@ export default function LiveCameraScanner({
                 clearError();
                 void handleStartCamera();
               }}
-              className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-500"
+              className="rounded-[5px] border border-[#252923] bg-[#c6372e] px-4 py-2 text-xs font-black text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:bg-[#d94b40]"
             >
               Opnieuw proberen
             </button>
@@ -516,7 +519,7 @@ export default function LiveCameraScanner({
               <button
                 type="button"
                 onClick={onSwitchToUpload}
-                className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                className="rounded-[5px] border border-[#f3efdf]/25 bg-[#2a3028] px-4 py-2 text-xs font-bold text-[#f3efdf] transition hover:border-[#f1ca53]"
               >
                 Foto uploaden
               </button>
@@ -529,16 +532,16 @@ export default function LiveCameraScanner({
       {captureError && (
         <div
           role="alert"
-          className="absolute inset-x-4 top-20 z-[60] mx-auto max-w-md rounded-xl border border-amber-500/50 bg-amber-950/95 p-4 text-sm text-amber-100 shadow-xl backdrop-blur-sm"
+          className="bg-[#20251f]/98 absolute inset-x-4 top-20 z-[60] mx-auto max-w-md rounded-[5px] border border-[#f1ca53] p-4 text-sm text-[#f3efdf] shadow-[5px_5px_0_#10150f]"
         >
           <p className="font-bold">Verwerking niet gelukt</p>
-          <p className="mt-1 text-xs text-amber-200">{captureError}</p>
+          <p className="mt-1 text-xs text-[#d9d4c4]">{captureError}</p>
           <div className="mt-3 flex gap-2">
             {lastCapturedBlobRef.current && (
               <button
                 type="button"
                 onClick={() => void retryLastCapture()}
-                className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-black text-amber-950"
+                className="rounded-[5px] border border-[#252923] bg-[#f1ca53] px-3 py-2 text-xs font-black text-[#252923] shadow-[2px_2px_0_#10150f]"
               >
                 Opnieuw verwerken
               </button>
@@ -546,7 +549,7 @@ export default function LiveCameraScanner({
             <button
               type="button"
               onClick={handleRetake}
-              className="rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-bold"
+              className="rounded-[5px] border border-[#f3efdf]/25 bg-[#2a3028] px-3 py-2 text-xs font-bold"
             >
               Nieuwe foto
             </button>
@@ -562,7 +565,7 @@ export default function LiveCameraScanner({
             <button
               type="button"
               onClick={onSwitchToUpload}
-              className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/70 px-3 py-1.5 text-xs font-bold text-white shadow backdrop-blur-md transition hover:bg-white/15"
+              className="flex items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-3 py-1.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
               aria-label="Schakel over naar foto uploaden"
             >
               <svg
@@ -584,7 +587,7 @@ export default function LiveCameraScanner({
           ) : (
             <Link
               href="/"
-              className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/70 px-3 py-1.5 text-xs font-bold text-white shadow backdrop-blur-md transition hover:bg-white/15"
+              className="flex items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-3 py-1.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
             >
               <span>← Terug</span>
             </Link>
@@ -601,10 +604,10 @@ export default function LiveCameraScanner({
               stabilityTrackerRef.current.reset();
               setStability(null);
             }}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow backdrop-blur-md transition ${
+            className={`flex items-center gap-1.5 rounded-[5px] border px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_#10150f] transition ${
               captureMode === "auto"
-                ? "border-emerald-400/50 bg-emerald-950/80 text-emerald-300"
-                : "border-white/30 bg-slate-950/80 text-white"
+                ? "border-[#252923] bg-[#f1ca53] text-[#252923]"
+                : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf]"
             }`}
             title="Wissel tussen automatisch en handmatig vastleggen"
             aria-pressed={captureMode === "auto"}
@@ -612,8 +615,8 @@ export default function LiveCameraScanner({
             <span
               className={`h-2 w-2 rounded-full ${
                 captureMode === "auto"
-                  ? "animate-pulse bg-emerald-400"
-                  : "bg-white"
+                  ? "animate-pulse bg-[#c6372e]"
+                  : "bg-[#f3efdf]"
               }`}
             />
             <span>{captureMode === "auto" ? "Auto" : "Handmatig"}</span>
@@ -624,10 +627,10 @@ export default function LiveCameraScanner({
             <button
               type="button"
               onClick={() => void toggleTorch()}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border shadow backdrop-blur-md transition ${
+              className={`flex h-9 w-9 items-center justify-center rounded-[5px] border shadow-[3px_3px_0_#10150f] transition ${
                 isTorchOn
-                  ? "border-amber-400/60 bg-amber-400 text-slate-950"
-                  : "border-white/20 bg-slate-950/70 text-white hover:bg-white/15"
+                  ? "border-[#252923] bg-[#f1ca53] text-[#252923]"
+                  : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] hover:border-[#f1ca53]"
               }`}
               aria-label={
                 isTorchOn ? "Zaklamp uitschakelen" : "Zaklamp inschakelen"
@@ -656,7 +659,7 @@ export default function LiveCameraScanner({
             <button
               type="button"
               onClick={handleSwitchCamera}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/70 text-white shadow backdrop-blur-md transition hover:bg-white/15"
+              className="flex h-9 w-9 items-center justify-center rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
               aria-label="Wissel van camera"
               title="Camera wisselen"
             >
@@ -684,31 +687,34 @@ export default function LiveCameraScanner({
         {/* Reticle bounding box (63mm x 88mm aspect ratio ~ 0.71) */}
         <div
           ref={reticleRef}
-          className={`relative aspect-card h-[min(54dvh,430px)] max-h-full max-w-[78vw] rounded-3xl border-2 transition-colors duration-300 ${
+          className={`relative aspect-card h-[min(54dvh,430px)] max-h-full max-w-[78vw] rounded-[10px] border-2 transition-colors duration-300 ${
             isCardReady
               ? "border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.35)]"
-              : "border-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.2)]"
+              : "border-[#f1ca53]/60 shadow-[0_0_20px_rgba(241,202,83,0.18)]"
           }`}
         >
+          <span className="absolute -top-7 left-0 rounded-[3px] bg-[#20251f]/95 px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.18em] text-[#f3efdf] shadow-[2px_2px_0_#10150f]">
+            DexLens / frame 01
+          </span>
           {/* Precision Optical Corner Brackets */}
           <div
             className={`absolute -left-1.5 -top-1.5 h-7 w-7 rounded-tl-xl border-l-4 border-t-4 transition-colors duration-200 ${
-              isCardReady ? "border-emerald-400" : "border-sky-400"
+              isCardReady ? "border-emerald-400" : "border-[#f1ca53]"
             }`}
           />
           <div
             className={`absolute -right-1.5 -top-1.5 h-7 w-7 rounded-tr-xl border-r-4 border-t-4 transition-colors duration-200 ${
-              isCardReady ? "border-emerald-400" : "border-sky-400"
+              isCardReady ? "border-emerald-400" : "border-[#f1ca53]"
             }`}
           />
           <div
             className={`absolute -bottom-1.5 -left-1.5 h-7 w-7 rounded-bl-xl border-b-4 border-l-4 transition-colors duration-200 ${
-              isCardReady ? "border-emerald-400" : "border-sky-400"
+              isCardReady ? "border-emerald-400" : "border-[#f1ca53]"
             }`}
           />
           <div
             className={`absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-br-xl border-b-4 border-r-4 transition-colors duration-200 ${
-              isCardReady ? "border-emerald-400" : "border-sky-400"
+              isCardReady ? "border-emerald-400" : "border-[#f1ca53]"
             }`}
           />
 
@@ -721,7 +727,7 @@ export default function LiveCameraScanner({
               className={`h-4 w-4 rounded-full border-2 transition-colors ${
                 isCardReady
                   ? "border-emerald-400/70 bg-emerald-400/20"
-                  : "border-sky-400/50 bg-sky-400/10"
+                  : "border-[#f1ca53]/60 bg-[#f1ca53]/10"
               }`}
             />
           </div>
@@ -729,12 +735,12 @@ export default function LiveCameraScanner({
           {/* Quality Feedback HUD Pill */}
           <div className="pointer-events-none absolute inset-x-0 -bottom-12 text-center">
             <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-lg backdrop-blur-md transition-all duration-200 ${
+              className={`inline-flex items-center gap-2 rounded-[5px] border px-3.5 py-1.5 text-xs font-bold shadow-[3px_3px_0_#10150f] transition-all duration-200 ${
                 isCardReady
-                  ? "border-emerald-400/60 bg-emerald-950/85 text-emerald-300"
+                  ? "border-emerald-400/60 bg-[#20251f]/95 text-emerald-300"
                   : qualityResult?.status === QualityStatus.UNSTABLE
-                    ? "border-amber-400/60 bg-amber-950/85 text-amber-300"
-                    : "border-sky-400/40 bg-slate-950/85 text-sky-200"
+                    ? "border-[#f1ca53] bg-[#20251f]/95 text-[#f1ca53]"
+                    : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf]"
               }`}
             >
               <span
@@ -743,7 +749,7 @@ export default function LiveCameraScanner({
                     ? "animate-pulse bg-emerald-400"
                     : qualityResult?.status === QualityStatus.UNSTABLE
                       ? "animate-bounce bg-amber-400"
-                      : "bg-sky-400"
+                      : "bg-[#f1ca53]"
                 }`}
               />
               {feedbackText}
@@ -753,7 +759,13 @@ export default function LiveCameraScanner({
       </main>
 
       {/* Bottom Shutter & Controls Section */}
-      <footer className="relative z-20 flex shrink-0 flex-col items-center justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+      <footer
+        className={`relative z-20 flex shrink-0 flex-col items-center justify-center px-4 pt-2 ${
+          hasSessionItems
+            ? "pb-1"
+            : "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        }`}
+      >
         {captureMode === "manual" ? (
           <div className="relative flex items-center justify-center">
             <svg
@@ -767,7 +779,7 @@ export default function LiveCameraScanner({
                 cx={48}
                 cy={48}
                 r={ringRadius}
-                className="stroke-white/10"
+                className="stroke-[#f3efdf]/15"
                 strokeWidth={5}
                 fill="transparent"
               />
@@ -775,7 +787,7 @@ export default function LiveCameraScanner({
                 cx={48}
                 cy={48}
                 r={ringRadius}
-                className="stroke-white/40"
+                className="stroke-[#f1ca53]"
                 strokeWidth={5}
                 fill="transparent"
               />
@@ -784,18 +796,18 @@ export default function LiveCameraScanner({
               type="button"
               onClick={handleCapture}
               disabled={isCapturing || !isStreaming}
-              className="absolute flex h-16 w-16 items-center justify-center rounded-full border-4 border-slate-900 bg-white shadow-2xl transition hover:scale-105 active:scale-95 disabled:opacity-50"
+              className="absolute flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#252923] bg-[#f3efdf] shadow-[4px_4px_0_#10150f] transition hover:scale-105 active:scale-95 disabled:opacity-50"
               aria-label="Maak een foto van de kaart"
             >
               <div
-                className={`h-12 w-12 rounded-full border-2 border-slate-900 transition-colors ${
-                  isCardReady ? "bg-emerald-500" : "bg-red-600"
+                className={`h-12 w-12 rounded-full border-2 border-[#252923] transition-colors ${
+                  isCardReady ? "bg-emerald-500" : "bg-[#c6372e]"
                 }`}
               />
             </button>
           </div>
         ) : (
-          <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/75 px-3 py-2 shadow-xl backdrop-blur-md">
+          <div className="flex w-full max-w-sm items-center gap-3 rounded-[5px] border border-[#f3efdf]/35 bg-[#20251f]/95 px-3 py-2 shadow-[4px_4px_0_#10150f]">
             <div className="relative h-10 w-10 shrink-0">
               <svg
                 className="-rotate-90"
@@ -808,7 +820,7 @@ export default function LiveCameraScanner({
                   cx={48}
                   cy={48}
                   r={ringRadius}
-                  className="stroke-white/15"
+                  className="stroke-[#f3efdf]/15"
                   strokeWidth={8}
                   fill="transparent"
                 />
@@ -816,7 +828,7 @@ export default function LiveCameraScanner({
                   cx={48}
                   cy={48}
                   r={ringRadius}
-                  className="stroke-emerald-400 transition-all duration-200"
+                  className="stroke-[#f1ca53] transition-all duration-200"
                   strokeWidth={8}
                   strokeDasharray={ringCircumference}
                   strokeDashoffset={ringOffset}
@@ -826,10 +838,10 @@ export default function LiveCameraScanner({
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-white">
+              <p className="text-xs font-black text-[#f3efdf]">
                 Automatisch scannen
               </p>
-              <p className="truncate text-[11px] text-slate-300">
+              <p className="truncate font-mono text-[10px] uppercase tracking-wide text-[#b6bbaa]">
                 {feedbackText}
               </p>
             </div>
@@ -837,13 +849,13 @@ export default function LiveCameraScanner({
               type="button"
               onClick={handleCapture}
               disabled={isCapturing || !isStreaming}
-              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/20 disabled:opacity-50"
+              className="min-h-10 shrink-0 rounded-[5px] border border-[#252923] bg-[#c6372e] px-3 text-xs font-black text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:bg-[#d94b40] disabled:opacity-50"
             >
               Nu vastleggen
             </button>
           </div>
         )}
-        <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+        <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-[#b6bbaa]">
           {captureMode === "auto"
             ? "De scanner legt vanzelf vast"
             : "Tik om vast te leggen"}
@@ -852,7 +864,7 @@ export default function LiveCameraScanner({
 
       {isCapturing && (
         <div
-          className="absolute inset-0 z-[70] flex items-center justify-center bg-slate-950/90 px-6 backdrop-blur-sm"
+          className="absolute inset-0 z-[70] flex items-center justify-center bg-[#171c16]/95 px-6"
           role="status"
           aria-live="polite"
           aria-label={PROCESSING_STAGES[processingStage]}
@@ -860,23 +872,23 @@ export default function LiveCameraScanner({
           <div className="w-full max-w-sm text-center">
             {processingPreview && (
               <div
-                className="mx-auto aspect-card h-[min(46dvh,360px)] rounded-2xl border border-white/15 bg-cover bg-center shadow-2xl"
+                className="mx-auto aspect-card h-[min(46dvh,360px)] rounded-[8px] border border-[#f3efdf]/30 bg-cover bg-center shadow-[6px_6px_0_#10150f]"
                 style={{ backgroundImage: `url(${processingPreview})` }}
                 aria-hidden="true"
               />
             )}
-            <div className="mx-auto mt-5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="mx-auto mt-5 h-1.5 w-full overflow-hidden rounded-[2px] bg-[#f3efdf]/10">
               <div
-                className="h-full rounded-full bg-emerald-400 transition-[width] duration-500"
+                className="h-full rounded-[2px] bg-[#f1ca53] transition-[width] duration-500"
                 style={{
                   width: `${((processingStage + 1) / PROCESSING_STAGES.length) * 100}%`,
                 }}
               />
             </div>
-            <p className="mt-3 text-base font-black text-white">
+            <p className="mt-3 text-base font-black text-[#f3efdf]">
               {PROCESSING_STAGES[processingStage]}
             </p>
-            <p className="mt-1 text-xs text-slate-300">
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-[#b6bbaa]">
               Blijf op deze pagina; je resultaat verschijnt automatisch.
             </p>
           </div>

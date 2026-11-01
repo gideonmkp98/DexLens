@@ -32,6 +32,12 @@
 
 - **Test Database Isolation:**
   Automated tests (Pytest, isolated E2E) must only execute against a database ending in `_test` (`tcg_test`).
+- **Sequential Execution of Backend & Concurrency Suites:**
+  The full backend suite (`pytest -q`, 309 tests) and the dedicated MariaDB concurrency suite (`tests/test_concurrency_mariadb.py`, 13 tests) both recreate, populate, and tear down tables in the shared `tcg_test` schema. **THEY MUST NEVER BE EXECUTED SIMULTANEOUSLY.**
+  Always execute them sequentially:
+  1. `docker compose -f docker-compose.dev.yml exec -T api pytest -q`
+  2. `docker compose -f docker-compose.dev.yml exec -T api pytest tests/test_concurrency_mariadb.py -q`
+  Running them in parallel causes table lock contention, schema teardowns mid-test, and spurious `(1146, "Table 'tcg_test.scans' doesn't exist")` errors.
 - **Destructive Operation Safety Guard:**
   Any destructive bulk reset or table drop endpoint (`POST /api/v1/testing/reset`) strictly checks `db_name.endswith("_test")` and rejects requests against non-test databases with HTTP 403 Forbidden.
 - **Scoped Test Cleanups:**

@@ -35,34 +35,36 @@ export default function ScanSessionTray({
   return (
     <aside
       aria-label="Huidige scansessie"
-      className={`fixed inset-x-0 bottom-0 z-30 flex flex-col transition-transform duration-300 ${
-        isExpanded ? "translate-y-0" : ""
+      className={`z-30 flex flex-col transition-transform duration-300 ${
+        isExpanded
+          ? "fixed inset-x-0 bottom-0 translate-y-0"
+          : "relative shrink-0"
       } ${className}`}
     >
       {/* Floating Pill Bar */}
-      <div className="mx-auto mb-2 flex w-[calc(100%-2rem)] max-w-lg items-center justify-between gap-2 rounded-2xl border border-white/20 bg-slate-950/85 px-4 py-2.5 text-white shadow-2xl backdrop-blur-md">
+      <div className="mx-auto mb-[max(0.5rem,env(safe-area-inset-bottom))] flex w-[calc(100%-2rem)] max-w-lg items-center justify-between gap-2 rounded-[5px] border border-[#f3efdf]/35 bg-[#20251f]/95 px-4 py-2.5 text-[#f3efdf] shadow-[4px_4px_0_#10150f]">
         <button
           type="button"
           onClick={() => setIsExpanded((prev) => !prev)}
-          className="flex flex-1 items-center gap-2.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="flex flex-1 items-center gap-2.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eb6b5d]"
           aria-expanded={isExpanded}
           aria-controls="scan-session-tray-drawer"
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-bold text-emerald-300">
+          <span className="flex h-6 w-6 items-center justify-center rounded-[3px] border border-[#f1ca53]/50 bg-[#f1ca53] text-[11px] font-black text-[#252923]">
             {totalCount}
           </span>
           <div className="flex flex-col">
-            <span className="font-bold tracking-tight">
+            <span className="font-black tracking-tight">
               {totalCount === 1
                 ? "1 kaart gescand"
                 : `${totalCount} kaarten gescand`}
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="font-mono text-[9px] uppercase tracking-wide text-[#b6bbaa]">
               {isExpanded ? "Tik om te verkleinen" : "Tik om lijst te bekijken"}
             </span>
           </div>
           <svg
-            className={`ml-auto h-4 w-4 text-slate-400 transition-transform duration-200 ${
+            className={`ml-auto h-4 w-4 text-[#b6bbaa] transition-transform duration-200 ${
               isExpanded ? "rotate-180" : ""
             }`}
             fill="none"
@@ -84,7 +86,7 @@ export default function ScanSessionTray({
             type="button"
             onClick={onCompleteSession}
             disabled={isCompleting}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-[5px] border border-[#252923] bg-[#c6372e] px-3 py-1.5 text-xs font-black text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:bg-[#d94b40] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:opacity-50"
           >
             {isCompleting ? (
               <>
@@ -105,17 +107,17 @@ export default function ScanSessionTray({
       {isExpanded && (
         <div
           id="scan-session-tray-drawer"
-          className="border-t border-white/10 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-xl"
+          className="bg-[#20251f]/98 border-t border-[#f3efdf]/20 p-4 shadow-[0_-6px_0_#10150f]"
         >
           <div className="mx-auto max-w-4xl">
-            <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400">
+            <div className="mb-2 flex items-center justify-between text-xs text-[#b6bbaa]">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[#f1ca53]">
                 Sessiegeschiedenis ({items.length})
               </span>
               <button
                 type="button"
                 onClick={() => setIsExpanded(false)}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-[#b6bbaa] hover:text-[#f3efdf]"
               >
                 Sluiten ✕
               </button>
@@ -133,10 +135,10 @@ export default function ScanSessionTray({
                     key={item.scan_id || idx}
                     type="button"
                     onClick={() => onSelectScan?.(item)}
-                    className="group relative flex w-24 flex-shrink-0 flex-col items-center rounded-xl border border-white/10 bg-slate-900/80 p-1.5 text-left text-white transition hover:border-emerald-400/60 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    className="group relative flex w-24 flex-shrink-0 flex-col items-center rounded-[5px] border border-[#f3efdf]/20 bg-[#2a3028] p-1.5 text-left text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eb6b5d]"
                   >
                     {/* Thumbnail */}
-                    <div className="relative aspect-card w-full overflow-hidden rounded-lg bg-slate-950">
+                    <div className="relative aspect-card w-full overflow-hidden rounded-[3px] bg-[#171c16]">
                       {img ? (
                         <Image
                           src={img}
@@ -147,7 +149,7 @@ export default function ScanSessionTray({
                           unoptimized
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center font-mono text-[9px] text-slate-500">
+                        <div className="flex h-full w-full items-center justify-center font-mono text-[9px] text-[#8d9485]">
                           Geen foto
                         </div>
                       )}
@@ -155,7 +157,7 @@ export default function ScanSessionTray({
                       {/* Collection status badge */}
                       {item.in_collection && (
                         <span
-                          className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow"
+                          className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-[2px] bg-[#f1ca53] text-[9px] font-black text-[#252923] shadow"
                           title="In collectie"
                         >
                           ✓
@@ -168,7 +170,7 @@ export default function ScanSessionTray({
                       <p className="truncate text-[11px] font-bold leading-tight">
                         {name}
                       </p>
-                      <p className="truncate font-mono text-[9px] text-slate-400">
+                      <p className="truncate font-mono text-[9px] text-[#b6bbaa]">
                         {setInfo}
                       </p>
                     </div>

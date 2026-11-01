@@ -280,6 +280,7 @@ Returns `ScanSessionResponse` with UUID, status `active`, and timestamps.
 `POST /api/v1/scan-sessions/{session_id}/capture` (multipart/form-data)
 
 Uploads a live camera frame, executes automatic OpenCV card detection, perspective warp, local OCR, and catalog candidate ranking in a single call.
+Supports client idempotency via the optional `Idempotency-Key` header (e.g. UUID). Retrying a request with the same idempotency key replays the cached result without redundant OCR or duplicate database entries.
 Returns `LiveCaptureResponse` containing the created `scan_id`, cropped image URL, candidate matches, OCR evidence, and confidence score.
 
 ### 19. Get Live Scan Session Details (Phase 7)
@@ -297,7 +298,7 @@ Marks session as `completed` with completion timestamp.
 ## Tech Stack
 
 ### Frontend (`apps/web`)
-- **Next.js 14** (App Router, Standalone production build)
+- **Next.js 15** (App Router, Standalone production build)
 - **TypeScript** (Strict mode)
 - **Tailwind CSS** (Custom collectible & elemental palette)
 - **Centralized Typed API Client** (`src/lib/api.ts`)
@@ -433,6 +434,10 @@ The database schema includes:
 - `0006`: Phase 5 search persistence, catalog status & card selection versioning (`card_selection_version`, `catalog_status`, `catalog_error`, `user_search_name`, `user_search_number`, `user_search_set_code`, `user_search_provider_set_id`).
 - `0007`: Persist structured OCR field confidence and source regions in the `recognition_evidence` JSON column.
 - `0008`: Create `collection_items` table with card snapshots, quantity, condition, variant, pricing, notes, optimistic concurrency `version`, and `ON DELETE SET NULL` foreign key to `scans.id`.
+- `0009`: Add database indexes on `collection_items` for user, card, set, condition, variant, and acquisition date.
+- `0010`: Normalize collection duplicates into single records with summed quantity; enforce unique constraint on `(user_id, card_id, variant, condition)`.
+- `0011`: Add Phase 7 live scan tables (`scan_sessions`, `session_scans`) and card orientation tracking (`card_orientation`).
+- `0012`: Add `live_captures` table with unique `idempotency_key` and serialized responses for capture replay.
 
 ---
 
@@ -463,7 +468,6 @@ Access the web interface at `http://localhost:3000`:
 - `/scan/[id]`: Interactive card crop adjustment, live crop preview, OCR recognition, candidate matching, verified specimen slab, and "Voeg toe aan collectie" action.
 - `/cards`: Card catalog visual browser with name, number, and expansion set filters.
 - `/cards/[id]`: Detailed card specimen view with artwork, HP, attacks, abilities, variants, illustrator info, and "+ Voeg toe aan collectie" modal.
-- `/cards/[id]`: Detailed card specimen view with artwork, HP, attacks, abilities, variants, and illustrator info.
 - `/sets`: Complete expansion sets directory with set symbols, logos, and card counts.
 - `/sets/[id]`: Set detail view showing set statistics and a paginated list of cards in that set.
 - `/debug`: System telemetry and database connectivity status.
@@ -474,16 +478,22 @@ Access the web interface at `http://localhost:3000`:
 
 ### Backend Tests & Linters
 
+> [!IMPORTANT]
+> **Sequential Test Isolation Rule**: Always execute the general pytest suite and the MariaDB concurrency suite sequentially, never in parallel. Both suites manage schemas in `tcg_test`; concurrent execution leads to table teardown collisions.
+
 ```bash
-# Run full test suite in Docker against MariaDB (289 passed in ~90s)
-docker compose exec api pytest
+# Run full backend test suite in Docker against MariaDB (309 passed in ~107s)
+docker compose -f docker-compose.dev.yml exec -T api pytest -q
+
+# Run real MariaDB concurrency test suite sequentially (13 passed in ~13s)
+docker compose -f docker-compose.dev.yml exec -T api pytest tests/test_concurrency_mariadb.py -q
 
 # Ruff code quality and format checks
-docker compose exec api ruff check /app
-docker compose exec api ruff format --check /app
+docker compose -f docker-compose.dev.yml exec -T api ruff check .
+docker compose -f docker-compose.dev.yml exec -T api ruff format --check .
 ```
 
-### Frontend Typecheck, Lint, Format & Production Build
+### Frontend Typecheck, Lint, Format, Unit Tests & Production Build
 
 ```bash
 # Type check with TypeScript strict mode
@@ -495,6 +505,9 @@ npm.cmd --prefix apps/web run lint
 # Check code formatting with Prettier
 npm.cmd --prefix apps/web run format:check
 
+# Run camera and offscreen quality unit tests (17 passed in ~180ms)
+npm.cmd --prefix apps/web run test:camera
+
 # Verify Next.js production standalone build
 npm.cmd --prefix apps/web run build
 ```
@@ -505,7 +518,10 @@ npm.cmd --prefix apps/web run build
 # Start the dedicated E2E test stack on port 3001 connected strictly to MariaDB tcg_test
 docker compose -f docker-compose.test.yml up -d
 
-# Run automated end-to-end browser test suite (covering all 9 Phase 6 flows: upload, crop, recognize, confirm, duplicate grouping, idempotency, atomic edit, stale 409 rejection, reload persistence, manual catalog addition, safe deletion, existing upload workflow, and database safety guard verification)
+# Run automated end-to-end browser test suite (23 passed in ~2.2m)
+# Covers: live scanning session flow, viewport resilience (390x844 portrait & 844x390 landscape),
+# session tray expand/collapse, non-overlapping controls, card crop, OCR recognition, confirmation,
+# collection addition, atomic edit, stale 409 rejection, reload persistence, and database safety guard.
 npm.cmd --prefix apps/web run test:e2e
 ```
 
