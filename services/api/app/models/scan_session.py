@@ -2,13 +2,14 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.scan import Scan
+    from app.models.user import User
 
 
 def _utcnow() -> datetime:
@@ -25,12 +26,23 @@ class ScanSession(Base):
             name="ck_scan_sessions_status",
         ),
         Index("ix_scan_sessions_status_created_at", "status", "created_at"),
+        Index("ix_scan_sessions_user_id", "user_id"),
+        Index("ix_scan_sessions_anonymous_session_id", "anonymous_session_id"),
     )
 
     id: Mapped[str] = mapped_column(
         String(36),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    anonymous_session_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
         String(32),
@@ -58,6 +70,7 @@ class ScanSession(Base):
     )
 
     # Relationships
+    user: Mapped["User | None"] = relationship("User")
     scans: Mapped[list["Scan"]] = relationship(
         "Scan",
         back_populates="session",

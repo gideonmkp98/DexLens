@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ApiError, uploadScan } from "@/lib/api";
 import LiveCameraScanner from "@/components/LiveCameraScanner";
+import { trackEvent } from "@/lib/analytics";
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MiB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -114,11 +115,20 @@ export default function ScanPage() {
     if (!selectedFile || isUploading) return;
     setIsUploading(true);
     setErrorMessage(null);
+    trackEvent("upload_started", { capture_mode: "upload" });
     try {
       const scan = await uploadScan(selectedFile);
+      trackEvent("upload_completed", {
+        scan_id: scan.id,
+        capture_mode: "upload",
+      });
       router.push(`/scan/${scan.id}`);
     } catch (err: unknown) {
       setIsUploading(false);
+      trackEvent("scan_processing_failed", {
+        capture_mode: "upload",
+        failure_category: "upload_failed",
+      });
       setErrorMessage(
         err instanceof ApiError || err instanceof Error
           ? err.message

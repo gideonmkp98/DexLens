@@ -1,4 +1,5 @@
 import logging
+from ipaddress import ip_address
 from typing import Any
 
 from starlette.datastructures import Headers
@@ -9,6 +10,40 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityHeadersMiddleware:
+    """Attach baseline browser security headers to every API response."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> Any:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def security_send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.extend(
+                    [
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"no-referrer"),
+                    ]
+                )
+                if settings.ENVIRONMENT.lower() in {"production", "prod"}:
+                    headers.append(
+                        (
+                            b"strict-transport-security",
+                            b"max-age=31536000; includeSubDomains",
+                        )
+                    )
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, security_send)
 
 
 class RequestSizeLimitError(MultiPartException):
@@ -134,5 +169,104 @@ class RequestSizeLimitMiddleware:
                     await res(scope, receive, send)
                     return
                 raise
+
+        await self.app(scope, receive, send)
+
+
+class RateLimitMiddleware:
+    """Sliding-window limiter for general, auth, and analytics API traffic."""
+
+    windows: dict[tuple[str, str], list[float]] = {}
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.window_seconds = 60.0
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.windows.clear()
+
+    def get_client_ip(self, scope: Scope) -> str:
+        headers = Headers(scope=scope)
+        client = scope.get("client")
+        peer_ip = client[0] if client and len(client) > 0 else "127.0.0.1"
+        x_forwarded = headers.get("x-forwarded-for")
+        if x_forwarded and peer_ip in settings.TRUSTED_PROXY_IPS:
+            forwarded_ip = x_forwarded.split(",")[0].strip()
+            try:
+                return str(ip_address(forwarded_ip))
+            except ValueError:
+                return peer_ip
+        if client and len(client) > 0:
+            return client[0]
+        return "127.0.0.1"
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> Any:
+        import time
+
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        bucket = None
+        limit = None
+        if (
+            path.startswith("/api/v1/auth/login")
+            or path.startswith("/api/v1/auth/register")
+            or path.startswith("/api/v1/auth/claim-anonymous-session")
+        ):
+            bucket = "auth"
+            limit = settings.AUTH_RATE_LIMIT_PER_MINUTE
+        elif path.startswith("/api/v1/analytics/events"):
+            bucket = "analytics"
+            limit = settings.ANALYTICS_RATE_LIMIT_PER_MINUTE
+        elif path.startswith("/api/v1/") and not path.startswith("/api/v1/health"):
+            bucket = "general"
+            limit = settings.GENERAL_API_RATE_LIMIT_PER_MINUTE
+
+        if bucket is not None and limit is not None:
+            ip = self.get_client_ip(scope)
+            now = time.time()
+            key = (ip, bucket)
+
+            if key not in self.windows:
+                self.windows[key] = []
+
+            cutoff = now - self.window_seconds
+            if len(self.windows) > 10_000:
+                stale_keys = [
+                    window_key
+                    for window_key, timestamps in self.windows.items()
+                    if not timestamps or timestamps[-1] <= cutoff
+                ]
+                for stale_key in stale_keys:
+                    self.windows.pop(stale_key, None)
+            self.windows[key] = [t for t in self.windows[key] if t > cutoff]
+
+            if len(self.windows[key]) >= limit:
+                logger.warning(
+                    "Rate limit exceeded on %s (%d requests)",
+                    bucket,
+                    len(self.windows[key]),
+                )
+                res = JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": (
+                                f"Rate limit of {limit} requests per minute exceeded. "
+                                "Please try again later."
+                            ),
+                        }
+                    },
+                    headers={"Retry-After": "60"},
+                )
+                await res(scope, receive, send)
+                return
+
+            self.windows[key].append(now)
 
         await self.app(scope, receive, send)

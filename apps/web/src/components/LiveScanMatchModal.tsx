@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { trackEvent } from "@/lib/analytics";
+import ScanFeedbackWidget from "./ScanFeedbackWidget";
 import {
   addScanToCollection,
   ApiError,
@@ -45,6 +47,12 @@ export default function LiveScanMatchModal({
       setAddedItem(null);
       setActionError(null);
       setShowAlternatives(captureResult.scan.confidence_state === "low");
+
+      trackEvent("candidate_list_shown", {
+        scan_id: captureResult.scan.id,
+        confidence_state: captureResult.scan.confidence_state,
+        candidate_count: captureResult.candidates.length,
+      });
     }
   }, [captureResult]);
 
@@ -111,6 +119,13 @@ export default function LiveScanMatchModal({
       const item = await addScanToCollection(scan.id);
       setAddedItem(item);
       onCardAddedToCollection?.(item);
+
+      trackEvent("card_added_to_collection", {
+        scan_id: scan.id,
+        confidence_state: confidenceState,
+        is_top_suggestion_selected:
+          activeMatch?.id === captureResult.best_match?.id,
+      });
     } catch (err) {
       setActionError(
         err instanceof ApiError || err instanceof Error
@@ -133,6 +148,24 @@ export default function LiveScanMatchModal({
       });
       setActiveMatch(candidate);
       setAddedItem(null);
+
+      trackEvent("candidate_selected", {
+        scan_id: scan.id,
+        confidence_state: confidenceState,
+        is_top_suggestion_selected: false,
+      });
+
+      if (candidate.id !== captureResult.best_match?.id) {
+        trackEvent("top_candidate_corrected", {
+          scan_id: scan.id,
+          confidence_state: confidenceState,
+          is_top_suggestion_selected: false,
+          metadata: {
+            original_card_id: captureResult.best_match?.id ?? null,
+            corrected_card_id: candidate.id,
+          },
+        });
+      }
     } catch (err) {
       setActionError(
         err instanceof ApiError || err instanceof Error
@@ -376,6 +409,16 @@ export default function LiveScanMatchModal({
                   )}
                 </div>
               )}
+
+              {/* Direct Scan Feedback & Correction Widget */}
+              <ScanFeedbackWidget
+                scanId={scan.id}
+                suggestedCardId={captureResult.best_match?.id}
+                selectedCardId={match?.id}
+                confidenceState={confidenceState}
+                selectedInCandidates={true}
+                className="mt-5"
+              />
             </div>
           ) : (
             /* Fallback when no candidate detected */

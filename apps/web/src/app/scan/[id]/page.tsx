@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { CornerSelector } from "@/components/CornerSelector";
 import CardImage from "@/components/CardImage";
+import ScanFeedbackWidget from "@/components/ScanFeedbackWidget";
+import { trackEvent } from "@/lib/analytics";
 import {
   addScanToCollection,
   ApiError,
@@ -530,6 +532,10 @@ export default function ScanResultPage() {
         return;
       }
       setScan(updated);
+      trackEvent("card_confirmed", {
+        scan_id: updated.id,
+        confidence_state: updated.confidence_state,
+      });
     } catch (err: unknown) {
       if (
         activeConfirmCardIdRef.current !== confirmId ||
@@ -571,6 +577,10 @@ export default function ScanResultPage() {
         expected_selection_version: currentSelectionVer,
       });
       setScan(updated);
+      trackEvent("card_confirmed", {
+        scan_id: updated.id,
+        confidence_state: updated.confidence_state,
+      });
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
@@ -601,6 +611,11 @@ export default function ScanResultPage() {
       setCollectionSuccessMsg(
         "Kaart succesvol toegevoegd aan je persoonlijke collectie!"
       );
+      trackEvent("card_added_to_collection", {
+        scan_id: scan.id,
+        confidence_state: scan.confidence_state,
+        is_top_suggestion_selected: true,
+      });
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setActionError(err.message);
@@ -1076,6 +1091,16 @@ export default function ScanResultPage() {
                     {isResettingCard ? "Resetten..." : "Opnieuw Matchen"}
                   </button>
                 </div>
+
+                {/* Direct Scan Feedback Widget */}
+                <ScanFeedbackWidget
+                  scanId={scan.id}
+                  suggestedCardId={scan.confirmed_card.id}
+                  selectedCardId={scan.confirmed_card.id}
+                  confidenceState={scan.confidence_state}
+                  selectedInCandidates={true}
+                  className="mt-6"
+                />
               </div>
             </div>
           </div>
@@ -1367,13 +1392,18 @@ export default function ScanResultPage() {
                     <button
                       type="button"
                       onClick={handleGeneratePreview}
-                      disabled={isCropping}
-                      className="result-action utility inline-flex items-center gap-1.5 rounded-xl border border-sky-400/60 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60"
+                      disabled={isCropping || isDetecting}
+                      className="result-action utility inline-flex items-center gap-1.5 rounded-xl border border-sky-400/60 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100 disabled:opacity-50 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60"
                     >
                       {isCropping ? (
                         <>
                           <span className="h-3 w-3 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
                           <span>Uitsnijden...</span>
+                        </>
+                      ) : isDetecting ? (
+                        <>
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+                          <span>Randen zoeken...</span>
                         </>
                       ) : (
                         <>

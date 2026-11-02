@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,6 +52,32 @@ class Settings(BaseSettings):
     OCR_MAX_CONCURRENCY: int = 3
     OCR_MAX_IMAGE_DIMENSION: int = 2000
 
+    # Phase 8: Auth, Analytics, and Pilot Configuration
+    SECURE_COOKIES: bool = False
+    PILOT_ADMIN_SECRET: str = "pilot-secret-dev"
+    ANALYTICS_RETENTION_DAYS: int = 30
+    AUTH_RATE_LIMIT_PER_MINUTE: int = 10
+    ANALYTICS_RATE_LIMIT_PER_MINUTE: int = 60
+    GENERAL_API_RATE_LIMIT_PER_MINUTE: int = 60
+    ANALYTICS_MAX_PAYLOAD_BYTES: int = 2048
+    TRUSTED_PROXY_IPS: list[str] | str = []
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.ENVIRONMENT.lower() in {"production", "prod"}:
+            if not self.SECURE_COOKIES:
+                raise ValueError("SECURE_COOKIES must be true in production")
+            if (
+                self.PILOT_ADMIN_SECRET == "pilot-secret-dev"
+                or self.PILOT_ADMIN_SECRET.startswith("replace-")
+                or len(self.PILOT_ADMIN_SECRET) < 32
+            ):
+                raise ValueError(
+                    "PILOT_ADMIN_SECRET must be a non-default 32+ character secret "
+                    "in production"
+                )
+        return self
+
     @field_validator(
         "UPLOAD_MAX_BYTES",
         "UPLOAD_MAX_PIXELS",
@@ -79,7 +105,7 @@ class Settings(BaseSettings):
             raise ValueError("Value cannot be negative")
         return v
 
-    @field_validator("CORS_ORIGINS", mode="after")
+    @field_validator("CORS_ORIGINS", "TRUSTED_PROXY_IPS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):

@@ -4,7 +4,11 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.middleware import RequestSizeLimitMiddleware
+from app.core.middleware import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.services.image_processor import ImageValidationError
 from app.services.scan_session import ScanSessionError
 
@@ -15,7 +19,9 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

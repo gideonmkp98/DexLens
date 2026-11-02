@@ -233,14 +233,16 @@ def test_api_get_scan_session_with_scans_and_collection(
     client: TestClient, db: Session
 ):
     """GET /api/v1/scan-sessions/{id} returns scans with collection status."""
+    anonymous_session_id = client.get("/api/v1/auth/me").json()["session_id"]
     # 1. Create session
-    session = ScanSession(status="active")
+    session = ScanSession(status="active", anonymous_session_id=anonymous_session_id)
     db.add(session)
     db.commit()
 
     # 2. Add an item to collection (Pikachu)
     collection_item = CollectionItem(
         id=str(uuid.uuid4()),
+        anonymous_session_id=anonymous_session_id,
         card_id="base1-58",
         provider="tcgdex",
         card_name="Pikachu",
@@ -260,6 +262,7 @@ def test_api_get_scan_session_with_scans_and_collection(
     # Scan 1: Confirmed card that matches collection item
     scan1 = Scan(
         id=str(uuid.uuid4()),
+        anonymous_session_id=anonymous_session_id,
         session_id=session.id,
         status="confirmed",
         image_path="scan1.jpg",
@@ -281,6 +284,7 @@ def test_api_get_scan_session_with_scans_and_collection(
     # Scan 2: Unconfirmed card, not in collection
     scan2 = Scan(
         id=str(uuid.uuid4()),
+        anonymous_session_id=anonymous_session_id,
         session_id=session.id,
         status="uploaded",
         image_path="scan2.jpg",
@@ -306,6 +310,7 @@ def test_api_get_scan_session_with_scans_and_collection(
     # Scan 3: Directly linked via CollectionScanLink
     scan3 = Scan(
         id=str(uuid.uuid4()),
+        anonymous_session_id=anonymous_session_id,
         session_id=session.id,
         status="confirmed",
         image_path="scan3.jpg",
@@ -330,6 +335,7 @@ def test_api_get_scan_session_with_scans_and_collection(
     # Link scan3 to a collection item
     item3 = CollectionItem(
         id=str(uuid.uuid4()),
+        anonymous_session_id=anonymous_session_id,
         card_id="base1-1",
         provider="tcgdex",
         card_name="Alakazam",

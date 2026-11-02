@@ -18,11 +18,17 @@ def _create_confirmed_scan(
     expired: bool = False,
     crop_status: str = "confirmed",
 ) -> Scan:
+    from app.models.user import UserSession
+
+    active_session = (
+        db.query(UserSession).order_by(UserSession.created_at.desc()).first()
+    )
     expires_at = datetime.now(UTC).replace(tzinfo=None) + (
         timedelta(hours=-1) if expired else timedelta(hours=2)
     )
     scan = Scan(
         id=str(uuid.uuid4()),
+        anonymous_session_id=active_session.id if active_session else None,
         status="confirmed",
         image_path="/app/uploads/scans/test.jpg",
         content_type="image/jpeg",

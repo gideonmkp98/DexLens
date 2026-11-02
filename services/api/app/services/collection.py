@@ -70,10 +70,32 @@ class CollectionService:
         self,
         db: "Session | AsyncSession",
         catalog_service: CardCatalogService | None = None,
+        user_id: str | None = None,
+        anonymous_session_id: str | None = None,
     ) -> None:
         # Runtime session is SQLAlchemy Session
         self.db: Session = db  # type: ignore[assignment]
         self.catalog_service = catalog_service
+        self.user_id = user_id
+        self.anonymous_session_id = anonymous_session_id
+
+    def _apply_owner_filter(self, query: Any) -> Any:
+        """Scope collection query to the authenticated user or anonymous session."""
+        if self.user_id:
+            return query.filter(CollectionItem.user_id == self.user_id)
+        elif self.anonymous_session_id:
+            return query.filter(
+                CollectionItem.anonymous_session_id == self.anonymous_session_id
+            )
+        return query.filter(False)
+
+    def _get_owner_clause(self) -> Any:
+        """Return SQLAlchemy filter clause for current owner."""
+        if self.user_id:
+            return CollectionItem.user_id == self.user_id
+        elif self.anonymous_session_id:
+            return CollectionItem.anonymous_session_id == self.anonymous_session_id
+        return False
 
     async def list_items(
         self,
@@ -96,7 +118,7 @@ class CollectionService:
         - number_asc: collector_number ASC, created_at DESC
         - quantity_desc: quantity DESC, created_at DESC
         """
-        filters: list[Any] = []
+        filters: list[Any] = [self._get_owner_clause()]
 
         if query and query.strip():
             clean_q = f"%{query.strip()}%"
@@ -174,21 +196,39 @@ class CollectionService:
 
     async def get_item(self, entry_id: str) -> CollectionItem | None:
         """Fetch a single collection item by primary key."""
-        return (
-            self.db.query(CollectionItem).filter(CollectionItem.id == entry_id).first()
-        )
+        query = self.db.query(CollectionItem).filter(CollectionItem.id == entry_id)
+        return self._apply_owner_filter(query).first()
 
-    async def get_item_for_scan(self, scan_id: str) -> CollectionItem | None:
+    async def get_item_for_scan(
+        self,
+        scan_id: str,
+        user_id: str | None = None,
+        anonymous_session_id: str | None = None,
+        use_explicit_owner: bool = False,
+    ) -> CollectionItem | None:
         """Return the grouped collection item already linked to a physical scan."""
-        return (
+        query = (
             self.db.query(CollectionItem)
             .join(
                 CollectionScanLink,
                 CollectionScanLink.collection_item_id == CollectionItem.id,
             )
             .filter(CollectionScanLink.scan_id == scan_id)
-            .first()
         )
+        if use_explicit_owner:
+            if user_id:
+                query = query.filter(CollectionItem.user_id == user_id)
+            elif anonymous_session_id:
+                query = query.filter(
+                    CollectionItem.anonymous_session_id == anonymous_session_id
+                )
+            else:
+                query = query.filter(
+                    CollectionItem.user_id.is_(None)
+                    & CollectionItem.anonymous_session_id.is_(None)
+                )
+            return query.first()
+        return self._apply_owner_filter(query).first()
 
     def _find_merge_target(
         self,
@@ -198,6 +238,9 @@ class CollectionService:
         language: str = "en",
         variant: str = "normal",
         condition: str = "near_mint",
+        user_id: str | None = None,
+        anonymous_session_id: str | None = None,
+        use_explicit_owner: bool = False,
     ) -> CollectionItem | None:
         """Find an equivalent grouped inventory row matching grouping identity."""
         query = self.db.query(CollectionItem).filter(
@@ -207,6 +250,21 @@ class CollectionService:
             CollectionItem.variant == variant,
             CollectionItem.condition == condition,
         )
+        if use_explicit_owner:
+            if user_id:
+                query = query.filter(CollectionItem.user_id == user_id)
+            elif anonymous_session_id:
+                query = query.filter(
+                    CollectionItem.anonymous_session_id == anonymous_session_id
+                )
+            else:
+                query = query.filter(
+                    CollectionItem.user_id.is_(None),
+                    CollectionItem.anonymous_session_id.is_(None),
+                )
+        else:
+            query = self._apply_owner_filter(query)
+
         return query.with_for_update().order_by(CollectionItem.created_at.asc()).first()
 
     async def create_item(self, data: CollectionCreateRequest) -> CollectionItem:
@@ -292,6 +350,10 @@ class CollectionService:
 
         item = CollectionItem(
             id=str(uuid.uuid4()),
+            user_id=self.user_id,
+            anonymous_session_id=(
+                self.anonymous_session_id if not self.user_id else None
+            ),
             card_id=data.card_id,
             provider=provider,
             card_name=card_name,
@@ -379,6 +441,7 @@ class CollectionService:
             .where(
                 CollectionItem.id == entry_id,
                 CollectionItem.version == data.expected_version,
+                self._get_owner_clause(),
             )
             .values(
                 **update_values,
@@ -396,12 +459,11 @@ class CollectionService:
             ) from exc
 
         if result.rowcount == 0:
-            # Distinguish missing item (404) from stale version (409)
-            existing = (
-                self.db.query(CollectionItem.version)
-                .filter(CollectionItem.id == entry_id)
-                .first()
+            # Distinguish missing/unowned item (404) from stale version (409)
+            existing_query = self.db.query(CollectionItem.version).filter(
+                CollectionItem.id == entry_id
             )
+            existing = self._apply_owner_filter(existing_query).first()
             if existing is None:
                 raise CollectionItemNotFoundError(
                     f"Collection item '{entry_id}' not found."
@@ -446,7 +508,7 @@ class CollectionService:
                 ),
                 0,
             ).label("duplicate_count"),
-        )
+        ).where(self._get_owner_clause())
         agg_row = self.db.execute(agg_stmt).one()
         total_cards = int(agg_row.total_cards)
         unique_cards = int(agg_row.unique_cards)
@@ -454,10 +516,14 @@ class CollectionService:
         duplicate_count = int(agg_row.duplicate_count)
 
         # 2. Condition distribution (total physical cards per condition)
-        cond_stmt = select(
-            CollectionItem.condition,
-            func.coalesce(func.sum(CollectionItem.quantity), 0).label("card_count"),
-        ).group_by(CollectionItem.condition)
+        cond_stmt = (
+            select(
+                CollectionItem.condition,
+                func.coalesce(func.sum(CollectionItem.quantity), 0).label("card_count"),
+            )
+            .where(self._get_owner_clause())
+            .group_by(CollectionItem.condition)
+        )
         cond_rows = self.db.execute(cond_stmt).all()
 
         condition_distribution: dict[str, int] = dict.fromkeys(ALLOWED_CONDITIONS, 0)
@@ -474,6 +540,7 @@ class CollectionService:
                     "total_cards"
                 ),
             )
+            .where(self._get_owner_clause())
             .group_by(CollectionItem.set_id, CollectionItem.set_name)
             .order_by(func.sum(CollectionItem.quantity).desc())
             .limit(10)
@@ -492,6 +559,7 @@ class CollectionService:
         # 4. Recent additions (top 5 most recent by updated_at / created_at)
         recent_stmt = (
             select(CollectionItem)
+            .where(self._get_owner_clause())
             .order_by(
                 CollectionItem.updated_at.desc(),
                 CollectionItem.created_at.desc(),
@@ -529,6 +597,20 @@ class CollectionService:
                 f"Scan '{scan_id}' not found.", code="SCAN_NOT_FOUND"
             )
 
+        owns_scan = (
+            bool(self.user_id)
+            and scan.user_id == self.user_id
+            and scan.anonymous_session_id is None
+        ) or (
+            bool(self.anonymous_session_id)
+            and scan.anonymous_session_id == self.anonymous_session_id
+            and scan.user_id is None
+        )
+        if not owns_scan:
+            raise InvalidScanStateError(
+                f"Scan '{scan_id}' not found.", code="SCAN_NOT_FOUND"
+            )
+
         now_utc = datetime.now(UTC).replace(tzinfo=None)
         if scan.expires_at <= now_utc:
             raise InvalidScanStateError(
@@ -541,10 +623,19 @@ class CollectionService:
                 "Scan has no confirmed card.", code="SCAN_NOT_CONFIRMED"
             )
 
+        # Ownership has already been verified against the active request.
+        effective_user_id = self.user_id
+        effective_anon_id = self.anonymous_session_id if not self.user_id else None
+
         # Lock the scan row and check the dedicated idempotency link. A card may
         # have many distinct scans, while a single scan may increment only once.
         scan = self.db.query(Scan).filter(Scan.id == scan_id).with_for_update().first()
-        linked_item = await self.get_item_for_scan(scan_id)
+        linked_item = await self.get_item_for_scan(
+            scan_id,
+            user_id=effective_user_id,
+            anonymous_session_id=effective_anon_id,
+            use_explicit_owner=True,
+        )
         if linked_item is not None:
             return linked_item, False
 
@@ -567,10 +658,15 @@ class CollectionService:
             language="en",
             variant=data.variant,
             condition=data.condition,
+            user_id=effective_user_id,
+            anonymous_session_id=effective_anon_id,
+            use_explicit_owner=True,
         )
         if item is None:
             item = CollectionItem(
                 id=str(uuid.uuid4()),
+                user_id=effective_user_id,
+                anonymous_session_id=effective_anon_id,
                 card_id=card_id,
                 provider="tcgdex",
                 card_name=card_name,
@@ -602,9 +698,14 @@ class CollectionService:
                 self.db.rollback()
                 for _ in range(5):
                     # Check if this scan was already linked concurrently
-                    linked = await self.get_item_for_scan(scan_id)
-                    if linked is not None:
-                        return linked, False
+                    raw_linked = await self.get_item_for_scan(
+                        scan_id,
+                        user_id=effective_user_id,
+                        anonymous_session_id=effective_anon_id,
+                        use_explicit_owner=True,
+                    )
+                    if raw_linked is not None:
+                        return raw_linked, False
 
                     # Race with another scan for the same grouping card
                     winner = self._find_merge_target(
@@ -613,6 +714,9 @@ class CollectionService:
                         language="en",
                         variant=data.variant,
                         condition=data.condition,
+                        user_id=effective_user_id,
+                        anonymous_session_id=effective_anon_id,
+                        use_explicit_owner=True,
                     )
                     if winner is not None:
                         winner.quantity += data.quantity
@@ -620,16 +724,21 @@ class CollectionService:
                         winner.updated_at = datetime.now(UTC).replace(tzinfo=None)
                         if winner.source_scan_id is None:
                             winner.source_scan_id = scan_id
-                        self.db.add(
-                            CollectionScanLink(
-                                scan_id=scan_id, collection_item_id=winner.id
+                        try:
+                            self.db.add(
+                                CollectionScanLink(
+                                    scan_id=scan_id, collection_item_id=winner.id
+                                )
                             )
-                        )
-                        self.db.commit()
-                        self.db.refresh(winner)
-                        return winner, True
+                            self.db.commit()
+                            self.db.refresh(winner)
+                            return winner, True
+                        except IntegrityError:
+                            self.db.rollback()
+                            continue
                     time.sleep(0.05)
                 raise
+
         else:
             item.quantity += data.quantity
             item.version += 1
@@ -647,7 +756,12 @@ class CollectionService:
             except (IntegrityError, OperationalError):
                 self.db.rollback()
                 # Same scan added concurrently
-                linked = await self.get_item_for_scan(scan_id)
+                linked = await self.get_item_for_scan(
+                    scan_id,
+                    user_id=effective_user_id,
+                    anonymous_session_id=effective_anon_id,
+                    use_explicit_owner=True,
+                )
                 if linked is not None:
                     return linked, False
                 raise

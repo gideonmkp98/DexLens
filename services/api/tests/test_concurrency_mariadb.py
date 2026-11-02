@@ -16,12 +16,39 @@ from app.core.database import get_db
 from app.main import app
 from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.scan import Scan
+from app.models.user import UserSession
 from app.services import crop_service
+from app.services.auth import SESSION_COOKIE_NAME, hash_token
 from tests.conftest import TestingSessionLocal, test_engine
 from tests.test_card_detection_and_crop import (
     _create_synthetic_card_image,
     _setup_scan_in_db,
 )
+
+_OWNER_SESSION_ID = "99999999-8888-7777-6666-555555555555"
+_OWNER_SESSION_TOKEN = "phase8-concurrency-owner-token"
+
+
+def _owned_client() -> TestClient:
+    client = TestClient(app)
+    client.cookies.set(SESSION_COOKIE_NAME, _OWNER_SESSION_TOKEN)
+    return client
+
+
+@pytest.fixture(autouse=True)
+def phase8_owner_context(clean_test_database, require_mariadb_test_db):
+    db = TestingSessionLocal()
+    db.add(
+        UserSession(
+            id=_OWNER_SESSION_ID,
+            session_token_hash=hash_token(_OWNER_SESSION_TOKEN),
+            session_type="anonymous",
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=2),
+        )
+    )
+    db.commit()
+    db.close()
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -69,7 +96,9 @@ def test_mariadb_concurrent_crop_vs_crop(tmp_path: Path, monkeypatch) -> None:
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -95,7 +124,7 @@ def test_mariadb_concurrent_crop_vs_crop(tmp_path: Path, monkeypatch) -> None:
     results = {}
 
     def run_crop(worker_id: int, rot: int):
-        client = TestClient(app)
+        client = _owned_client()
         resp = client.post(
             f"/api/v1/scans/{scan_id}/crop",
             json={"corners": corners, "rotation": rot, "expected_version": 0},
@@ -153,7 +182,9 @@ def test_mariadb_concurrent_crop_vs_confirmation(tmp_path: Path, monkeypatch) ->
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -165,7 +196,7 @@ def test_mariadb_concurrent_crop_vs_confirmation(tmp_path: Path, monkeypatch) ->
     }
 
     # Generate initial preview version 1
-    init_client = TestClient(app)
+    init_client = _owned_client()
     r_prev = init_client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -189,7 +220,7 @@ def test_mariadb_concurrent_crop_vs_confirmation(tmp_path: Path, monkeypatch) ->
     crop_result = {}
 
     def run_crop_worker():
-        client = TestClient(app)
+        client = _owned_client()
         resp = client.post(
             f"/api/v1/scans/{scan_id}/crop",
             json={"corners": corners, "rotation": 180, "expected_version": 1},
@@ -204,7 +235,7 @@ def test_mariadb_concurrent_crop_vs_confirmation(tmp_path: Path, monkeypatch) ->
         assert crop_processing_done.wait(timeout=10)
 
         # 2. Confirm version 1 in main thread
-        confirm_client = TestClient(app)
+        confirm_client = _owned_client()
         confirm_resp = confirm_client.post(
             f"/api/v1/scans/{scan_id}/confirm",
             json={"crop_version": 1},
@@ -244,7 +275,9 @@ def test_mariadb_concurrent_confirm_vs_replacement(tmp_path: Path, monkeypatch) 
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -256,7 +289,7 @@ def test_mariadb_concurrent_confirm_vs_replacement(tmp_path: Path, monkeypatch) 
     }
 
     # Generate preview version 1
-    client1 = TestClient(app)
+    client1 = _owned_client()
     r1 = client1.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -283,7 +316,7 @@ def test_mariadb_concurrent_confirm_vs_replacement(tmp_path: Path, monkeypatch) 
     confirm_result = {}
 
     def run_confirm_worker():
-        client = TestClient(app)
+        client = _owned_client()
         resp = client.post(
             f"/api/v1/scans/{scan_id}/confirm",
             json={"crop_version": 1},
@@ -298,7 +331,7 @@ def test_mariadb_concurrent_confirm_vs_replacement(tmp_path: Path, monkeypatch) 
         assert confirm_file_checked.wait(timeout=10)
 
         # Replacement crop runs and commits version 2 (rotation 90)
-        replace_client = TestClient(app)
+        replace_client = _owned_client()
         r_replace = replace_client.post(
             f"/api/v1/scans/{scan_id}/crop",
             json={"corners": corners, "rotation": 90, "expected_version": 1},
@@ -338,7 +371,9 @@ def test_mariadb_concurrent_recognition_vs_crop_replacement(
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -350,7 +385,7 @@ def test_mariadb_concurrent_recognition_vs_crop_replacement(
     }
 
     # Generate and confirm initial crop (version 1 -> 2)
-    client1 = TestClient(app)
+    client1 = _owned_client()
     r_crop = client1.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -384,7 +419,7 @@ def test_mariadb_concurrent_recognition_vs_crop_replacement(
     rec_result = {}
 
     def run_recognize_worker():
-        client = TestClient(app)
+        client = _owned_client()
         resp = client.post(f"/api/v1/scans/{scan_id}/recognize")
         rec_result["status"] = resp.status_code
         rec_result["body"] = resp.json()
@@ -422,7 +457,9 @@ def test_mariadb_concurrent_card_confirmation_vs_crop_replacement(
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -433,7 +470,7 @@ def test_mariadb_concurrent_card_confirmation_vs_crop_replacement(
         "bottom_left": {"x": 0.34, "y": 0.80},
     }
 
-    client = TestClient(app)
+    client = _owned_client()
     r_crop = client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -473,7 +510,7 @@ def test_mariadb_concurrent_card_confirmation_vs_crop_replacement(
     conf_result = {}
 
     def run_confirm_card_worker():
-        c = TestClient(app)
+        c = _owned_client()
         # Mock client.get_card for test
         resp = c.post(
             f"/api/v1/scans/{scan_id}/confirm-card",
@@ -517,7 +554,9 @@ def test_mariadb_concurrent_competing_candidate_searches(
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -528,7 +567,7 @@ def test_mariadb_concurrent_competing_candidate_searches(
         "bottom_left": {"x": 0.34, "y": 0.80},
     }
 
-    client = TestClient(app)
+    client = _owned_client()
     r_crop = client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -567,7 +606,7 @@ def test_mariadb_concurrent_competing_candidate_searches(
     results = {}
 
     def run_search(worker_id: int, card_name: str):
-        c = TestClient(app)
+        c = _owned_client()
         resp = c.post(
             f"/api/v1/scans/{scan_id}/search-candidates",
             json={
@@ -618,7 +657,9 @@ def test_mariadb_user_search_during_delayed_ocr(tmp_path: Path, monkeypatch) -> 
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -629,7 +670,7 @@ def test_mariadb_user_search_during_delayed_ocr(tmp_path: Path, monkeypatch) -> 
         "bottom_left": {"x": 0.34, "y": 0.80},
     }
 
-    client = TestClient(app)
+    client = _owned_client()
     r_crop = client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -671,7 +712,7 @@ def test_mariadb_user_search_during_delayed_ocr(tmp_path: Path, monkeypatch) -> 
     ocr_result = {}
 
     def run_ocr_worker():
-        c = TestClient(app)
+        c = _owned_client()
         resp = c.post(f"/api/v1/scans/{scan_id}/recognize")
         ocr_result["status"] = resp.status_code
         ocr_result["body"] = resp.json()
@@ -723,7 +764,9 @@ def test_mariadb_competing_card_confirmations(tmp_path: Path, monkeypatch) -> No
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -734,7 +777,7 @@ def test_mariadb_competing_card_confirmations(tmp_path: Path, monkeypatch) -> No
         "bottom_left": {"x": 0.34, "y": 0.80},
     }
 
-    client = TestClient(app)
+    client = _owned_client()
     r_crop = client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -775,7 +818,7 @@ def test_mariadb_competing_card_confirmations(tmp_path: Path, monkeypatch) -> No
     results = {}
 
     def run_confirm(worker_id: int, card_id: str):
-        c = TestClient(app)
+        c = _owned_client()
         resp = c.post(
             f"/api/v1/scans/{scan_id}/confirm-card",
             json={
@@ -824,7 +867,9 @@ def test_mariadb_confirmation_rejected_with_stale_search_version(
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
-    scan, _ = _setup_scan_in_db(setup_db, tmp_path, img)
+    scan, _ = _setup_scan_in_db(
+        setup_db, tmp_path, img, anonymous_session_id=_OWNER_SESSION_ID
+    )
     scan_id = str(scan.id)
     setup_db.close()
 
@@ -835,7 +880,7 @@ def test_mariadb_confirmation_rejected_with_stale_search_version(
         "bottom_left": {"x": 0.34, "y": 0.80},
     }
 
-    client = TestClient(app)
+    client = _owned_client()
     r_crop = client.post(
         f"/api/v1/scans/{scan_id}/crop",
         json={"corners": corners, "rotation": 0, "expected_version": 0},
@@ -915,6 +960,7 @@ def _create_confirmed_scan_fixture(
     now_utc = datetime.now(UTC).replace(tzinfo=None)
     scan = Scan(
         id=str(uuid.uuid4()),
+        anonymous_session_id=_OWNER_SESSION_ID,
         status="confirmed",
         image_path="/app/uploads/scans/test.jpg",
         content_type="image/jpeg",
@@ -945,6 +991,7 @@ def test_mariadb_collection_concurrent_update_vs_update() -> None:
     setup_db = TestingSessionLocal()
     item = CollectionItem(
         id=str(uuid.uuid4()),
+        anonymous_session_id=_OWNER_SESSION_ID,
         card_id="base1-4",
         provider="tcgdex",
         card_name="Charizard",
@@ -966,7 +1013,7 @@ def test_mariadb_collection_concurrent_update_vs_update() -> None:
     results = {}
 
     def worker(worker_id: int, new_qty: int):
-        client = TestClient(app)
+        client = _owned_client()
         barrier.wait(timeout=10)
         resp = client.patch(
             f"/api/v1/collection/{item_id}",
@@ -1022,7 +1069,7 @@ def test_mariadb_collection_concurrent_first_add_vs_first_add() -> None:
     results = {}
 
     def worker(worker_id: int, scan_id: str):
-        client = TestClient(app)
+        client = _owned_client()
         barrier.wait(timeout=10)
         resp = client.post(
             f"/api/v1/scans/{scan_id}/collection",
@@ -1083,7 +1130,7 @@ def test_mariadb_collection_concurrent_same_scan_vs_same_scan() -> None:
     results = {}
 
     def worker(worker_id: int):
-        client = TestClient(app)
+        client = _owned_client()
         barrier.wait(timeout=10)
         resp = client.post(
             f"/api/v1/scans/{s_id}/collection",
@@ -1135,6 +1182,7 @@ def test_mariadb_collection_concurrent_delete_vs_update() -> None:
 
     item = CollectionItem(
         id=str(uuid.uuid4()),
+        anonymous_session_id=_OWNER_SESSION_ID,
         card_id="base1-15",
         provider="tcgdex",
         card_name="Venusaur",
@@ -1161,13 +1209,13 @@ def test_mariadb_collection_concurrent_delete_vs_update() -> None:
     results = {}
 
     def delete_worker():
-        client = TestClient(app)
+        client = _owned_client()
         barrier.wait(timeout=10)
         resp = client.delete(f"/api/v1/collection/{item_id}")
         results["delete"] = (resp.status_code, resp.text)
 
     def update_worker():
-        client = TestClient(app)
+        client = _owned_client()
         barrier.wait(timeout=10)
         resp = client.patch(
             f"/api/v1/collection/{item_id}",

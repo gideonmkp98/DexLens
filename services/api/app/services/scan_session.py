@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.api.deps import SessionContext, get_session_context
 from app.api.v1.scans import build_scan_response, serialize_candidate
 from app.core.config import settings
 from app.core.database import get_db
@@ -94,9 +95,40 @@ class ScanSessionService:
         self,
         db: Session,
         catalog_service: CardCatalogService | None = None,
+        user_id: str | None = None,
+        anonymous_session_id: str | None = None,
     ) -> None:
         self.db = db
         self.catalog_service = catalog_service
+        self.user_id = user_id
+        self.anonymous_session_id = anonymous_session_id
+
+    def _owns_session(self, session: ScanSession) -> bool:
+        """Return whether the active principal exclusively owns a scan session."""
+        if self.user_id:
+            return (
+                session.user_id == self.user_id and session.anonymous_session_id is None
+            )
+        if self.anonymous_session_id:
+            return (
+                session.anonymous_session_id == self.anonymous_session_id
+                and session.user_id is None
+            )
+        # Direct service usage (maintenance/tests) may intentionally operate on
+        # legacy unowned rows. HTTP dependencies always provide a principal.
+        return session.user_id is None and session.anonymous_session_id is None
+
+    def _require_owned_session(self, session: ScanSession | None) -> ScanSession:
+        if session is None or not self._owns_session(session):
+            raise SessionNotFoundError("Scan session not found.")
+        return session
+
+    def _collection_owner_filter(self):
+        if self.user_id:
+            return CollectionItem.user_id == self.user_id
+        if self.anonymous_session_id:
+            return CollectionItem.anonymous_session_id == self.anonymous_session_id
+        return False
 
     def _build_live_capture_response(
         self,
@@ -111,7 +143,10 @@ class ScanSessionService:
         best_match = candidates[0] if candidates else None
         collection_items = (
             self.db.query(CollectionItem)
-            .filter(CollectionItem.card_id == best_match.id)
+            .filter(
+                CollectionItem.card_id == best_match.id,
+                self._collection_owner_filter(),
+            )
             .all()
             if best_match
             else []
@@ -134,6 +169,10 @@ class ScanSessionService:
         now_utc = datetime.now(UTC).replace(tzinfo=None)
         session = ScanSession(
             id=str(uuid.uuid4()),
+            user_id=self.user_id,
+            anonymous_session_id=(
+                self.anonymous_session_id if not self.user_id else None
+            ),
             status="active",
             created_at=now_utc,
             updated_at=now_utc,
@@ -157,8 +196,7 @@ class ScanSessionService:
         session = (
             self.db.query(ScanSession).filter(ScanSession.id == session_id).first()
         )
-        if session is None:
-            raise SessionNotFoundError(f"Scan session '{session_id}' not found.")
+        session = self._require_owned_session(session)
 
         scans = (
             self.db.query(Scan)
@@ -177,6 +215,7 @@ class ScanSessionService:
                     CollectionItem.id == CollectionScanLink.collection_item_id,
                 )
                 .filter(CollectionScanLink.scan_id.in_(scan_ids))
+                .filter(self._collection_owner_filter())
                 .all()
             )
             for link, item in links:
@@ -199,7 +238,10 @@ class ScanSessionService:
         if card_ids:
             matched_items = (
                 self.db.query(CollectionItem)
-                .filter(CollectionItem.card_id.in_(list(card_ids)))
+                .filter(
+                    CollectionItem.card_id.in_(list(card_ids)),
+                    self._collection_owner_filter(),
+                )
                 .all()
             )
             for it in matched_items:
@@ -290,8 +332,7 @@ class ScanSessionService:
         session = (
             self.db.query(ScanSession).filter(ScanSession.id == session_id).first()
         )
-        if session is None:
-            raise SessionNotFoundError(f"Scan session '{session_id}' not found.")
+        session = self._require_owned_session(session)
 
         if session.status == "completed":
             total = (
@@ -351,8 +392,7 @@ class ScanSessionService:
         session = (
             self.db.query(ScanSession).filter(ScanSession.id == session_id).first()
         )
-        if session is None:
-            raise SessionNotFoundError(f"Scan session '{session_id}' not found.")
+        session = self._require_owned_session(session)
 
         if session.status != "active":
             raise SessionClosedError(
@@ -419,6 +459,10 @@ class ScanSessionService:
 
         scan = Scan(
             id=scan_id,
+            user_id=self.user_id,
+            anonymous_session_id=(
+                self.anonymous_session_id if not self.user_id else None
+            ),
             session_id=session.id,
             capture_idempotency_key=idempotency_key,
             status="uploaded",
@@ -588,6 +632,12 @@ class ScanSessionService:
 def get_scan_session_service(
     db: Session = Depends(get_db),
     catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanSessionService:
     """FastAPI dependency provider for ScanSessionService."""
-    return ScanSessionService(db=db, catalog_service=catalog_service)
+    return ScanSessionService(
+        db=db,
+        catalog_service=catalog_service,
+        user_id=session_ctx.user_id,
+        anonymous_session_id=session_ctx.anonymous_session_id,
+    )

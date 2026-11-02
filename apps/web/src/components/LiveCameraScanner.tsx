@@ -24,6 +24,8 @@ import {
 } from "@/lib/camera";
 import LiveScanMatchModal from "./LiveScanMatchModal";
 import ScanSessionTray from "./ScanSessionTray";
+import ScannerOnboardingModal from "./ScannerOnboardingModal";
+import { trackEvent } from "@/lib/analytics";
 
 const PROCESSING_STAGES = [
   "Foto vastgelegd",
@@ -114,6 +116,29 @@ export default function LiveCameraScanner({
   const lastCapturedBlobRef = useRef<Blob | null>(null);
   const lastIdempotencyKeyRef = useRef<string | null>(null);
 
+  // Scanner onboarding tips modal state
+  const [showTips, setShowTips] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("dexlens_scanner_tips_seen");
+      if (!seen) {
+        setShowTips(true);
+      }
+    } catch {
+      // Non-fatal
+    }
+  }, []);
+
+  const handleCloseTips = () => {
+    setShowTips(false);
+    try {
+      localStorage.setItem("dexlens_scanner_tips_seen", "true");
+    } catch {
+      // Non-fatal
+    }
+  };
+
   // Initialize or fetch active scan session
   useEffect(() => {
     let isMounted = true;
@@ -163,8 +188,9 @@ export default function LiveCameraScanner({
 
   const processCapturedBlob = useCallback(
     async (blob: Blob, idempotencyKey: string) => {
+      const startTime = Date.now();
+      let targetSessionId = sessionId;
       try {
-        let targetSessionId = sessionId;
         if (!targetSessionId) {
           const createdSession = await createScanSession();
           targetSessionId = createdSession.id;
@@ -202,7 +228,22 @@ export default function LiveCameraScanner({
         setActiveCaptureResult(result);
         setIsMatchModalOpen(true);
         void refreshSession(targetSessionId);
+
+        trackEvent("scan_processing_completed", {
+          scan_id: result.scan.id,
+          session_id: targetSessionId,
+          capture_mode: captureMode,
+          processing_duration_ms: Date.now() - startTime,
+          confidence_state: result.scan.confidence_state,
+          candidate_count: result.candidates.length,
+          is_top_suggestion_selected: true,
+        });
       } catch (err) {
+        trackEvent("scan_processing_failed", {
+          session_id: targetSessionId,
+          capture_mode: captureMode,
+          failure_category: err instanceof Error ? err.name : "unknown",
+        });
         setCaptureError(
           err instanceof Error
             ? err.message
@@ -214,7 +255,7 @@ export default function LiveCameraScanner({
         isCapturingRef.current = false;
       }
     },
-    [refreshSession, sessionId]
+    [captureMode, refreshSession, sessionId]
   );
 
   const getReticleSourceRect = useCallback((): RectCoords | undefined => {
@@ -243,6 +284,20 @@ export default function LiveCameraScanner({
     setCaptureError(null);
     triggerHaptic();
 
+    trackEvent(
+      captureMode === "auto"
+        ? "auto_capture_triggered"
+        : "manual_capture_triggered",
+      {
+        capture_mode: captureMode,
+        session_id: sessionId,
+      }
+    );
+    trackEvent("scan_processing_started", {
+      capture_mode: captureMode,
+      session_id: sessionId,
+    });
+
     try {
       const frame = await captureFrame(getReticleSourceRect());
       const requestKey = createCaptureRequestKey();
@@ -261,10 +316,12 @@ export default function LiveCameraScanner({
     }
   }, [
     captureFrame,
+    captureMode,
     getReticleSourceRect,
     isMatchModalOpen,
     isStreaming,
     processCapturedBlob,
+    sessionId,
     triggerHaptic,
   ]);
 
@@ -293,8 +350,27 @@ export default function LiveCameraScanner({
     setCameraRequested(true);
     setCaptureError(null);
     analysisGraceUntilRef.current = Date.now() + 1600;
+    trackEvent("scan_started", {
+      capture_mode: captureMode,
+      session_id: sessionId,
+    });
     await startCamera();
-  }, [startCamera]);
+  }, [captureMode, sessionId, startCamera]);
+
+  useEffect(() => {
+    if (isStreaming) {
+      trackEvent("camera_permission_granted", { session_id: sessionId });
+    }
+  }, [isStreaming, sessionId]);
+
+  useEffect(() => {
+    if (cameraError) {
+      trackEvent("camera_permission_denied", {
+        session_id: sessionId,
+        failure_category: cameraError.code,
+      });
+    }
+  }, [cameraError, sessionId]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -523,6 +599,14 @@ export default function LiveCameraScanner({
                 Liever een foto uploaden
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setShowTips(true)}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#f1ca53] hover:underline"
+            >
+              <span>Scan tips bekijken</span>
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
       )}
@@ -665,6 +749,10 @@ export default function LiveCameraScanner({
                   setCaptureMode("auto");
                   stabilityTrackerRef.current.reset();
                   setStability(null);
+                  trackEvent("capture_mode_changed", {
+                    capture_mode: "auto",
+                    session_id: sessionId,
+                  });
                 }}
                 className={`h-7 rounded-[3px] px-2 font-mono text-[8px] font-black uppercase tracking-[0.1em] transition ${
                   captureMode === "auto"
@@ -681,6 +769,10 @@ export default function LiveCameraScanner({
                   setCaptureMode("manual");
                   stabilityTrackerRef.current.reset();
                   setStability(null);
+                  trackEvent("capture_mode_changed", {
+                    capture_mode: "manual",
+                    session_id: sessionId,
+                  });
                 }}
                 className={`h-7 rounded-[3px] px-2 font-mono text-[8px] font-black uppercase tracking-[0.1em] transition ${
                   captureMode === "manual"
@@ -750,6 +842,20 @@ export default function LiveCameraScanner({
                 </svg>
               </button>
             )}
+
+            {/* Onboarding Tips Button */}
+            <button
+              type="button"
+              onClick={() => setShowTips(true)}
+              className="flex h-9 items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-2.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
+              aria-label="Bekijk scan tips"
+              title="Scan tips"
+            >
+              <span className="font-mono text-xs font-bold text-[#f1ca53]">
+                ?
+              </span>
+              <span className="hidden sm:inline">Tips</span>
+            </button>
           </div>
         </header>
       )}
@@ -1013,6 +1119,9 @@ export default function LiveCameraScanner({
           }
         }}
       />
+
+      {/* First-time / On-demand Scanner Onboarding Tips */}
+      <ScannerOnboardingModal isOpen={showTips} onClose={handleCloseTips} />
     </div>
   );
 }

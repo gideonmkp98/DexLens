@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -19,6 +20,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.collection import CollectionItem
     from app.models.scan_session import ScanSession
+    from app.models.user import User
 
 
 def _utcnow() -> datetime:
@@ -35,12 +37,23 @@ class Scan(Base):
             "capture_idempotency_key",
             name="uq_scans_session_capture_key",
         ),
+        Index("ix_scans_user_id", "user_id"),
+        Index("ix_scans_anonymous_session_id", "anonymous_session_id"),
     )
 
     id: Mapped[str] = mapped_column(
         String(36),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    anonymous_session_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(
         String(32),
@@ -261,6 +274,10 @@ class Scan(Base):
     )
 
     # Relationships
+    user: Mapped["User | None"] = relationship(
+        "User",
+        back_populates="scans",
+    )
     session: Mapped["ScanSession | None"] = relationship(
         "ScanSession",
         back_populates="scans",

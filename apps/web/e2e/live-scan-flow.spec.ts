@@ -319,11 +319,14 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   });
 
   // SAFETY RULE 3: Reset test database strictly via /api/v1/testing/reset before every test
-  test.beforeEach(async ({ request }) => {
+  test.beforeEach(async ({ request, page }) => {
     const resetRes = await request.post(`${BASE_URL}/api/v1/testing/reset`);
     expect(resetRes.ok()).toBeTruthy();
     const body = await resetRes.json();
     expect(body.status).toBe("success");
+    await page.addInitScript(() => {
+      localStorage.setItem("dexlens_scanner_tips_seen", "true");
+    });
   });
 
   // =========================================================================
@@ -668,7 +671,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Verify item exists in database via API
-    const collRes = await request.get(`${BASE_URL}/api/v1/collection`);
+    const collRes = await page.request.get(`${BASE_URL}/api/v1/collection`);
     expect(collRes.ok()).toBeTruthy();
     const data = await collRes.json();
     expect(data.total).toBe(1);
@@ -747,7 +750,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await addPromise2;
 
     // Verify collection has 1 unique card with quantity 2
-    const collRes = await request.get(`${BASE_URL}/api/v1/collection`);
+    const collRes = await page.request.get(`${BASE_URL}/api/v1/collection`);
     expect(collRes.ok()).toBeTruthy();
     const data = await collRes.json();
     expect(data.total).toBe(1);
@@ -783,13 +786,13 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     const scanId = itemData.source_scan_id;
 
     // Send direct repeat POST /api/v1/scans/{id}/collection
-    const repeatRes = await request.post(
+    const repeatRes = await page.request.post(
       `${BASE_URL}/api/v1/scans/${scanId}/collection`
     );
     expect(repeatRes.status()).toBe(200); // 200 OK idempotent, not 201 Created
 
     // Verify quantity is still 1
-    const collRes = await request.get(`${BASE_URL}/api/v1/collection`);
+    const collRes = await page.request.get(`${BASE_URL}/api/v1/collection`);
     const collData = await collRes.json();
     expect(collData.items[0].quantity).toBe(1);
   });

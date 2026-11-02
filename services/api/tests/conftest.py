@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -45,6 +45,17 @@ except Exception:
         poolclass=StaticPool,
     )
 
+if test_engine.url.get_backend_name() == "sqlite":
+
+    @event.listens_for(test_engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    with test_engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
 TestingSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -63,17 +74,24 @@ def setup_test_database():
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
     yield
-    Base.metadata.drop_all(bind=test_engine)
+    # Keep the isolated schema intact after the suite. Alembic verification may
+    # run next, and dropping ORM tables while leaving alembic_version at head
+    # creates an internally inconsistent database. The next suite still starts
+    # from a clean schema via the drop/create pair above.
 
 
 @pytest.fixture(autouse=True)
 def clean_test_database():
     """Safeguard: clean all tables in the test database between tests."""
+    from app.core.middleware import RateLimitMiddleware
+
+    RateLimitMiddleware.reset()
     with test_engine.connect() as conn:
         with conn.begin():
             for table in reversed(Base.metadata.sorted_tables):
                 conn.execute(table.delete())
     yield
+    RateLimitMiddleware.reset()
 
 
 @pytest.fixture
@@ -99,7 +117,12 @@ def override_db_dependency(db: Session):
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    test_client = TestClient(app)
+    # Establish the anonymous principal up front so direct database fixtures can
+    # be assigned to the same browser identity as subsequent API requests.
+    response = test_client.get("/api/v1/auth/me")
+    assert response.status_code == 200
+    return test_client
 
 
 # Representative provider fixtures

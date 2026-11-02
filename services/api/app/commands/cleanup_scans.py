@@ -192,6 +192,19 @@ def main() -> int:
     try:
         _, _, _, failed = cleanup_expired_scans(db)
         _, orphan_failed = cleanup_orphan_files(db)
+
+        # Phase 8: Purge expired analytics (> 30 days) and expired sessions
+        try:
+            from app.services.cleanup import (
+                cleanup_expired_analytics,
+                cleanup_expired_sessions,
+            )
+
+            cleanup_expired_analytics(db)
+            cleanup_expired_sessions(db)
+        except Exception:
+            logger.exception("Failed to purge expired analytics or sessions")
+
         return 1 if failed + orphan_failed > 0 else 0
     finally:
         db.close()

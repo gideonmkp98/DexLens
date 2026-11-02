@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
+from app.api.deps import SessionContext, get_session_context
 from app.api.v1.cards import _derive_image_urls
 from app.core.config import settings
 from app.core.database import get_db
@@ -307,14 +308,41 @@ def build_scan_response(scan: Scan) -> ScanResponse:
 _build_scan_response = build_scan_response
 
 
-def _get_active_scan(scan_id: str, db: Session) -> tuple[Scan, Path]:
-    """Retrieve scan and verify expiration and storage file presence."""
+def _get_active_scan(
+    scan_id: str,
+    db: Session,
+    session_ctx: SessionContext | None = None,
+) -> tuple[Scan, Path]:
+    """Retrieve scan and verify expiration, ownership, and storage file presence."""
     scan = db.query(Scan).filter(Scan.id == scan_id).first()
     if not scan:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
         )
+
+    # Ownership isolation check
+    if session_ctx is not None:
+        if scan.user_id:
+            if not session_ctx.is_authenticated or session_ctx.user_id != scan.user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
+                )
+        elif scan.anonymous_session_id:
+            if session_ctx.anonymous_session_id != scan.anonymous_session_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
+                )
+        else:
+            # Pre-Phase-8 rows have no owner. They are deliberately not exposed
+            # through user-facing scan endpoints; an administrator can migrate or
+            # purge them explicitly instead of making them globally addressable.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
+            )
 
     now_utc = datetime.now(UTC)
     scan_expires_at = scan.expires_at.replace(tzinfo=UTC)
@@ -343,6 +371,7 @@ async def upload_scan(
     request: Request,
     file: UploadFile = File(..., description="Card image to upload and normalize"),
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Upload a single image, validate and normalize it, and store metadata."""
     form = await request.form()
@@ -392,7 +421,15 @@ async def upload_scan(
             await run_in_threadpool(temp_path.unlink, missing_ok=True)
 
     return await run_in_threadpool(
-        _persist_scan, db, scan_id, target_path, width, height, file_size
+        _persist_scan,
+        db,
+        scan_id,
+        target_path,
+        width,
+        height,
+        file_size,
+        session_ctx.user_id,
+        session_ctx.anonymous_session_id,
     )
 
 
@@ -403,12 +440,16 @@ def _persist_scan(
     width: int,
     height: int,
     file_size: int,
+    user_id: str | None = None,
+    anonymous_session_id: str | None = None,
 ) -> ScanResponse:
     now_utc = datetime.now(UTC)
     expires_at_utc = now_utc + timedelta(hours=settings.UPLOAD_RETENTION_HOURS)
 
     scan = Scan(
         id=scan_id,
+        user_id=user_id,
+        anonymous_session_id=anonymous_session_id,
         status="uploaded",
         image_path=f"{scan_id}.jpg",
         content_type="image/jpeg",
@@ -482,11 +523,12 @@ def get_scan(
     id: str,
     response: Response,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Retrieve scan metadata by ID, including crop status and coordinates."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
     return _build_scan_response(scan)
 
 
@@ -494,10 +536,11 @@ def get_scan(
 def get_scan_image(
     id: str,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> FileResponse:
     """Serve the normalized original scan image with no-store caching headers."""
     scan_id = _validate_uuid(id)
-    scan, file_path = _get_active_scan(scan_id, db)
+    scan, file_path = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     return FileResponse(
         path=str(file_path),
@@ -511,11 +554,12 @@ async def detect_scan_card(
     id: str,
     response: Response,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> DetectResponse:
     """Detect card contour corners automatically in the stored scan image."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, file_path = _get_active_scan(scan_id, db)
+    scan, file_path = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     detected, corners, message, score = await run_in_threadpool(
         detect_card_corners, file_path
@@ -568,11 +612,12 @@ async def crop_scan_card(
     body: CropRequest,
     response: Response,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Generate a perspective-corrected rectangular card crop from 4 corners."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, source_path = _get_active_scan(scan_id, db)
+    scan, source_path = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     initial_crop_status = scan.crop_status
     previous_crop_path = scan.crop_path
@@ -755,19 +800,15 @@ def confirm_scan_crop(
     body: ConfirmCropRequest,
     response: Response,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Confirm current preview with atomic conditional update on version and path."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
     now_utc = datetime.now(UTC).replace(tzinfo=None)
 
-    # 1. Fetch current scan state to validate file before modifying database
-    curr = db.query(Scan).filter(Scan.id == scan_id).first()
-    if curr is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"code": "SCAN_NOT_FOUND", "message": "Scan not found."},
-        )
+    # 1. Fetch current scan state and enforce ownership before any mutation.
+    curr, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
     if curr.expires_at.replace(tzinfo=UTC) <= datetime.now(UTC):
         raise HTTPException(
             status_code=404,
@@ -912,10 +953,11 @@ def get_scan_crop_image(
     id: str,
     v: int | None = None,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> FileResponse:
     """Serve the perspective-corrected cropped card image without caching."""
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     if not scan.crop_path:
         raise HTTPException(
@@ -963,11 +1005,12 @@ async def recognize_card(
     response: Response,
     db: Session = Depends(get_db),
     client: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> RecognizeResponse:
     """Run OCR text extraction and catalog matching on the confirmed crop."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     if scan.crop_status != "confirmed" or not scan.crop_path:
         raise HTTPException(
@@ -1240,11 +1283,12 @@ async def search_card_candidates(
     response: Response,
     db: Session = Depends(get_db),
     client: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> SearchCandidatesResponse:
     """Search catalog candidates using user-edited or manual search values."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     if scan.crop_version != body.expected_crop_version:
         raise HTTPException(
@@ -1388,11 +1432,12 @@ async def confirm_catalog_card(
     response: Response,
     db: Session = Depends(get_db),
     client: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Explicitly confirm a chosen catalog card with atomic version binding."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     if scan.crop_status != "confirmed":
         raise HTTPException(
@@ -1557,11 +1602,12 @@ def reset_catalog_card_confirmation(
     body: ResetCardConfirmationRequest,
     response: Response,
     db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
     """Clear confirmed card selection while keeping confirmed crop intact."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    scan, _ = _get_active_scan(scan_id, db)
+    scan, _ = _get_active_scan(scan_id, db, session_ctx=session_ctx)
 
     if scan.crop_version != body.expected_crop_version:
         raise HTTPException(
@@ -1666,11 +1712,17 @@ async def get_scan_collection_item(
     response: Response,
     db: Session = Depends(get_db),
     catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> CollectionItemResponse:
     """Return the collection item linked to this exact scan, if one exists."""
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    service = CollectionService(db=db, catalog_service=catalog_service)
+    service = CollectionService(
+        db=db,
+        catalog_service=catalog_service,
+        user_id=session_ctx.user_id,
+        anonymous_session_id=session_ctx.anonymous_session_id,
+    )
     item = await service.get_item_for_scan(scan_id)
     if item is None:
         raise HTTPException(
@@ -1690,6 +1742,7 @@ async def add_scan_to_collection(
     body: AddFromScanRequest | None = None,
     db: Session = Depends(get_db),
     catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> CollectionItemResponse:
     """Add a verified, confirmed scan card to personal collection.
 
@@ -1698,7 +1751,12 @@ async def add_scan_to_collection(
     """
     response.headers["Cache-Control"] = "no-store"
     scan_id = _validate_uuid(id)
-    service = CollectionService(db=db, catalog_service=catalog_service)
+    service = CollectionService(
+        db=db,
+        catalog_service=catalog_service,
+        user_id=session_ctx.user_id,
+        anonymous_session_id=session_ctx.anonymous_session_id,
+    )
     req_body = body or AddFromScanRequest()
 
     try:

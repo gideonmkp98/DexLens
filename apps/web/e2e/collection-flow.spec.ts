@@ -125,9 +125,12 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
     await resetTestDatabaseSafely(request);
   });
 
-  test.beforeEach(async ({ request }) => {
+  test.beforeEach(async ({ request, page }) => {
     // Safely reset the isolated test database before each test
     await resetTestDatabaseSafely(request);
+    await page.addInitScript(() => {
+      localStorage.setItem("dexlens_scanner_tips_seen", "true");
+    });
   });
 
   test.afterEach(async ({ request }) => {
@@ -207,7 +210,7 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
     // ------------------------------------------------------------------------
     // FLOW 3: Repeating same scan -> no additional increment (idempotent HTTP 200)
     // ------------------------------------------------------------------------
-    const repeatScanRes = await request.post(
+    const repeatScanRes = await page.request.post(
       `/api/v1/scans/${scanId2}/collection`
     );
     expect(repeatScanRes.status()).toBe(200);
@@ -262,7 +265,7 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
     // FLOW 5: Stale concurrent edit -> HTTP 409
     // ------------------------------------------------------------------------
     // The item was updated and its version is now at least 2. Sending expected_version = 1 must fail.
-    const stalePatchRes = await request.patch(
+    const stalePatchRes = await page.request.patch(
       `/api/v1/collection/${pikachuItemId}`,
       {
         data: {

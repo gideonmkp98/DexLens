@@ -701,7 +701,15 @@ def _setup_scan_in_db(
     tmp_path: Path,
     image_bgr: np.ndarray,
     expired: bool = False,
+    anonymous_session_id: str | None = None,
 ) -> tuple[Scan, Path]:
+    if anonymous_session_id is None:
+        from app.models.user import UserSession
+
+        active_session = (
+            db.query(UserSession).order_by(UserSession.created_at.desc()).first()
+        )
+        anonymous_session_id = active_session.id if active_session else None
     scan_id = "11111111-2222-3333-4444-555555555555"
     storage_dir = tmp_path / "uploads"
     storage_dir.mkdir(parents=True, exist_ok=True)
@@ -714,6 +722,7 @@ def _setup_scan_in_db(
     h, w = image_bgr.shape[:2]
     scan = Scan(
         id=scan_id,
+        anonymous_session_id=anonymous_session_id,
         status="uploaded",
         image_path=f"{scan_id}.jpg",
         content_type="image/jpeg",

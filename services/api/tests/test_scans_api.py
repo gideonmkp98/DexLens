@@ -155,8 +155,10 @@ def test_get_expired_scan_404(
 
     # Create expired scan in DB
     past_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
+    session_id = client.get("/api/v1/auth/me").json()["session_id"]
     scan = Scan(
         id=scan_id,
+        anonymous_session_id=session_id,
         status="uploaded",
         image_path=f"{scan_id}.jpg",
         content_type="image/jpeg",
@@ -187,8 +189,10 @@ def test_missing_stored_file_returns_404(
     scan_id = str(uuid.uuid4())
     now_utc = datetime.now(UTC).replace(tzinfo=None)
 
+    session_id = client.get("/api/v1/auth/me").json()["session_id"]
     scan = Scan(
         id=scan_id,
+        anonymous_session_id=session_id,
         status="uploaded",
         image_path=f"{scan_id}.jpg",  # file not created on disk
         content_type="image/jpeg",

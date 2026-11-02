@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -22,6 +23,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.scan import Scan
+    from app.models.user import User
 
 
 def _utcnow() -> datetime:
@@ -52,13 +54,16 @@ class CollectionItem(Base):
             "variant",
             "language",
         ),
+        Index("ix_collection_items_user_id", "user_id"),
+        Index("ix_collection_items_anonymous_session_id", "anonymous_session_id"),
         UniqueConstraint(
+            "owner_key",
             "provider",
             "card_id",
             "language",
             "variant",
             "condition",
-            name="uq_collection_items_grouping",
+            name="uq_collection_items_owner_grouping",
         ),
     )
 
@@ -67,6 +72,26 @@ class CollectionItem(Base):
         String(36),
         primary_key=True,
         default=lambda: str(uuid.uuid4()),
+    )
+
+    # Phase 8: Ownership
+    user_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    anonymous_session_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+    )
+    owner_key: Mapped[str] = mapped_column(
+        String(41),
+        Computed(
+            "CASE WHEN user_id IS NOT NULL THEN CONCAT('user:', user_id) "
+            "WHEN anonymous_session_id IS NOT NULL "
+            "THEN CONCAT('anon:', anonymous_session_id) ELSE 'legacy' END",
+            persisted=True,
+        ),
     )
 
     # External card & catalog identifiers
@@ -195,6 +220,10 @@ class CollectionItem(Base):
     )
 
     # Relationships
+    user: Mapped["User | None"] = relationship(
+        "User",
+        back_populates="collection_items",
+    )
     scan: Mapped["Scan | None"] = relationship(
         "Scan",
         back_populates="collection_items",

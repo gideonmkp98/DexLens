@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#20251f"/>
+    <g transform="translate(256, 256)">
+      <clipPath id="ballClip_512_false">
+        <circle r="215.04" cx="0" cy="0"/>
+      </clipPath>
+      <circle r="215.04" cx="0" cy="0" fill="#252923"/>
+      <!-- Top hemisphere (DexLens red) -->
+      <path d="M -215.04 0 A 215.04 215.04 0 0 1 215.04 0 Z" fill="#c6372e" clip-path="url(#ballClip_512_false)"/>
+      <!-- Bottom hemisphere (DexLens cream) -->
+      <path d="M -215.04 0 A 215.04 215.04 0 0 0 215.04 0 Z" fill="#fffcf5" clip-path="url(#ballClip_512_false)"/>
+      <!-- Center belt -->
+      <rect x="-215.04" y="-20.48" width="430.08" height="40.96" fill="#252923"/>
+      <!-- Outer ring of button -->
+      <circle r="71.68" cx="0" cy="0" fill="#252923"/>
+      <circle r="68.68" cx="0" cy="0" fill="#fffcf5"/>
+      <!-- Inner lens button -->
+      <circle r="40.96" cx="0" cy="0" fill="#8e977b"/>
+      <circle r="37.96" cx="0" cy="0" fill="#c2cbb2"/>
+    </g>
+  </svg>

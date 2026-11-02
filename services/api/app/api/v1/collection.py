@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.deps import SessionContext, get_session_context
 from app.core.database import get_db
 from app.schemas.collection import (
     CollectionCreateRequest,
@@ -26,8 +27,14 @@ router = APIRouter(prefix="/collection", tags=["Collection"])
 def _get_collection_service(
     db: Session = Depends(get_db),
     catalog_service: CardCatalogService = Depends(get_card_catalog_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> CollectionService:
-    return CollectionService(db=db, catalog_service=catalog_service)
+    return CollectionService(
+        db=db,
+        catalog_service=catalog_service,
+        user_id=session_ctx.user_id,
+        anonymous_session_id=session_ctx.anonymous_session_id,
+    )
 
 
 @router.get("", response_model=CollectionListResponse)

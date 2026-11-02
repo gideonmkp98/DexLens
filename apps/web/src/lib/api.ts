@@ -1,3 +1,5 @@
+import { ensureBrowserSession } from "@/lib/session";
+
 export interface HealthResponse {
   status: "ok" | "degraded" | "disconnected" | string;
   database: "connected" | "disconnected" | string;
@@ -1079,6 +1081,7 @@ export interface LiveCaptureResponse {
  * Create a new live scan session for continuous camera scanning.
  */
 export async function createScanSession(): Promise<ScanSessionResponse> {
+  await ensureBrowserSession();
   const res = await fetch(`${API_BASE_URL}/api/v1/scan-sessions`, {
     method: "POST",
     headers: {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import Footer from "@/components/Footer";
@@ -8,6 +9,20 @@ import MobileNavigation from "@/components/MobileNavigation";
 export default function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isScannerWorkspace = pathname === "/scan";
+
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      process.env.NODE_ENV === "production"
+    ) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {
+          // Non-fatal service worker registration failure
+        });
+      });
+    }
+  }, []);
 
   if (isScannerWorkspace) {
     return (

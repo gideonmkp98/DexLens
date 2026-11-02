@@ -6,12 +6,26 @@ export const metadata: Metadata = {
   title: "DexLens — Ontdek jouw Pokémon-kaarten",
   description:
     "Scan je Pokémon-kaarten, herken de juiste uitvoering en ontdek de catalogus.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "DexLens",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f1e7" },
     { media: "(prefers-color-scheme: dark)", color: "#20251f" },
