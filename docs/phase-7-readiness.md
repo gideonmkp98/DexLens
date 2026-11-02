@@ -26,11 +26,12 @@ Phase 7 introduces **Live Scan & Go**, transforming the Pokémon TCG Scanner fro
    - **Motion Stability (Compensated MAD)**: Mean Absolute Difference across consecutive frames, compensated for uniform exposure shifts, detecting true physical camera/card wobble.
    - **Hysteresis & Smoothing**: Allows transient single-frame noise without resetting progress to zero.
    - **Card Framing & Aspect Ratio**: Boundary checking ensuring the card occupies ~70% of the viewfinder in a standard Pokémon card aspect ratio (~0.71).
+   - **False-Capture Guard**: Auto-capture requires four coherent, continuous card boundaries. A sharp or visually busy background cannot pass merely because the reticle itself has a card-like ratio.
    - **Actionable Dutch Guidance**: Real-time HUD pill displaying direct user feedback (*"Kaart gereed"*, *"Houd stil"*, *"Dichterbij houden"*, *"Minder weerspiegeling"*, *"Meer licht nodig"*, *"Plaats de kaart in het kader"*).
    - **Reticle-Aligned Capture**: The same display-to-camera coordinate mapping used for quality analysis crops the high-resolution upload to the visible card guide. Background shelves, tables, and screens no longer compete with the card during edge detection and OCR.
 5. **Dual Capture Modes**:
    - **Manual Mode**: Large primary shutter button with clear *"Maak een foto van de kaart"* action.
-   - **Auto Mode**: Reticle serves as the primary visual focus; displays a compact secondary *"Nu vastleggen"* button as an escape hatch. Automatically captures after consecutive `READY` stability frames with a cooldown timer.
+   - **Auto Mode**: Reticle serves as the primary visual focus; displays a compact secondary manual-photo escape hatch. Automatically captures only after five consecutive `READY` stability frames with a cooldown timer.
 6. **Multi-Card Continuous Scan Sessions & Backend Hardening**:
    - Server-persisted scan sessions (`scan_sessions` table via Alembic `0011`).
    - Live capture idempotency via `capture_idempotency_key` (Alembic `0012`).
@@ -134,7 +135,7 @@ The Playwright test suite (`apps/web/e2e/live-scan-flow.spec.ts` and `apps/web/e
 4. **Unsupported browser fallback**: Missing `navigator.mediaDevices` cleanly routes to photo upload.
 5. **Manual capture flow**: Clicking shutter button triggers frame capture, backend processing, and match modal.
 6. **Automatic capture flow after consecutive stable frames**: Consecutive `READY` frames trigger auto-capture without manual click.
-7. **No automatic capture during blur, motion, or glare**: Unstable frames hold capture and display real-time guidance.
+7. **No automatic capture during blur, motion, glare, or absent card**: Unstable frames and sharp background-only scenes hold capture and display real-time guidance.
 8. **Retake action**: Closing match modal re-arms live camera immediately.
 9. **Recognition success and slab display**: Candidate slab renders artwork, name, set, collector number, and confidence score.
 10. **Low-confidence alternatives selection and manual correction**: Selecting alternative updates confirmed card; manual edit links to `/scan/{id}`.
@@ -186,7 +187,7 @@ The repository owner should perform the following manual test protocol on physic
   - Angle card into light: HUD shows *"Minder weerspiegeling"*.
   - Move phone rapidly: HUD shows *"Houd stil"*.
   - Hold phone steady in good light: HUD shows *"Kaart gereed"*.
-- [ ] **Auto-Capture Flow**: Hold a card steady inside the reticle. Camera automatically triggers capture after 3 stable frames with haptic feedback.
+- [ ] **Auto-Capture Flow**: Hold a card steady inside the reticle. Camera automatically triggers capture after 5 stable frames with haptic feedback.
 - [ ] **Manual Capture Flow**: Switch toggle to *"Handmatig"*, aim at card, tap shutter button.
 - [ ] **Processing Overlay**: Processing screen displays with captured still frame, progress bar, and stage labels (*"Foto vastgelegd"*, *"Kaart uitsnijden..."*, etc.).
 - [ ] **Recognition Slab & Match Modal**: Top candidate slab appears with card artwork, name, set, collector number, and confidence percentage.

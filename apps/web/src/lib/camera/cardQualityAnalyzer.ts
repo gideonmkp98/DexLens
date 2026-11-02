@@ -188,14 +188,21 @@ export function estimateCardFraming(
   height: number,
   targetRatio: number,
   tolerance: number
-): { aspectRatio: number; isFramed: boolean } {
+): { aspectRatio: number; isFramed: boolean; presenceScore: number } {
   if (width < 10 || height < 10) {
-    return { aspectRatio: 1, isFramed: false };
+    return { aspectRatio: 1, isFramed: false, presenceScore: 0 };
   }
 
-  // Compute horizontal and vertical gradient profiles
+  // Build directional gradient maps and their projection profiles. A real card
+  // must contribute four coherent outer boundaries. Merely finding scattered
+  // texture is not sufficient: the reticle crop already has a card-like ratio,
+  // which previously allowed busy backgrounds to trigger automatic capture.
   const hGrad = new Float32Array(width);
   const vGrad = new Float32Array(height);
+  const gxMap = new Float32Array(width * height);
+  const gyMap = new Float32Array(width * height);
+  let gradientSum = 0;
+  let gradientSamples = 0;
 
   for (let y = 1; y < height - 1; y++) {
     const row = y * width;
@@ -207,45 +214,54 @@ export function estimateCardFraming(
         (grayscale[(y + 1) * width + x] ?? 0) -
           (grayscale[(y - 1) * width + x] ?? 0)
       );
+      gxMap[row + x] = gx;
+      gyMap[row + x] = gy;
       hGrad[x] = (hGrad[x] ?? 0) + gx;
       vGrad[y] = (vGrad[y] ?? 0) + gy;
+      gradientSum += gx + gy;
+      gradientSamples += 2;
     }
   }
 
-  // Find bounding thresholds covering significant gradient energy (15th to 85th percentile)
-  let minX = Math.floor(width * 0.1);
-  let maxX = Math.floor(width * 0.9);
-  let minY = Math.floor(height * 0.1);
-  let maxY = Math.floor(height * 0.9);
+  const strongestLine = (
+    profile: Float32Array,
+    start: number,
+    end: number
+  ): number => {
+    let strongestIndex = start;
+    let strongestValue = -1;
+    for (let index = start; index <= end; index++) {
+      const value = profile[index] ?? 0;
+      if (value > strongestValue) {
+        strongestValue = value;
+        strongestIndex = index;
+      }
+    }
+    return strongestIndex;
+  };
 
-  // Scan inward for significant gradient activity
-  const hThreshold = hGrad.reduce((acc, v) => acc + v, 0) / (width * 2 || 1);
-  const vThreshold = vGrad.reduce((acc, v) => acc + v, 0) / (height * 2 || 1);
-
-  for (let x = 0; x < width * 0.45; x++) {
-    if ((hGrad[x] ?? 0) > hThreshold) {
-      minX = x;
-      break;
-    }
-  }
-  for (let x = width - 1; x > width * 0.55; x--) {
-    if ((hGrad[x] ?? 0) > hThreshold) {
-      maxX = x;
-      break;
-    }
-  }
-  for (let y = 0; y < height * 0.45; y++) {
-    if ((vGrad[y] ?? 0) > vThreshold) {
-      minY = y;
-      break;
-    }
-  }
-  for (let y = height - 1; y > height * 0.55; y--) {
-    if ((vGrad[y] ?? 0) > vThreshold) {
-      maxY = y;
-      break;
-    }
-  }
+  // Card edges should live in the outer 35% bands, leaving enough interior for
+  // artwork and text while tolerating a card that does not perfectly fill the guide.
+  const minX = strongestLine(
+    hGrad,
+    Math.floor(width * 0.03),
+    Math.floor(width * 0.35)
+  );
+  const maxX = strongestLine(
+    hGrad,
+    Math.ceil(width * 0.65),
+    Math.floor(width * 0.97)
+  );
+  const minY = strongestLine(
+    vGrad,
+    Math.floor(height * 0.03),
+    Math.floor(height * 0.35)
+  );
+  const maxY = strongestLine(
+    vGrad,
+    Math.ceil(height * 0.65),
+    Math.floor(height * 0.97)
+  );
 
   const detectedW = Math.max(1, maxX - minX);
   const detectedH = Math.max(1, maxY - minY);
@@ -254,13 +270,59 @@ export function estimateCardFraming(
   const ratioDiff = Math.abs(detectedRatio - targetRatio);
   const fitsAspect = ratioDiff <= tolerance;
 
-  // Card must occupy at least 35% of the frame dimensions to ensure sufficient resolution
+  // Card must occupy a useful part of the reticle without being just a small
+  // background rectangle.
   const occupiesSufficientSize =
-    detectedW >= width * 0.35 && detectedH >= height * 0.35;
+    detectedW >= width * 0.45 && detectedH >= height * 0.45;
+
+  const meanGradient = gradientSum / Math.max(1, gradientSamples);
+  const supportThreshold = Math.max(12, meanGradient * 1.35);
+  const insetX = Math.max(1, Math.floor(detectedW * 0.04));
+  const insetY = Math.max(1, Math.floor(detectedH * 0.04));
+
+  const verticalSupport = (x: number): number => {
+    let supported = 0;
+    let samples = 0;
+    for (let y = minY + insetY; y <= maxY - insetY; y++) {
+      if ((gxMap[y * width + x] ?? 0) >= supportThreshold) supported++;
+      samples++;
+    }
+    return supported / Math.max(1, samples);
+  };
+
+  const horizontalSupport = (y: number): number => {
+    let supported = 0;
+    let samples = 0;
+    for (let x = minX + insetX; x <= maxX - insetX; x++) {
+      if ((gyMap[y * width + x] ?? 0) >= supportThreshold) supported++;
+      samples++;
+    }
+    return supported / Math.max(1, samples);
+  };
+
+  const boundarySupports = [
+    verticalSupport(minX),
+    verticalSupport(maxX),
+    horizontalSupport(minY),
+    horizontalSupport(maxY),
+  ];
+  const averageSupport =
+    boundarySupports.reduce((sum, value) => sum + value, 0) /
+    boundarySupports.length;
+  const weakestSupport = Math.min(...boundarySupports);
+
+  // Require every side to be visible. This deliberately favours a missed auto
+  // capture over photographing a shelf, desk, or monitor with no card present.
+  const hasCoherentBoundary = averageSupport >= 0.42 && weakestSupport >= 0.24;
+  const presenceScore = Math.max(
+    0,
+    Math.min(1, averageSupport * 0.8 + weakestSupport * 0.2)
+  );
 
   return {
     aspectRatio: detectedRatio,
-    isFramed: fitsAspect && occupiesSufficientSize,
+    isFramed: fitsAspect && occupiesSufficientSize && hasCoherentBoundary,
+    presenceScore,
   };
 }
 
@@ -312,6 +374,7 @@ export function analyzeCardFrame(
     motionMAD,
     aspectRatio: framing.aspectRatio,
     aspectRatioMatch: framing.isFramed,
+    cardPresenceScore: framing.presenceScore,
   };
 
   const now = Date.now();

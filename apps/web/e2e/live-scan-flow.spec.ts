@@ -20,6 +20,7 @@ interface MockCameraOptions {
     | "motion"
     | "flat"
     | "blurry"
+    | "busy_background"
     | "denied"
     | "not_found";
 }
@@ -125,6 +126,19 @@ async function setupMockCamera(page: Page, options: MockCameraOptions = {}) {
         if (curMode === "blurry" || curMode === "flat") {
           data.fill(128);
           for (let i = 3; i < data.length; i += 4) data[i] = 255;
+          return new ImageData(data, w, h);
+        }
+        if (curMode === "busy_background") {
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const idx = (y * w + x) * 4;
+              const value = 55 + ((x * 37 + y * 53 + ((x * y) % 97)) % 145);
+              data[idx] = value;
+              data[idx + 1] = Math.max(35, value - ((x * 11) % 31));
+              data[idx + 2] = Math.max(30, value - ((y * 7) % 43));
+              data[idx + 3] = 255;
+            }
+          }
           return new ImageData(data, w, h);
         }
 
@@ -335,7 +349,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     ).not.toBeVisible();
 
     // Switch to manual so the quality HUD can be observed without auto-capturing.
-    await page.getByRole("button", { name: "Auto" }).click();
+    await page.getByRole("button", { name: "Zelf" }).click();
     const shutterBtn = page.getByRole("button", {
       name: "Maak een foto van de kaart",
     });
@@ -399,10 +413,10 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   // SCENARIO 4: Unsupported browser fallback
   // =========================================================================
   test("4. Unsupported browser fallback", async ({ page }) => {
-    // Simulate browser without mediaDevices API via prototype property getter
+    // Simulate a browser without the mediaDevices API on the navigator instance.
     await page.addInitScript(() => {
-      Object.defineProperty(Navigator.prototype, "mediaDevices", {
-        get: () => undefined,
+      Object.defineProperty(navigator, "mediaDevices", {
+        value: undefined,
         configurable: true,
       });
     });
@@ -427,13 +441,11 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await startLiveScanner(page);
 
     // Disable auto-capture so we explicitly test manual shutter trigger
-    const autoToggleBtn = page.getByTitle(
-      "Wissel tussen automatisch en handmatig vastleggen"
-    );
-    await expect(autoToggleBtn).toBeVisible({ timeout: 10000 });
-    await autoToggleBtn.click();
-    await expect(autoToggleBtn).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByText("Tik om vast te leggen")).toBeVisible();
+    const manualModeBtn = page.getByRole("button", { name: "Zelf" });
+    await expect(manualModeBtn).toBeVisible({ timeout: 10000 });
+    await manualModeBtn.click();
+    await expect(manualModeBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Jij bepaalt het moment")).toBeVisible();
 
     // Click shutter button and wait for capture API response
     const shutterBtn = page.getByRole("button", {
@@ -474,7 +486,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.goto("/scan");
     await startLiveScanner(page);
 
-    // Auto-capture is on by default. Wait for 3 stable frames to trigger capture automatically
+    // Auto-capture is on by default. Wait for five stable frames to trigger capture.
     const capturePromise = page.waitForResponse(
       (resp) => resp.url().includes("/capture") && resp.status() === 200,
       { timeout: 15000 }
@@ -504,7 +516,17 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.waitForTimeout(800);
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
 
-    // 7b. Test Glare
+    // 7b. A sharp, busy background without a card must never auto-capture.
+    await page.evaluate(() => {
+      (window as any).__cameraMock.mode = "busy_background";
+    });
+    await expect(
+      page.getByText("Plaats de kaart in het kader").first()
+    ).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(1300);
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0);
+
+    // 7c. Test Glare
     await page.evaluate(() => {
       (window as any).__cameraMock.mode = "glare";
     });
@@ -514,7 +536,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.waitForTimeout(800);
     await expect(page.locator('[role="dialog"]')).toHaveCount(0);
 
-    // 7c. Test Motion / Unstable
+    // 7d. Test Motion / Unstable
     await page.evaluate(() => {
       (window as any).__cameraMock.mode = "motion";
     });
@@ -695,11 +717,9 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
       (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
     ).toBeLessThanOrEqual((trayBox?.y ?? 0) + 1);
 
-    const modeToggle = page.getByTitle(
-      "Wissel tussen automatisch en handmatig vastleggen"
-    );
-    await modeToggle.click();
-    await expect(modeToggle).toHaveAttribute("aria-pressed", "false");
+    const manualModeBtn = page.getByRole("button", { name: "Zelf" });
+    await manualModeBtn.click();
+    await expect(manualModeBtn).toHaveAttribute("aria-pressed", "true");
 
     // Trigger second scan
     const shutterBtn = page.getByRole("button", {
@@ -794,11 +814,9 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await nextBtn.click();
     await expect(modal).not.toBeVisible();
 
-    const modeToggle = page.getByTitle(
-      "Wissel tussen automatisch en handmatig vastleggen"
-    );
-    await modeToggle.click();
-    await expect(modeToggle).toHaveAttribute("aria-pressed", "false");
+    const manualModeBtn = page.getByRole("button", { name: "Zelf" });
+    await manualModeBtn.click();
+    await expect(manualModeBtn).toHaveAttribute("aria-pressed", "true");
 
     // Verify session tray shows 1 scan item
     await expect(page.getByText(/1 kaart gescand|Sessie/i).first()).toBeVisible(
@@ -835,6 +853,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
   test("15. Upload-photo fallback remains fully functional", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await setupMockCamera(page, { mode: "card" });
     await page.goto("/scan");
     await startLiveScanner(page);
@@ -848,6 +867,17 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
       .locator('nav[aria-label="Scan methode selectie"]')
       .getByRole("button", { name: "Foto uploaden" });
     await expect(uploadTabBtn).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByRole("link", { name: "Terug naar de website" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Live Scanner" })
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth
+      )
+    ).toBe(false);
 
     // Upload pikachu image
     const fileChooserInput = page.locator(
@@ -964,7 +994,9 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.goto("/scan");
     await startLiveScanner(page);
 
-    const shutterBtn = page.getByRole("button", { name: "Nu vastleggen" });
+    const shutterBtn = page.getByRole("button", {
+      name: "Nu handmatig vastleggen",
+    });
     await expect(shutterBtn).toBeVisible({ timeout: 10000 });
 
     // Verify no horizontal overflow

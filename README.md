@@ -77,9 +77,9 @@ A production-minded Pokémon TCG scanner and collection management web applicati
                       - Specular glare ratio (<0.06)
                       - Discrete Laplacian sharpness variance (>35)
                       - Motion stability MAD (<24.0)
-                      - Card aspect ratio check (~0.71)
+                      - Four-sided card-boundary presence and aspect ratio check (~0.71)
                   ──> Real-time HUD pill guidance ("Kaart gereed", "Houd stil", "Minder weerspiegeling", etc.)
-                  ──> Auto-trigger after K=3 consecutive READY frames (or manual shutter button)
+                  ──> Auto-trigger after K=5 consecutive READY frames (or manual shutter button)
                   ──> Crop the high-resolution camera frame to the visible card reticle
                   ──> POST /api/v1/scan-sessions/{id}/capture (single-roundtrip reticle upload)
                       - Auto OpenCV card contour & perspective warp

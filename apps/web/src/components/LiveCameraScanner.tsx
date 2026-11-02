@@ -32,6 +32,7 @@ const PROCESSING_STAGES = [
   "Catalogus wordt vergeleken",
   "Beste match bepalen",
 ] as const;
+const AUTO_CAPTURE_READY_FRAMES = 5;
 
 function createCaptureRequestKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -94,7 +95,7 @@ export default function LiveCameraScanner({
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const isCapturingRef = useRef<boolean>(false);
   const stabilityTrackerRef = useRef<CardStabilityTracker>(
-    new CardStabilityTracker(3, 2200)
+    new CardStabilityTracker(AUTO_CAPTURE_READY_FRAMES, 2200)
   );
   const prevFrameRef = useRef<ImageDataLike | null>(null);
   const reticleRef = useRef<HTMLDivElement | null>(null);
@@ -426,7 +427,10 @@ export default function LiveCameraScanner({
 
   // Circular progress calculation for shutter ring
   const consecutiveCount = stability?.consecutiveReadyCount ?? 0;
-  const progressRatio = Math.min(1, consecutiveCount / 3);
+  const progressRatio = Math.min(
+    1,
+    consecutiveCount / AUTO_CAPTURE_READY_FRAMES
+  );
   const ringRadius = 40;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringOffset = ringCircumference - progressRatio * ringCircumference;
@@ -604,8 +608,8 @@ export default function LiveCameraScanner({
                 <span className="text-base leading-none" aria-hidden="true">
                   ×
                 </span>
-                <span className="hidden text-[10px] font-black uppercase tracking-[0.14em] sm:inline">
-                  Sluiten
+                <span className="text-[9px] font-black uppercase tracking-[0.1em]">
+                  Terug
                 </span>
               </button>
             ) : (
@@ -640,45 +644,54 @@ export default function LiveCameraScanner({
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                   />
                 </svg>
-                <span className="hidden sm:inline">Upload</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.1em]">
+                  Upload
+                </span>
               </button>
             ) : null}
           </div>
 
           {/* Action Controls: Auto-capture, Torch & Camera Switch */}
           <div className="flex items-center gap-2">
-            {/* Explicit capture mode selector */}
-            <button
-              type="button"
-              onClick={() => {
-                setCaptureMode((mode) => (mode === "auto" ? "manual" : "auto"));
-                stabilityTrackerRef.current.reset();
-                setStability(null);
-              }}
-              className="flex h-9 items-center gap-2 rounded-[5px] border border-[#f3efdf]/30 bg-[#171c16]/95 px-2.5 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
-              title="Wissel tussen automatisch en handmatig vastleggen"
-              aria-pressed={captureMode === "auto"}
+            {/* Explicit mode selector: both choices stay visible and predictable. */}
+            <div
+              role="group"
+              aria-label="Opnamemodus"
+              className="flex h-9 items-center rounded-[5px] border border-[#f3efdf]/30 bg-[#171c16]/95 p-0.5 shadow-[3px_3px_0_#10150f]"
             >
-              <span
-                className={`relative h-4 w-7 rounded-full border transition ${
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptureMode("auto");
+                  stabilityTrackerRef.current.reset();
+                  setStability(null);
+                }}
+                className={`h-7 rounded-[3px] px-2 font-mono text-[8px] font-black uppercase tracking-[0.1em] transition ${
                   captureMode === "auto"
-                    ? "border-emerald-300/50 bg-emerald-400/20"
-                    : "border-[#f3efdf]/25 bg-[#2a3028]"
+                    ? "bg-emerald-400 text-[#10150f]"
+                    : "text-[#b6bbaa] hover:text-[#f3efdf]"
                 }`}
-                aria-hidden="true"
+                aria-pressed={captureMode === "auto"}
               >
-                <span
-                  className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${
-                    captureMode === "auto"
-                      ? "translate-x-3 bg-emerald-300"
-                      : "translate-x-0.5 bg-[#b6bbaa]"
-                  }`}
-                />
-              </span>
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.12em]">
-                {captureMode === "auto" ? "Auto" : "Handmatig"}
-              </span>
-            </button>
+                Auto
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCaptureMode("manual");
+                  stabilityTrackerRef.current.reset();
+                  setStability(null);
+                }}
+                className={`h-7 rounded-[3px] px-2 font-mono text-[8px] font-black uppercase tracking-[0.1em] transition ${
+                  captureMode === "manual"
+                    ? "bg-[#f1ca53] text-[#10150f]"
+                    : "text-[#b6bbaa] hover:text-[#f3efdf]"
+                }`}
+                aria-pressed={captureMode === "manual"}
+              >
+                Zelf
+              </button>
+            </div>
 
             {/* Torch toggle (if supported by track) */}
             {hasTorch && (
@@ -825,116 +838,124 @@ export default function LiveCameraScanner({
             : "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
         }`}
       >
-        {captureMode === "manual" ? (
-          <div className="relative flex items-center justify-center">
-            <svg
-              className="pointer-events-none -rotate-90"
-              width={84}
-              height={84}
-              viewBox="0 0 96 96"
-              aria-hidden="true"
-            >
-              <circle
-                cx={48}
-                cy={48}
-                r={ringRadius}
-                className="stroke-[#f3efdf]/15"
-                strokeWidth={5}
-                fill="transparent"
-              />
-              <circle
-                cx={48}
-                cy={48}
-                r={ringRadius}
-                className="stroke-[#f1ca53]"
-                strokeWidth={5}
-                fill="transparent"
-              />
-            </svg>
-            <button
-              type="button"
-              onClick={handleCapture}
-              disabled={isCapturing || !isStreaming}
-              className="absolute flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#252923] bg-[#f3efdf] shadow-[4px_4px_0_#10150f] transition hover:scale-105 active:scale-95 disabled:opacity-50"
-              aria-label="Maak een foto van de kaart"
-            >
-              <div
-                className={`h-12 w-12 rounded-full border-2 border-[#252923] transition-colors ${
-                  isCardReady ? "bg-emerald-500" : "bg-[#c6372e]"
-                }`}
-              />
-            </button>
-          </div>
-        ) : (
-          <div className="w-full max-w-sm rounded-[7px] border border-[#f3efdf]/25 bg-[#171c16]/95 p-2.5 shadow-[4px_4px_0_#10150f]">
+        <div className="w-full max-w-sm rounded-[7px] border border-[#f3efdf]/25 bg-[#171c16]/95 p-2.5 shadow-[4px_4px_0_#10150f]">
+          {captureMode === "manual" ? (
             <div className="flex items-center gap-3">
-              <div className="relative h-11 w-11 shrink-0 rounded-[5px] border border-[#f1ca53]/40 bg-[#20251f]">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[5px] border border-[#f1ca53]/35 bg-[#20251f] text-[#f1ca53]">
                 <svg
-                  className="absolute inset-0 -rotate-90"
-                  width={44}
-                  height={44}
-                  viewBox="0 0 96 96"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
                   aria-hidden="true"
                 >
-                  <circle
-                    cx={48}
-                    cy={48}
-                    r={ringRadius}
-                    className="stroke-[#f3efdf]/10"
-                    strokeWidth={6}
-                    fill="transparent"
-                  />
-                  <circle
-                    cx={48}
-                    cy={48}
-                    r={ringRadius}
-                    className="stroke-[#f1ca53] transition-all duration-200"
-                    strokeWidth={6}
-                    strokeDasharray={ringCircumference}
-                    strokeDashoffset={ringOffset}
-                    strokeLinecap="round"
-                    fill="transparent"
-                  />
+                  <path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z" />
+                  <circle cx="12" cy="13.5" r="3.2" />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-[#f1ca53]">
-                  {Math.min(3, consecutiveCount)}/3
-                </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#eb6b5d]">
-                  Auto capture actief
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#f1ca53]">
+                  Handmatige opname
                 </p>
-                <p className="truncate text-xs font-black text-[#f3efdf]">
-                  {isCardReady ? "Klaar om vast te leggen" : feedbackText}
+                <p className="text-xs font-black text-[#f3efdf]">
+                  Druk wanneer je kaart goed staat
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCapture}
                 disabled={isCapturing || !isStreaming}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#f3efdf] bg-[#c6372e] text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:scale-105 active:scale-95 disabled:opacity-50"
-                aria-label="Nu vastleggen"
-                title="Nu vastleggen"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[3px] border-[#f3efdf] bg-[#171c16] p-1 shadow-[3px_3px_0_#10150f] transition hover:scale-105 active:scale-95 disabled:opacity-50"
+                aria-label="Maak een foto van de kaart"
               >
-                <span className="h-3.5 w-3.5 rounded-full border border-[#fff9ee]" />
+                <span className="h-full w-full rounded-full border border-[#fff9ee]/35 bg-[#c6372e]" />
               </button>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
-              {[0, 1, 2].map((step) => (
-                <span
-                  key={step}
-                  className={`h-1 rounded-[1px] transition-colors ${
-                    consecutiveCount > step ? "bg-[#f1ca53]" : "bg-[#3b4338]"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="relative h-11 w-11 shrink-0 rounded-[5px] border border-emerald-400/35 bg-[#20251f]">
+                  <svg
+                    className="absolute inset-0 -rotate-90"
+                    width={44}
+                    height={44}
+                    viewBox="0 0 96 96"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx={48}
+                      cy={48}
+                      r={ringRadius}
+                      className="stroke-[#f3efdf]/10"
+                      strokeWidth={6}
+                      fill="transparent"
+                    />
+                    <circle
+                      cx={48}
+                      cy={48}
+                      r={ringRadius}
+                      className="stroke-emerald-400 transition-all duration-200"
+                      strokeWidth={6}
+                      strokeDasharray={ringCircumference}
+                      strokeDashoffset={ringOffset}
+                      strokeLinecap="round"
+                      fill="transparent"
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-emerald-300">
+                    {Math.min(AUTO_CAPTURE_READY_FRAMES, consecutiveCount)}/
+                    {AUTO_CAPTURE_READY_FRAMES}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-300">
+                    Automatisch scannen
+                  </p>
+                  <p className="truncate text-xs font-black text-[#f3efdf]">
+                    {isCardReady ? "Even stilhouden…" : feedbackText}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCapture}
+                  disabled={isCapturing || !isStreaming}
+                  className="flex h-11 shrink-0 items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#2a3028] px-2.5 text-[9px] font-black uppercase tracking-[0.08em] text-[#f3efdf] transition hover:border-[#f1ca53] active:scale-95 disabled:opacity-50"
+                  aria-label="Nu handmatig vastleggen"
+                  title="Nu handmatig vastleggen"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full border border-[#f3efdf] bg-[#c6372e]" />
+                  Foto
+                </button>
+              </div>
+              <div
+                className="mt-2 grid gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${AUTO_CAPTURE_READY_FRAMES}, minmax(0, 1fr))`,
+                }}
+                aria-hidden="true"
+              >
+                {Array.from(
+                  { length: AUTO_CAPTURE_READY_FRAMES },
+                  (_, step) => (
+                    <span
+                      key={step}
+                      className={`h-1 rounded-[1px] transition-colors ${
+                        consecutiveCount > step
+                          ? "bg-emerald-400"
+                          : "bg-[#3b4338]"
+                      }`}
+                    />
+                  )
+                )}
+              </div>
+            </>
+          )}
+        </div>
         <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-[#b6bbaa]">
           {captureMode === "auto"
-            ? "De scanner legt vanzelf vast"
-            : "Tik om vast te leggen"}
+            ? "Alleen bij een duidelijk zichtbare kaart"
+            : "Jij bepaalt het moment"}
         </p>
       </footer>
 

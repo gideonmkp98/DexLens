@@ -43,6 +43,8 @@ export interface QualityMetrics {
   aspectRatio?: number;
   /** Whether framing fits within target aspect ratio tolerance */
   aspectRatioMatch?: boolean;
+  /** Confidence that four coherent card boundaries are present (0-1) */
+  cardPresenceScore?: number;
 }
 
 /**

@@ -190,6 +190,28 @@ button:disabled {
   margin: auto;
   padding: 0 32px;
 }
+.scanner-upload-shell {
+  --paper: #171c16;
+  --surface: #20251f;
+  --ink: #f3efdf;
+  --muted: #b6bbaa;
+  --line: #4b5347;
+  --shadow: #10150f;
+  color: var(--ink);
+}
+.scanner-upload-shell .scan-page {
+  scrollbar-color: #4b5347 #171c16;
+}
+.scanner-upload-shell .scan-station {
+  border-color: #10150f;
+  box-shadow: 7px 7px 0 #10150f;
+}
+.scanner-upload-shell .station-body {
+  border-color: #10150f;
+}
+.scanner-upload-shell .upload-mat {
+  border-style: solid;
+}
 .eyebrow {
   display: flex;
   align-items: center;

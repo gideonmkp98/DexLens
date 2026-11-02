@@ -128,35 +128,51 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--paper)]">
+    <div
+      className={`flex h-full min-h-0 flex-col overflow-hidden bg-[var(--paper)] ${
+        scanMode === "upload" ? "scanner-upload-shell" : ""
+      }`}
+    >
       {/* Upload mode keeps the method switcher. Live mode owns the entire
           viewport and exposes exit/upload actions inside the camera HUD. */}
       {scanMode === "upload" && (
-        <div className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-3 py-2 sm:px-4 sm:py-2.5">
+        <div className="shrink-0 border-b border-[#f3efdf]/15 bg-[#171c16] px-3 py-2.5 sm:px-4">
           <div className="mx-auto flex max-w-7xl items-center justify-between">
+            <Link
+              href="/"
+              className="flex h-9 items-center gap-2 rounded-[5px] border border-[#f3efdf]/25 bg-[#20251f] px-3 text-[9px] font-black uppercase tracking-[0.1em] text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#eb6b5d]"
+              aria-label="Terug naar de website"
+            >
+              <span className="text-base leading-none" aria-hidden="true">
+                ×
+              </span>
+              Terug
+            </Link>
             <nav
               aria-label="Scan methode selectie"
-              className="flex items-center gap-1.5 rounded-[5px] border border-[var(--line)] bg-[var(--paper)] p-1 text-xs shadow-[3px_3px_0_var(--shadow)]"
+              className="flex h-9 items-center rounded-[5px] border border-[#f3efdf]/25 bg-[#20251f] p-0.5 shadow-[3px_3px_0_#10150f]"
             >
               <button
                 type="button"
                 onClick={() => setScanMode("live")}
                 disabled={!hasCameraSupport}
-                className="flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold text-[var(--muted)] transition hover:text-[var(--ink)] disabled:opacity-40"
+                className="flex h-7 items-center gap-1.5 rounded-[3px] px-2.5 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-[#b6bbaa] transition hover:text-[#f3efdf] disabled:opacity-40"
                 aria-pressed={false}
+                aria-label="Live Scanner"
               >
-                <span className="h-2 w-2 rounded-full bg-slate-400" />
-                <span>Live Scanner</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <span>Camera</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setScanMode("upload")}
-                className="flex items-center gap-2 rounded-[3px] bg-[#c6372e] px-3.5 py-1.5 font-bold text-white shadow-sm transition"
+                className="flex h-7 items-center gap-1.5 rounded-[3px] bg-[#f1ca53] px-2.5 font-mono text-[8px] font-black uppercase tracking-[0.1em] text-[#10150f] transition"
                 aria-pressed={true}
+                aria-label="Foto uploaden"
               >
                 <svg
-                  className="h-3.5 w-3.5"
+                  className="h-3 w-3"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -169,13 +185,9 @@ export default function ScanPage() {
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                   />
                 </svg>
-                <span>Foto uploaden</span>
+                <span>Upload</span>
               </button>
             </nav>
-
-            <span className="hidden font-mono text-[11px] text-[var(--muted)] sm:inline">
-              HANDMATIGE UPLOAD
-            </span>
           </div>
         </div>
       )}

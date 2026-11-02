@@ -65,6 +65,26 @@ function createCheckerboardBuffer(
 }
 
 /**
+ * Creates a sharp, high-detail scene without a coherent card rectangle.
+ * This represents shelves, screens, tables, and other backgrounds that must
+ * never satisfy automatic capture merely because the reticle is card-shaped.
+ */
+function createBusyBackgroundBuffer(width = 240, height = 320): ImageDataLike {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const value = 55 + ((x * 37 + y * 53 + ((x * y) % 97)) % 145);
+      data[idx] = value;
+      data[idx + 1] = Math.max(35, value - ((x * 11) % 31));
+      data[idx + 2] = Math.max(30, value - ((y * 7) % 43));
+      data[idx + 3] = 255;
+    }
+  }
+  return { data, width, height };
+}
+
+/**
  * Creates a synthetic card-shaped rectangle centered in the frame.
  */
 function createSyntheticCardBuffer(
@@ -250,6 +270,21 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       const framing = estimateCardFraming(gray, 240, 320, 63 / 88, 0.15);
       assert.ok(framing.isFramed);
       assert.ok(Math.abs(framing.aspectRatio - 63 / 88) < 0.15);
+      assert.ok(framing.presenceScore >= 0.42);
+    });
+
+    test("rejects a sharp busy background without four coherent card edges", () => {
+      const background = createBusyBackgroundBuffer();
+      const previous = createBusyBackgroundBuffer();
+      const gray = rgbaToGrayscale(background.data, 240, 320);
+      const framing = estimateCardFraming(gray, 240, 320, 63 / 88, 0.2);
+
+      assert.equal(framing.isFramed, false);
+
+      const result = analyzeCardFrame(background, previous);
+      assert.equal(result.status, QualityStatus.OFF_CENTER);
+      assert.equal(result.isReady, false);
+      assert.ok((result.metrics.cardPresenceScore ?? 1) < 0.42);
     });
 
     test("returns READY when all lighting, sharpness, and framing conditions pass", () => {
