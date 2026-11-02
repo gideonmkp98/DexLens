@@ -73,18 +73,19 @@ A production-minded Pokémon TCG scanner and collection management web applicati
    User (Browser) ──> Open /scan (defaults to full-screen live camera viewfinder)
                   ──> Request camera stream via navigator.mediaDevices.getUserMedia ({ facingMode: "environment" })
                   ──> Offscreen canvas analysis (~5-6 FPS, 320x240):
-                      - Exposure (BT.601 luminance: 0.299R + 0.587G + 0.114B)
-                      - Specular glare ratio (<0.08)
-                      - Discrete Laplacian sharpness variance (>120)
-                      - Motion stability MAD (<12.0)
+                      - Exposure (BT.601 luminance: 32-230)
+                      - Specular glare ratio (<0.06)
+                      - Discrete Laplacian sharpness variance (>35)
+                      - Motion stability MAD (<24.0)
                       - Card aspect ratio check (~0.71)
                   ──> Real-time HUD pill guidance ("Kaart gereed", "Houd stil", "Minder weerspiegeling", etc.)
                   ──> Auto-trigger after K=3 consecutive READY frames (or manual shutter button)
-                  ──> POST /api/v1/scan-sessions/{id}/capture (single-roundtrip frame upload)
+                  ──> Crop the high-resolution camera frame to the visible card reticle
+                  ──> POST /api/v1/scan-sessions/{id}/capture (single-roundtrip reticle upload)
                       - Auto OpenCV card contour & perspective warp
                       - High-speed OCR ROI text extraction & TCGdex ranking
-                  ──> LiveScanMatchModal: displays candidate card slab with confidence score
-                  ──> 1-Click "Voeg toe aan collectie" OR 1-Click alternative candidate selection
+                  ──> LiveScanMatchModal: presents the ranked candidate as a suggestion
+                  ──> Explicitly confirm the suggested or alternative card before collection persistence
                   ──> "Volgende kaart scannen": immediate re-arm without closing viewfinder; increments session tray
 ```
 

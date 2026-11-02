@@ -129,73 +129,63 @@ export default function ScanPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--paper)]">
-      {/* Top Segment Mode Switcher Bar */}
-      <div className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-3 py-2 sm:px-4 sm:py-2.5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <nav
-            aria-label="Scan methode selectie"
-            className="flex items-center gap-1.5 rounded-[5px] border border-[var(--line)] bg-[var(--paper)] p-1 text-xs shadow-[3px_3px_0_var(--shadow)]"
-          >
-            <button
-              type="button"
-              onClick={() => setScanMode("live")}
-              disabled={!hasCameraSupport}
-              className={`flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold transition ${
-                scanMode === "live"
-                  ? "bg-[#c6372e] text-white shadow-sm"
-                  : "text-[var(--muted)] hover:text-[var(--ink)] disabled:opacity-40"
-              }`}
-              aria-pressed={scanMode === "live"}
+      {/* Upload mode keeps the method switcher. Live mode owns the entire
+          viewport and exposes exit/upload actions inside the camera HUD. */}
+      {scanMode === "upload" && (
+        <div className="shrink-0 border-b border-[var(--line)] bg-[var(--surface)] px-3 py-2 sm:px-4 sm:py-2.5">
+          <div className="mx-auto flex max-w-7xl items-center justify-between">
+            <nav
+              aria-label="Scan methode selectie"
+              className="flex items-center gap-1.5 rounded-[5px] border border-[var(--line)] bg-[var(--paper)] p-1 text-xs shadow-[3px_3px_0_var(--shadow)]"
             >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  scanMode === "live"
-                    ? "animate-pulse bg-emerald-400"
-                    : "bg-slate-400"
-                }`}
-              />
-              <span>Live Scanner</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setScanMode("upload")}
-              className={`flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold transition ${
-                scanMode === "upload"
-                  ? "bg-[#c6372e] text-white shadow-sm"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
-              }`}
-              aria-pressed={scanMode === "upload"}
-            >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
+              <button
+                type="button"
+                onClick={() => setScanMode("live")}
+                disabled={!hasCameraSupport}
+                className="flex items-center gap-2 rounded-[3px] px-3.5 py-1.5 font-bold text-[var(--muted)] transition hover:text-[var(--ink)] disabled:opacity-40"
+                aria-pressed={false}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                />
-              </svg>
-              <span>Foto uploaden</span>
-            </button>
-          </nav>
+                <span className="h-2 w-2 rounded-full bg-slate-400" />
+                <span>Live Scanner</span>
+              </button>
 
-          <span className="hidden font-mono text-[11px] text-[var(--muted)] sm:inline">
-            {scanMode === "live" ? "REAL-TIME SCAN & GO" : "HANDMATIGE UPLOAD"}
-          </span>
+              <button
+                type="button"
+                onClick={() => setScanMode("upload")}
+                className="flex items-center gap-2 rounded-[3px] bg-[#c6372e] px-3.5 py-1.5 font-bold text-white shadow-sm transition"
+                aria-pressed={true}
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                  />
+                </svg>
+                <span>Foto uploaden</span>
+              </button>
+            </nav>
+
+            <span className="hidden font-mono text-[11px] text-[var(--muted)] sm:inline">
+              HANDMATIGE UPLOAD
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mode View: Live Scanner (Default) or File Upload Workflow */}
       {scanMode === "live" ? (
         <LiveCameraScanner
           className="min-h-0 flex-1"
           onSwitchToUpload={() => setScanMode("upload")}
+          onExit={() => router.push("/")}
         />
       ) : (
         <main className="collector-page scan-page min-h-0 flex-1 overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]">

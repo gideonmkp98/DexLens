@@ -60,19 +60,19 @@ export interface QualityAnalysisResult {
  * Configuration options for the CardQualityAnalyzer engine.
  */
 export interface QualityAnalyzerOptions {
-  /** Minimum acceptable mean luminance (default: 40) */
+  /** Minimum acceptable mean luminance (default: 32) */
   minLuminance?: number;
-  /** Maximum acceptable mean luminance before overexposed (default: 220) */
+  /** Maximum acceptable mean luminance before overexposed (default: 230) */
   maxLuminance?: number;
-  /** Maximum fraction of saturated specular reflection pixels (default: 0.04 -> 4%) */
+  /** Maximum fraction of saturated specular reflection pixels (default: 0.06 -> 6%) */
   maxGlareRatio?: number;
-  /** Minimum Laplacian variance for adequate card sharpness (default: 45) */
+  /** Minimum Laplacian variance for adequate card sharpness (default: 35) */
   minSharpness?: number;
-  /** Maximum Mean Absolute Difference before motion flag (default: 12.0) */
+  /** Maximum exposure-compensated frame difference before motion flag (default: 24.0) */
   maxMotionMAD?: number;
   /** Target Pokémon card aspect ratio (63mm / 88mm ~ 0.7159) */
   targetAspectRatio?: number;
-  /** Permissible aspect ratio deviation (default: 0.15) */
+  /** Permissible aspect ratio deviation (default: 0.20) */
   aspectRatioTolerance?: number;
 }
 

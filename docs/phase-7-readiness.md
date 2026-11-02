@@ -27,6 +27,7 @@ Phase 7 introduces **Live Scan & Go**, transforming the Pokémon TCG Scanner fro
    - **Hysteresis & Smoothing**: Allows transient single-frame noise without resetting progress to zero.
    - **Card Framing & Aspect Ratio**: Boundary checking ensuring the card occupies ~70% of the viewfinder in a standard Pokémon card aspect ratio (~0.71).
    - **Actionable Dutch Guidance**: Real-time HUD pill displaying direct user feedback (*"Kaart gereed"*, *"Houd stil"*, *"Dichterbij houden"*, *"Minder weerspiegeling"*, *"Meer licht nodig"*, *"Plaats de kaart in het kader"*).
+   - **Reticle-Aligned Capture**: The same display-to-camera coordinate mapping used for quality analysis crops the high-resolution upload to the visible card guide. Background shelves, tables, and screens no longer compete with the card during edge detection and OCR.
 5. **Dual Capture Modes**:
    - **Manual Mode**: Large primary shutter button with clear *"Maak een foto van de kaart"* action.
    - **Auto Mode**: Reticle serves as the primary visual focus; displays a compact secondary *"Nu vastleggen"* button as an escape hatch. Automatically captures after consecutive `READY` stability frames with a cooldown timer.
@@ -36,7 +37,8 @@ Phase 7 introduces **Live Scan & Go**, transforming the Pokémon TCG Scanner fro
    - Collapsible bottom tray (`ScanSessionTray`) with scan count badge, card thumbnail drawer, and quick completion.
    - Immediate re-arming: *"Volgende kaart scannen"* resets viewfinder and stability tracker instantly without leaving the camera.
 7. **Single-Roundtrip Live Capture Pipeline**:
-   - High-performance endpoint `POST /api/v1/scan-sessions/{id}/capture` receiving the live frame, executing OpenCV boundary detection, perspective warp, local Tesseract OCR, and TCGdex catalog candidate ranking in a single roundtrip.
+   - High-performance endpoint `POST /api/v1/scan-sessions/{id}/capture` receiving the reticle crop, executing OpenCV boundary detection, perspective warp, local Tesseract OCR, and TCGdex catalog candidate ranking in a single roundtrip.
+   - Ranked candidates remain suggestions until the user explicitly confirms a card. Low-confidence matches open their alternatives automatically and use honest ranking language rather than presenting a heuristic score as a certainty percentage.
 8. **100% Preservation of Existing Workflows**:
    - Photo file upload remains fully accessible via a prominent top switcher and automatic fallback on unsupported browsers or denied camera permissions.
    - Duplicate scan grouping ($\times2$, $\times3$) and scan idempotency from Phase 6 remain strictly preserved.

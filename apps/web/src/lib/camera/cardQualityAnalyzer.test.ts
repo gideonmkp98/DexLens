@@ -127,7 +127,7 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       assert.equal(result.status, QualityStatus.POOR_LIGHTING);
       assert.equal(result.feedback, "Meer licht nodig");
       assert.equal(result.isReady, false);
-      assert.ok(result.metrics.luminance < 40);
+      assert.ok(result.metrics.luminance < 32);
     });
 
     test("flags overexposed frames with POOR_LIGHTING", () => {
@@ -135,7 +135,7 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       const result = analyzeCardFrame(brightBuffer);
       assert.equal(result.status, QualityStatus.POOR_LIGHTING);
       assert.equal(result.isReady, false);
-      assert.ok(result.metrics.luminance > 220);
+      assert.ok(result.metrics.luminance > 230);
     });
 
     test("computes correct mean luminance on heterogeneous pixels", () => {
@@ -158,15 +158,15 @@ describe("cardQualityAnalyzer Unit Tests", () => {
     });
 
     test("flags frames exceeding maxGlareRatio as GLARE with guidance", () => {
-      // 100x100 = 10,000 pixels. Place 500 saturated pixels (5% > 4% threshold)
+      // 100x100 = 10,000 pixels. Place 700 saturated pixels (7% > 6% threshold)
       const buf = createTestBuffer(100, 100, 120, 120, 120);
-      for (let i = 0; i < 500 * 4; i += 4) {
+      for (let i = 0; i < 700 * 4; i += 4) {
         buf.data[i] = 250;
         buf.data[i + 1] = 250;
         buf.data[i + 2] = 250;
       }
       const glareRatio = computeGlareRatio(buf.data);
-      assert.ok(glareRatio >= 0.05);
+      assert.ok(glareRatio >= 0.07);
 
       const result = analyzeCardFrame(buf);
       assert.equal(result.status, QualityStatus.GLARE);
@@ -238,7 +238,7 @@ describe("cardQualityAnalyzer Unit Tests", () => {
       assert.equal(result.status, QualityStatus.UNSTABLE);
       assert.equal(result.feedback, "Houd stil");
       assert.equal(result.isReady, false);
-      assert.ok(result.metrics.motionMAD > 18);
+      assert.ok(result.metrics.motionMAD > 24);
     });
   });
 

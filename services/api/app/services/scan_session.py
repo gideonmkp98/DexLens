@@ -535,26 +535,10 @@ class ScanSessionService:
                     scan.search_version = 1
                     scan.catalog_status = "ok"
 
-                    if candidates:
-                        top = candidates[0]
-                        top_dict = candidate_dicts[0]
-                        scan.confirmed_card_id = getattr(
-                            top, "id", None
-                        ) or top_dict.get("id")
-                        scan.confirmed_card_name = getattr(
-                            top, "name", None
-                        ) or top_dict.get("name")
-                        scan.confirmed_card_set_name = getattr(
-                            top, "set_name", None
-                        ) or top_dict.get("set_name")
-                        scan.confirmed_card_number = getattr(
-                            top, "local_id", None
-                        ) or top_dict.get("local_id")
-                        scan.confirmed_card_image_url = getattr(
-                            top, "image_url", None
-                        ) or top_dict.get("image_url")
-                        scan.card_confirmed_at = datetime.now(UTC).replace(tzinfo=None)
-                        scan.card_selection_version = 1
+                    # A ranked candidate is a suggestion, not a user confirmation.
+                    # The live result modal explicitly confirms the selected card
+                    # before it can be added to the collection. Persisting the top
+                    # heuristic result here made low-confidence mistakes look final.
                 except CatalogUnavailableError as err:
                     logger.warning(
                         "Catalog unavailable during live capture for %s: %s",

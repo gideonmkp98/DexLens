@@ -53,7 +53,7 @@ export interface UseCameraResult {
   switchCamera: (deviceId: string) => Promise<boolean>;
   toggleTorch: (enabled?: boolean) => Promise<boolean>;
   setZoom: (zoomLevel: number) => Promise<boolean>;
-  captureFrame: () => Promise<CapturedFrame>;
+  captureFrame: (sourceRect?: RectCoords) => Promise<CapturedFrame>;
   captureDownscaledFrame: (
     targetWidth?: number,
     targetHeight?: number,
@@ -471,50 +471,76 @@ export function useCamera({
    * Captures a full-resolution still frame onto an offscreen canvas.
    * Returns a JPEG Blob and data URL for upload.
    */
-  const captureFrame = useCallback(async (): Promise<CapturedFrame> => {
-    const video = videoRef.current;
-    if (
-      !video ||
-      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-      video.videoWidth === 0
-    ) {
-      throw new Error(
-        "Camera video is niet gereed voor opname. Wacht tot de videofeed actief is."
+  const captureFrame = useCallback(
+    async (sourceRect?: RectCoords): Promise<CapturedFrame> => {
+      const video = videoRef.current;
+      if (
+        !video ||
+        video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        video.videoWidth === 0
+      ) {
+        throw new Error(
+          "Camera video is niet gereed voor opname. Wacht tot de videofeed actief is."
+        );
+      }
+
+      const sourceX = sourceRect
+        ? Math.max(0, Math.min(sourceRect.x, video.videoWidth - 1))
+        : 0;
+      const sourceY = sourceRect
+        ? Math.max(0, Math.min(sourceRect.y, video.videoHeight - 1))
+        : 0;
+      const sourceWidth = sourceRect
+        ? Math.max(1, Math.min(sourceRect.width, video.videoWidth - sourceX))
+        : video.videoWidth;
+      const sourceHeight = sourceRect
+        ? Math.max(1, Math.min(sourceRect.height, video.videoHeight - sourceY))
+        : video.videoHeight;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(sourceWidth));
+      canvas.height = Math.max(1, Math.round(sourceHeight));
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Kan geen 2D context alloceren voor frame capture.");
+      }
+
+      ctx.drawImage(
+        video,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height
       );
-    }
 
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      throw new Error("Kan geen 2D context alloceren voor frame capture.");
-    }
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) => {
+            if (b) resolve(b);
+            else reject(new Error("Mislukt om JPEG blob te genereren."));
+          },
+          "image/jpeg",
+          0.92
+        );
+      });
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => {
-          if (b) resolve(b);
-          else reject(new Error("Mislukt om JPEG blob te genereren."));
-        },
-        "image/jpeg",
-        0.92
-      );
-    });
-
-    return {
-      blob,
-      dataUrl,
-      width: canvas.width,
-      height: canvas.height,
-      timestamp: Date.now(),
-    };
-  }, []);
+      return {
+        blob,
+        dataUrl,
+        width: canvas.width,
+        height: canvas.height,
+        timestamp: Date.now(),
+      };
+    },
+    []
+  );
 
   /**
    * Captures a lightweight downscaled frame (default: 320x240) into an offscreen canvas

@@ -27,8 +27,8 @@ async function performScanUploadAndConfirmation(page: Page): Promise<string> {
   await page.waitForLoadState("domcontentloaded");
 
   const uploadTab = page
-    .locator('nav[aria-label="Scan methode selectie"]')
-    .getByRole("button", { name: "Foto uploaden" });
+    .getByRole("button", { name: /foto uploaden/i })
+    .first();
   if (await uploadTab.isVisible({ timeout: 3000 }).catch(() => false)) {
     await uploadTab.click();
   }
@@ -376,8 +376,8 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
     await expect(page).toHaveTitle(/DexLens/);
 
     const uploadTab = page
-      .locator('nav[aria-label="Scan methode selectie"]')
-      .getByRole("button", { name: "Foto uploaden" });
+      .getByRole("button", { name: /foto uploaden/i })
+      .first();
     if (await uploadTab.isVisible({ timeout: 3000 }).catch(() => false)) {
       await uploadTab.click();
     }

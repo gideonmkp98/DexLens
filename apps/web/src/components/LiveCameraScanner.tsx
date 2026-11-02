@@ -42,11 +42,13 @@ function createCaptureRequestKey(): string {
 
 export interface LiveCameraScannerProps {
   onSwitchToUpload?: () => void;
+  onExit?: () => void;
   className?: string;
 }
 
 export default function LiveCameraScanner({
   onSwitchToUpload,
+  onExit,
   className = "",
 }: LiveCameraScannerProps) {
   // Camera hook
@@ -214,7 +216,24 @@ export default function LiveCameraScanner({
     [refreshSession, sessionId]
   );
 
-  // Full-resolution capture handler
+  const getReticleSourceRect = useCallback((): RectCoords | undefined => {
+    const reticle = reticleRef.current;
+    const video = videoRef.current;
+    if (!reticle || !video) return undefined;
+
+    const reticleBounds = reticle.getBoundingClientRect();
+    const videoBounds = video.getBoundingClientRect();
+    return mapDisplayToVideoCoords({
+      x: reticleBounds.left - videoBounds.left,
+      y: reticleBounds.top - videoBounds.top,
+      width: reticleBounds.width,
+      height: reticleBounds.height,
+    });
+  }, [mapDisplayToVideoCoords, videoRef]);
+
+  // Capture the full-resolution pixels inside the visible card guide. Sending
+  // the entire camera frame made shelves, screens and table edges compete with
+  // the card detector and reduced OCR accuracy in real-world surroundings.
   const handleCapture = useCallback(async () => {
     if (isCapturingRef.current || isMatchModalOpen || !isStreaming) return;
     isCapturingRef.current = true;
@@ -224,7 +243,7 @@ export default function LiveCameraScanner({
     triggerHaptic();
 
     try {
-      const frame = await captureFrame();
+      const frame = await captureFrame(getReticleSourceRect());
       const requestKey = createCaptureRequestKey();
       lastCapturedBlobRef.current = frame.blob;
       lastIdempotencyKeyRef.current = requestKey;
@@ -241,6 +260,7 @@ export default function LiveCameraScanner({
     }
   }, [
     captureFrame,
+    getReticleSourceRect,
     isMatchModalOpen,
     isStreaming,
     processCapturedBlob,
@@ -306,19 +326,7 @@ export default function LiveCameraScanner({
         !isCapturingRef.current &&
         !isMatchModalOpen
       ) {
-        const reticle = reticleRef.current;
-        const video = videoRef.current;
-        let sourceRect: RectCoords | undefined;
-        if (reticle && video) {
-          const reticleBounds = reticle.getBoundingClientRect();
-          const videoBounds = video.getBoundingClientRect();
-          sourceRect = mapDisplayToVideoCoords({
-            x: reticleBounds.left - videoBounds.left,
-            y: reticleBounds.top - videoBounds.top,
-            width: reticleBounds.width,
-            height: reticleBounds.height,
-          });
-        }
+        const sourceRect = getReticleSourceRect();
         const downscaled = captureDownscaledFrame(180, 252, sourceRect);
         if (downscaled) {
           const result = analyzeCardFrame(downscaled, prevFrameRef.current);
@@ -347,11 +355,10 @@ export default function LiveCameraScanner({
   }, [
     captureMode,
     captureDownscaledFrame,
+    getReticleSourceRect,
     handleCapture,
     isMatchModalOpen,
     isStreaming,
-    mapDisplayToVideoCoords,
-    videoRef,
   ]);
 
   // Camera switcher
@@ -456,6 +463,30 @@ export default function LiveCameraScanner({
 
       {!cameraRequested && !isStreaming && !cameraError && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#20251f] px-6 text-center">
+          {onExit ? (
+            <button
+              type="button"
+              onClick={onExit}
+              className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] flex min-h-10 items-center gap-2 rounded-[5px] border border-[#f3efdf]/25 bg-[#171c16] px-3 text-xs font-black text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#eb6b5d]"
+              aria-label="Scanner sluiten"
+            >
+              <span className="text-base leading-none" aria-hidden="true">
+                ×
+              </span>
+              Terug
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="absolute left-4 top-[max(1rem,env(safe-area-inset-top))] flex min-h-10 items-center gap-2 rounded-[5px] border border-[#f3efdf]/25 bg-[#171c16] px-3 text-xs font-black text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#eb6b5d]"
+              aria-label="Scanner sluiten"
+            >
+              <span className="text-base leading-none" aria-hidden="true">
+                ×
+              </span>
+              Terug
+            </Link>
+          )}
           <div className="max-w-sm">
             <span
               className="pokeball mx-auto mb-6 block h-16 w-16 rotate-[-12deg]"
@@ -559,129 +590,156 @@ export default function LiveCameraScanner({
       )}
 
       {/* Top Bar: Controls HUD */}
-      <header className="relative z-20 flex items-center justify-between px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        {/* Mode Switcher / Back Button */}
-        <div className="flex items-center gap-2">
-          {onSwitchToUpload ? (
+      {(cameraRequested || isStreaming || cameraError) && (
+        <header className="relative z-20 flex items-center justify-between px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          {/* Exit and alternate input */}
+          <div className="flex items-center gap-2">
+            {onExit ? (
+              <button
+                type="button"
+                onClick={onExit}
+                className="flex h-9 items-center gap-2 rounded-[5px] border border-[#f3efdf]/30 bg-[#171c16]/95 px-2.5 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#eb6b5d] hover:text-white"
+                aria-label="Scanner sluiten"
+              >
+                <span className="text-base leading-none" aria-hidden="true">
+                  ×
+                </span>
+                <span className="hidden text-[10px] font-black uppercase tracking-[0.14em] sm:inline">
+                  Sluiten
+                </span>
+              </button>
+            ) : (
+              <Link
+                href="/"
+                className="flex h-9 items-center gap-2 rounded-[5px] border border-[#f3efdf]/30 bg-[#171c16]/95 px-2.5 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#eb6b5d]"
+                aria-label="Scanner sluiten"
+              >
+                <span className="text-base leading-none" aria-hidden="true">
+                  ×
+                </span>
+              </Link>
+            )}
+            {onSwitchToUpload ? (
+              <button
+                type="button"
+                onClick={onSwitchToUpload}
+                className="flex h-9 items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-2.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
+                aria-label="Schakel over naar foto uploaden"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Upload</span>
+              </button>
+            ) : null}
+          </div>
+
+          {/* Action Controls: Auto-capture, Torch & Camera Switch */}
+          <div className="flex items-center gap-2">
+            {/* Explicit capture mode selector */}
             <button
               type="button"
-              onClick={onSwitchToUpload}
-              className="flex items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-3 py-1.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
-              aria-label="Schakel over naar foto uploaden"
+              onClick={() => {
+                setCaptureMode((mode) => (mode === "auto" ? "manual" : "auto"));
+                stabilityTrackerRef.current.reset();
+                setStability(null);
+              }}
+              className="flex h-9 items-center gap-2 rounded-[5px] border border-[#f3efdf]/30 bg-[#171c16]/95 px-2.5 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
+              title="Wissel tussen automatisch en handmatig vastleggen"
+              aria-pressed={captureMode === "auto"}
             >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+              <span
+                className={`relative h-4 w-7 rounded-full border transition ${
+                  captureMode === "auto"
+                    ? "border-emerald-300/50 bg-emerald-400/20"
+                    : "border-[#f3efdf]/25 bg-[#2a3028]"
+                }`}
                 aria-hidden="true"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                <span
+                  className={`absolute top-0.5 h-2.5 w-2.5 rounded-full transition-transform ${
+                    captureMode === "auto"
+                      ? "translate-x-3 bg-emerald-300"
+                      : "translate-x-0.5 bg-[#b6bbaa]"
+                  }`}
                 />
-              </svg>
-              <span>Foto uploaden</span>
+              </span>
+              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.12em]">
+                {captureMode === "auto" ? "Auto" : "Handmatig"}
+              </span>
             </button>
-          ) : (
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 px-3 py-1.5 text-xs font-bold text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
-            >
-              <span>← Terug</span>
-            </Link>
-          )}
-        </div>
 
-        {/* Action Controls: Auto-capture, Torch & Camera Switch */}
-        <div className="flex items-center gap-2">
-          {/* Explicit capture mode selector */}
-          <button
-            type="button"
-            onClick={() => {
-              setCaptureMode((mode) => (mode === "auto" ? "manual" : "auto"));
-              stabilityTrackerRef.current.reset();
-              setStability(null);
-            }}
-            className={`flex items-center gap-1.5 rounded-[5px] border px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_#10150f] transition ${
-              captureMode === "auto"
-                ? "border-[#252923] bg-[#f1ca53] text-[#252923]"
-                : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf]"
-            }`}
-            title="Wissel tussen automatisch en handmatig vastleggen"
-            aria-pressed={captureMode === "auto"}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                captureMode === "auto"
-                  ? "animate-pulse bg-[#c6372e]"
-                  : "bg-[#f3efdf]"
-              }`}
-            />
-            <span>{captureMode === "auto" ? "Auto" : "Handmatig"}</span>
-          </button>
-
-          {/* Torch toggle (if supported by track) */}
-          {hasTorch && (
-            <button
-              type="button"
-              onClick={() => void toggleTorch()}
-              className={`flex h-9 w-9 items-center justify-center rounded-[5px] border shadow-[3px_3px_0_#10150f] transition ${
-                isTorchOn
-                  ? "border-[#252923] bg-[#f1ca53] text-[#252923]"
-                  : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] hover:border-[#f1ca53]"
-              }`}
-              aria-label={
-                isTorchOn ? "Zaklamp uitschakelen" : "Zaklamp inschakelen"
-              }
-              title="Zaklamp"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
+            {/* Torch toggle (if supported by track) */}
+            {hasTorch && (
+              <button
+                type="button"
+                onClick={() => void toggleTorch()}
+                className={`flex h-9 w-9 items-center justify-center rounded-[5px] border shadow-[3px_3px_0_#10150f] transition ${
+                  isTorchOn
+                    ? "border-[#252923] bg-[#f1ca53] text-[#252923]"
+                    : "border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] hover:border-[#f1ca53]"
+                }`}
+                aria-label={
+                  isTorchOn ? "Zaklamp uitschakelen" : "Zaklamp inschakelen"
+                }
+                title="Zaklamp"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </button>
-          )}
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </button>
+            )}
 
-          {/* Camera switcher (if multiple lenses available) */}
-          {devices.length > 1 && (
-            <button
-              type="button"
-              onClick={handleSwitchCamera}
-              className="flex h-9 w-9 items-center justify-center rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
-              aria-label="Wissel van camera"
-              title="Camera wisselen"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
+            {/* Camera switcher (if multiple lenses available) */}
+            {devices.length > 1 && (
+              <button
+                type="button"
+                onClick={handleSwitchCamera}
+                className="flex h-9 w-9 items-center justify-center rounded-[5px] border border-[#f3efdf]/30 bg-[#20251f]/95 text-[#f3efdf] shadow-[3px_3px_0_#10150f] transition hover:border-[#f1ca53]"
+                aria-label="Wissel van camera"
+                title="Camera wisselen"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-      </header>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* Viewfinder Center: Optical Card Framing Reticle */}
       <main className="relative flex min-h-0 flex-1 items-center justify-center px-4 py-2">
@@ -808,52 +866,69 @@ export default function LiveCameraScanner({
             </button>
           </div>
         ) : (
-          <div className="flex w-full max-w-sm items-center gap-3 rounded-[5px] border border-[#f3efdf]/35 bg-[#20251f]/95 px-3 py-2 shadow-[4px_4px_0_#10150f]">
-            <div className="relative h-10 w-10 shrink-0">
-              <svg
-                className="-rotate-90"
-                width={40}
-                height={40}
-                viewBox="0 0 96 96"
-                aria-hidden="true"
+          <div className="w-full max-w-sm rounded-[7px] border border-[#f3efdf]/25 bg-[#171c16]/95 p-2.5 shadow-[4px_4px_0_#10150f]">
+            <div className="flex items-center gap-3">
+              <div className="relative h-11 w-11 shrink-0 rounded-[5px] border border-[#f1ca53]/40 bg-[#20251f]">
+                <svg
+                  className="absolute inset-0 -rotate-90"
+                  width={44}
+                  height={44}
+                  viewBox="0 0 96 96"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx={48}
+                    cy={48}
+                    r={ringRadius}
+                    className="stroke-[#f3efdf]/10"
+                    strokeWidth={6}
+                    fill="transparent"
+                  />
+                  <circle
+                    cx={48}
+                    cy={48}
+                    r={ringRadius}
+                    className="stroke-[#f1ca53] transition-all duration-200"
+                    strokeWidth={6}
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringOffset}
+                    strokeLinecap="round"
+                    fill="transparent"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-[#f1ca53]">
+                  {Math.min(3, consecutiveCount)}/3
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[#eb6b5d]">
+                  Auto capture actief
+                </p>
+                <p className="truncate text-xs font-black text-[#f3efdf]">
+                  {isCardReady ? "Klaar om vast te leggen" : feedbackText}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCapture}
+                disabled={isCapturing || !isStreaming}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#f3efdf] bg-[#c6372e] text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:scale-105 active:scale-95 disabled:opacity-50"
+                aria-label="Nu vastleggen"
+                title="Nu vastleggen"
               >
-                <circle
-                  cx={48}
-                  cy={48}
-                  r={ringRadius}
-                  className="stroke-[#f3efdf]/15"
-                  strokeWidth={8}
-                  fill="transparent"
-                />
-                <circle
-                  cx={48}
-                  cy={48}
-                  r={ringRadius}
-                  className="stroke-[#f1ca53] transition-all duration-200"
-                  strokeWidth={8}
-                  strokeDasharray={ringCircumference}
-                  strokeDashoffset={ringOffset}
-                  strokeLinecap="round"
-                  fill="transparent"
-                />
-              </svg>
+                <span className="h-3.5 w-3.5 rounded-full border border-[#fff9ee]" />
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-[#f3efdf]">
-                Automatisch scannen
-              </p>
-              <p className="truncate font-mono text-[10px] uppercase tracking-wide text-[#b6bbaa]">
-                {feedbackText}
-              </p>
+            <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
+              {[0, 1, 2].map((step) => (
+                <span
+                  key={step}
+                  className={`h-1 rounded-[1px] transition-colors ${
+                    consecutiveCount > step ? "bg-[#f1ca53]" : "bg-[#3b4338]"
+                  }`}
+                />
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={handleCapture}
-              disabled={isCapturing || !isStreaming}
-              className="min-h-10 shrink-0 rounded-[5px] border border-[#252923] bg-[#c6372e] px-3 text-xs font-black text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:bg-[#d94b40] disabled:opacity-50"
-            >
-              Nu vastleggen
-            </button>
           </div>
         )}
         <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-[#b6bbaa]">

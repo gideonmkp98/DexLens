@@ -477,6 +477,8 @@ def test_api_capture_frame_success(client: TestClient, db: Session):
         assert scan_record is not None
         assert scan_record.session_id == session_id
         assert scan_record.recognized_name == "Charizard"
+        assert scan_record.confirmed_card_id is None
+        assert scan_record.card_confirmed_at is None
 
 
 def test_api_capture_frame_not_detected_fallback(client: TestClient):

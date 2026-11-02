@@ -44,7 +44,7 @@ export default function LiveScanMatchModal({
       );
       setAddedItem(null);
       setActionError(null);
-      setShowAlternatives(false);
+      setShowAlternatives(captureResult.scan.confidence_state === "low");
     }
   }, [captureResult]);
 
@@ -75,11 +75,26 @@ export default function LiveScanMatchModal({
     (addedItem?.quantity ?? captureResult.collection_quantity) || 1;
 
   // Confidence calculations
-  const confidenceScore = match?.score
-    ? Math.round(match.score > 1 ? match.score : match.score * 100)
-    : scan.ocr_confidence
-      ? Math.round(scan.ocr_confidence * 100)
-      : null;
+  const confidenceScore =
+    match?.score !== undefined && match?.score !== null
+      ? Math.round(match.score)
+      : scan.ocr_confidence !== undefined && scan.ocr_confidence !== null
+        ? Math.round(scan.ocr_confidence)
+        : null;
+  const confidenceState =
+    scan.confidence_state ||
+    (confidenceScore !== null && confidenceScore >= 75
+      ? "high"
+      : confidenceScore !== null && confidenceScore >= 45
+        ? "medium"
+        : "low");
+  const isLowConfidence = confidenceState === "low";
+  const confidenceLabel =
+    confidenceState === "high"
+      ? "Sterke match"
+      : confidenceState === "medium"
+        ? "Waarschijnlijke match"
+        : "Controleer deze suggestie";
 
   const handleAddToCollection = async () => {
     if (isAdding || isThisScanAdded) return;
@@ -136,7 +151,7 @@ export default function LiveScanMatchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[#10150f]/90 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="live-scan-match-title"
@@ -145,23 +160,31 @@ export default function LiveScanMatchModal({
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       {/* Modal Dialog Card / Sheet */}
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-slate-950 text-white shadow-2xl sm:rounded-3xl">
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-[10px] border border-[#f3efdf]/25 bg-[#20251f] text-[#f3efdf] shadow-[0_-6px_0_#10150f] sm:rounded-[10px] sm:shadow-[7px_7px_0_#10150f]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-[#f3efdf]/15 px-5 py-4">
           <div className="flex items-center gap-2">
-            <span className="flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
+            <span
+              className={`flex h-2.5 w-2.5 rounded-full ${
+                confidenceState === "high"
+                  ? "bg-emerald-400"
+                  : isLowConfidence
+                    ? "bg-[#eb6b5d]"
+                    : "bg-[#f1ca53]"
+              }`}
+            />
             <h2
               id="live-scan-match-title"
-              className="font-mono text-xs font-bold uppercase tracking-widest text-emerald-400"
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#f3efdf]"
             >
-              HERKENDE POKÉMON KAART
+              {confidenceLabel}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Sluit dialoogvenster"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-[5px] border border-[#f3efdf]/20 text-[#b6bbaa] transition hover:border-[#eb6b5d] hover:text-white"
           >
             ✕
           </button>
@@ -172,7 +195,7 @@ export default function LiveScanMatchModal({
           {actionError && (
             <div
               role="alert"
-              className="mb-4 rounded-xl border border-rose-500/40 bg-rose-950/60 p-3 text-xs text-rose-200"
+              className="mb-4 rounded-[5px] border border-[#eb6b5d] bg-[#171c16] p-3 text-xs text-[#f3efdf]"
             >
               {actionError}
             </div>
@@ -180,10 +203,24 @@ export default function LiveScanMatchModal({
 
           {match ? (
             <div>
+              <div
+                className={`mb-5 rounded-[5px] border p-3 text-xs leading-relaxed ${
+                  isLowConfidence
+                    ? "border-[#eb6b5d]/70 bg-[#eb6b5d]/10 text-[#f3efdf]"
+                    : confidenceState === "medium"
+                      ? "border-[#f1ca53]/60 bg-[#f1ca53]/10 text-[#f3efdf]"
+                      : "border-emerald-400/35 bg-emerald-400/10 text-emerald-100"
+                }`}
+              >
+                <strong className="font-black">{confidenceLabel}.</strong>{" "}
+                {isLowConfidence
+                  ? "Vergelijk de afbeelding en kies zo nodig een andere mogelijkheid voordat je de kaart toevoegt."
+                  : "Vergelijk de afbeelding kort met je kaart voordat je bevestigt."}
+              </div>
               {/* Primary Card Slab */}
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                 {/* Artwork */}
-                <div className="relative mx-auto aspect-card w-40 flex-shrink-0 overflow-hidden rounded-xl border-2 border-white/15 bg-slate-900 shadow-xl sm:mx-0 sm:w-44">
+                <div className="relative mx-auto aspect-card w-40 flex-shrink-0 overflow-hidden rounded-[6px] border-2 border-[#f1ca53]/65 bg-[#171c16] shadow-[5px_5px_0_#10150f] sm:mx-0 sm:w-44">
                   {match.image_url || scan.crop_image_url ? (
                     <Image
                       src={match.image_url || scan.crop_image_url || ""}
@@ -194,14 +231,14 @@ export default function LiveScanMatchModal({
                       unoptimized
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center font-mono text-xs text-slate-500">
+                    <div className="flex h-full w-full items-center justify-center font-mono text-xs text-[#8d9485]">
                       Geen afbeelding
                     </div>
                   )}
 
                   {confidenceScore !== null && (
-                    <span className="absolute bottom-2 left-2 rounded-md border border-emerald-500/30 bg-slate-950/80 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-400 backdrop-blur-sm">
-                      {confidenceScore}% match
+                    <span className="absolute bottom-2 left-2 rounded-[3px] border border-[#f3efdf]/25 bg-[#171c16]/95 px-2 py-0.5 font-mono text-[10px] font-bold text-[#f1ca53]">
+                      Rangscore {confidenceScore}/100
                     </span>
                   )}
                 </div>
@@ -209,7 +246,7 @@ export default function LiveScanMatchModal({
                 {/* Details */}
                 <div className="flex flex-1 flex-col justify-center">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                    <span className="rounded-[3px] border border-[#f3efdf]/15 bg-[#171c16] px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#d9d4c4]">
                       #{match.local_id}
                     </span>
                     {hasExistingInCollection && (
@@ -219,16 +256,16 @@ export default function LiveScanMatchModal({
                     )}
                   </div>
 
-                  <h3 className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl">
+                  <h3 className="mt-2 text-xl font-black tracking-tight text-[#f3efdf] sm:text-2xl">
                     {match.name}
                   </h3>
 
-                  <p className="mt-1 font-mono text-xs text-slate-400">
+                  <p className="mt-1 font-mono text-xs text-[#b6bbaa]">
                     {match.set_name}
                   </p>
 
                   {match.reasons && match.reasons.length > 0 && (
-                    <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                    <p className="mt-2 text-[11px] leading-relaxed text-[#9fa696]">
                       {match.reasons.join(" · ")}
                     </p>
                   )}
@@ -239,10 +276,10 @@ export default function LiveScanMatchModal({
                       type="button"
                       onClick={handleAddToCollection}
                       disabled={isAdding || isThisScanAdded}
-                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition active:scale-95 ${
+                      className={`inline-flex items-center justify-center gap-2 rounded-[5px] border px-4 py-2.5 text-xs font-black shadow-[3px_3px_0_#10150f] transition active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${
                         isThisScanAdded
-                          ? "cursor-default border border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
-                          : "bg-emerald-600 text-white shadow-md hover:bg-emerald-500"
+                          ? "cursor-default border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                          : "border-[#252923] bg-[#c6372e] text-[#fff9ee] hover:bg-[#d94b40]"
                       }`}
                     >
                       {isAdding ? (
@@ -257,7 +294,11 @@ export default function LiveScanMatchModal({
                         </>
                       ) : (
                         <>
-                          <span>Voeg toe aan collectie</span>
+                          <span>
+                            {isLowConfidence
+                              ? "Bevestig & voeg toe"
+                              : "Voeg toe aan collectie"}
+                          </span>
                           <span aria-hidden="true">+</span>
                         </>
                       )}
@@ -266,7 +307,7 @@ export default function LiveScanMatchModal({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-sky-500 active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 rounded-[5px] border border-[#f3efdf]/25 bg-[#2a3028] px-5 py-2.5 text-xs font-bold text-[#f3efdf] transition hover:border-[#f1ca53] active:scale-95"
                     >
                       <span>Volgende kaart scannen</span>
                       <span aria-hidden="true">→</span>
@@ -277,16 +318,16 @@ export default function LiveScanMatchModal({
 
               {/* Alternative candidates accordion */}
               {alternativeCandidates.length > 0 && (
-                <div className="mt-6 border-t border-white/10 pt-4">
+                <div className="mt-6 border-t border-[#f3efdf]/15 pt-4">
                   <button
                     type="button"
                     onClick={() => setShowAlternatives((prev) => !prev)}
-                    className="flex w-full items-center justify-between py-1 text-xs font-bold text-slate-300 hover:text-white"
+                    className="flex w-full items-center justify-between py-1 text-xs font-bold text-[#d9d4c4] hover:text-white"
                   >
                     <span>
                       Andere mogelijkheden ({alternativeCandidates.length})
                     </span>
-                    <span className="font-mono text-slate-400">
+                    <span className="font-mono text-[#b6bbaa]">
                       {showAlternatives ? "− Inklappen" : "+ Uitklappen"}
                     </span>
                   </button>
@@ -296,11 +337,11 @@ export default function LiveScanMatchModal({
                       {alternativeCandidates.map((alt) => (
                         <div
                           key={alt.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-900/60 p-2.5 text-xs transition hover:border-white/20"
+                          className="flex items-center justify-between gap-3 rounded-[5px] border border-[#f3efdf]/15 bg-[#171c16] p-2.5 text-xs transition hover:border-[#f1ca53]/60"
                         >
                           <div className="flex min-w-0 items-center gap-3">
                             {alt.image_url ? (
-                              <div className="relative h-12 w-9 flex-shrink-0 overflow-hidden rounded bg-slate-950">
+                              <div className="relative h-12 w-9 flex-shrink-0 overflow-hidden rounded-[3px] bg-[#10150f]">
                                 <Image
                                   src={alt.image_url}
                                   alt={alt.name}
@@ -312,10 +353,10 @@ export default function LiveScanMatchModal({
                               </div>
                             ) : null}
                             <div className="min-w-0">
-                              <p className="truncate font-bold text-white">
+                              <p className="truncate font-bold text-[#f3efdf]">
                                 {alt.name}
                               </p>
-                              <p className="truncate font-mono text-[10px] text-slate-400">
+                              <p className="truncate font-mono text-[10px] text-[#b6bbaa]">
                                 {alt.set_name} · #{alt.local_id}
                               </p>
                             </div>
@@ -325,7 +366,7 @@ export default function LiveScanMatchModal({
                             type="button"
                             onClick={() => handleSelectAlternative(alt)}
                             disabled={isSelectingAlt}
-                            className="flex-shrink-0 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-white/20 active:scale-95 disabled:opacity-50"
+                            className="flex-shrink-0 rounded-[4px] border border-[#f3efdf]/25 bg-[#2a3028] px-2.5 py-1 text-[11px] font-bold text-[#f3efdf] transition hover:border-[#f1ca53] active:scale-95 disabled:opacity-50"
                           >
                             Kies deze kaart
                           </button>
@@ -339,7 +380,7 @@ export default function LiveScanMatchModal({
           ) : (
             /* Fallback when no candidate detected */
             <div className="py-6 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-[5px] border border-[#f1ca53]/50 bg-[#f1ca53]/10 text-[#f1ca53]">
                 <svg
                   className="h-6 w-6"
                   fill="none"
@@ -354,10 +395,10 @@ export default function LiveScanMatchModal({
                   />
                 </svg>
               </div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-bold text-[#f3efdf]">
                 Geen kaart automatisch herkend
               </h3>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-[#b6bbaa]">
                 Zorg voor voldoende licht en houd de kaart recht binnen het
                 kader.
               </p>
@@ -365,13 +406,13 @@ export default function LiveScanMatchModal({
                 <button
                   type="button"
                   onClick={onRetake}
-                  className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-sky-500"
+                  className="rounded-[5px] border border-[#252923] bg-[#c6372e] px-4 py-2 text-xs font-black text-[#fff9ee] shadow-[2px_2px_0_#10150f] transition hover:bg-[#d94b40]"
                 >
                   Opnieuw scannen
                 </button>
                 <Link
                   href={`/scan/${scan.id}`}
-                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                  className="rounded-[5px] border border-[#f3efdf]/25 bg-[#2a3028] px-4 py-2 text-xs font-bold text-[#f3efdf] transition hover:border-[#f1ca53]"
                 >
                   Handmatig uitsnijden & zoeken →
                 </Link>
@@ -381,7 +422,7 @@ export default function LiveScanMatchModal({
         </div>
 
         {/* Modal Footer Secondary actions */}
-        <div className="flex items-center justify-between border-t border-white/10 bg-slate-900/60 px-6 py-3 text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-[#f3efdf]/15 bg-[#171c16] px-6 py-3 text-xs text-[#b6bbaa]">
           <button
             type="button"
             onClick={onRetake}
@@ -391,7 +432,7 @@ export default function LiveScanMatchModal({
           </button>
           <Link
             href={`/scan/${scan.id}`}
-            className="text-sky-400 transition hover:text-sky-300"
+            className="text-[#f1ca53] transition hover:text-[#ffe178]"
           >
             Handmatig aanpassen →
           </Link>

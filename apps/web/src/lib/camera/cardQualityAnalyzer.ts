@@ -21,13 +21,13 @@ import type {
 } from "./types.ts";
 
 export const DEFAULT_ANALYZER_OPTIONS: Required<QualityAnalyzerOptions> = {
-  minLuminance: 40,
-  maxLuminance: 220,
-  maxGlareRatio: 0.04, // 4% of pixels saturated
-  minSharpness: 45, // Laplacian variance
-  maxMotionMAD: 18.0, // Exposure-compensated mean absolute pixel difference
+  minLuminance: 32,
+  maxLuminance: 230,
+  maxGlareRatio: 0.06, // tolerate small foil highlights without blocking capture
+  minSharpness: 35, // enough edge detail for OCR without fighting autofocus
+  maxMotionMAD: 24.0, // discount normal handheld sensor noise and autofocus shifts
   targetAspectRatio: 63 / 88, // ~0.7159 (standard Pokémon TCG card)
-  aspectRatioTolerance: 0.15,
+  aspectRatioTolerance: 0.2,
 };
 
 /**

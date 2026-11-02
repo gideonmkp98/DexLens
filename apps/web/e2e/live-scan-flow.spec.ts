@@ -82,6 +82,10 @@ async function setupMockCamera(page: Page, options: MockCameraOptions = {}) {
       HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
         const curMode = (window as any).__cameraMock?.mode;
         if (curMode === "card" && (window as any).__pikachuBlob) {
+          (window as any).__cameraMock.lastCaptureSize = {
+            width: this.width,
+            height: this.height,
+          };
           callback((window as any).__pikachuBlob);
           return;
         }
@@ -323,9 +327,12 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     const video = page.locator('video[aria-label="Live camera videofeed"]');
     await expect(video).toBeVisible({ timeout: 10000 });
 
-    // Mode switcher shows Live Scanner active
-    const liveModeBtn = page.getByRole("button", { name: /Live Scanner/i });
-    await expect(liveModeBtn).toHaveAttribute("aria-pressed", "true");
+    // Live mode is a dedicated full-screen workspace without a duplicate
+    // page-level mode switcher above the camera controls.
+    await expect(page.getByTestId("live-camera-scanner")).toBeVisible();
+    await expect(
+      page.locator('nav[aria-label="Scan methode selectie"]')
+    ).not.toBeVisible();
 
     // Switch to manual so the quality HUD can be observed without auto-capturing.
     await page.getByRole("button", { name: "Auto" }).click();
@@ -438,10 +445,23 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await shutterBtn.click();
     await capturePromise;
 
+    const capturedSize = await page.evaluate(
+      () => (window as any).__cameraMock?.lastCaptureSize
+    );
+    expect(capturedSize).toBeTruthy();
+    expect(capturedSize.width).toBeLessThan(640);
+    expect(capturedSize.height).toBeLessThan(480);
+    expect(capturedSize.width / capturedSize.height).toBeGreaterThan(0.69);
+    expect(capturedSize.width / capturedSize.height).toBeLessThan(0.74);
+
     // Match modal opens
     const modal = page.locator('[role="dialog"]');
     await expect(modal).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText("HERKENDE POKÉMON KAART")).toBeVisible();
+    await expect(
+      modal.getByRole("heading", {
+        name: /Sterke match|Waarschijnlijke match|Controleer deze suggestie/,
+      })
+    ).toBeVisible();
   });
 
   // =========================================================================
@@ -544,12 +564,12 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Verify candidate slab details for Pikachu
     await expect(modal.locator("h3")).toContainText("Pikachu");
-    await expect(modal.getByText(/Base Set/i)).toBeVisible();
-    await expect(modal.getByText("#58")).toBeVisible();
-    await expect(modal.getByText(/% match/)).toBeVisible();
+    await expect(modal.getByText("Base Set", { exact: true })).toBeVisible();
+    await expect(modal.getByText("#58", { exact: true })).toBeVisible();
+    await expect(modal.getByText(/Rangscore \d+\/100/)).toBeVisible();
 
     // Card artwork image is rendered
-    const artwork = modal.locator('img[alt="Pikachu"]');
+    const artwork = modal.locator('img[alt="Pikachu"]').first();
     await expect(artwork).toBeVisible();
   });
 
@@ -610,7 +630,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Add card to collection
     const addBtn = modal.getByRole("button", {
-      name: /Voeg toe aan collectie/i,
+      name: /Voeg toe aan collectie|Bevestig & voeg toe/i,
     });
     await expect(addBtn).toBeVisible();
 
@@ -646,7 +666,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Add first scan to collection
     const addBtn = modal.getByRole("button", {
-      name: /Voeg toe aan collectie/i,
+      name: /Voeg toe aan collectie|Bevestig & voeg toe/i,
     });
     const addPromise1 = page.waitForResponse(
       (resp) => resp.url().includes("/collection") && resp.status() === 201
@@ -695,7 +715,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Add second scan to collection (increments quantity to 2)
     const addBtn2 = modal.getByRole("button", {
-      name: /Voeg toe aan collectie/i,
+      name: /Voeg toe aan collectie|Bevestig & voeg toe/i,
     });
     await expect(addBtn2).toBeVisible({ timeout: 10000 });
     const addPromise2 = page.waitForResponse(
@@ -732,7 +752,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await expect(modal).toBeVisible({ timeout: 15000 });
 
     const addBtn = modal.getByRole("button", {
-      name: /Voeg toe aan collectie/i,
+      name: /Voeg toe aan collectie|Bevestig & voeg toe/i,
     });
     const addPromise = page.waitForResponse(
       (resp) => resp.url().includes("/collection") && resp.status() === 201
@@ -819,11 +839,14 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
     await page.goto("/scan");
     await startLiveScanner(page);
 
-    // Switch to photo upload mode tab via top mode navigation
+    // Switch through the camera HUD; the page-level switcher is intentionally
+    // hidden while the full-screen live camera is active.
+    await page
+      .getByRole("button", { name: "Schakel over naar foto uploaden" })
+      .click();
     const uploadTabBtn = page
       .locator('nav[aria-label="Scan methode selectie"]')
       .getByRole("button", { name: "Foto uploaden" });
-    await uploadTabBtn.click();
     await expect(uploadTabBtn).toHaveAttribute("aria-pressed", "true");
 
     // Upload pikachu image
@@ -888,7 +911,7 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Add to collection
     const addToCollectionBtn = page.getByRole("button", {
-      name: /Voeg toe aan collectie/i,
+      name: /Voeg toe aan collectie|Bevestig & voeg toe/i,
     });
     await expect(addToCollectionBtn).toBeVisible({ timeout: 15000 });
     const addPromise = page.waitForResponse(
@@ -916,11 +939,11 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
       page.locator('video[aria-label="Live camera videofeed"]')
     ).toBeVisible({ timeout: 10000 });
 
-    // Switching to upload mode unmounts the camera scanner without reloading.
-    await page
-      .locator('nav[aria-label="Scan methode selectie"]')
-      .getByRole("button", { name: "Foto uploaden" })
-      .click();
+    // The scanner has an explicit exit and releases the media stream.
+    const closeScanner = page.getByRole("button", { name: "Scanner sluiten" });
+    await expect(closeScanner).toBeVisible();
+    await closeScanner.click();
+    await expect(page).toHaveURL("/");
 
     // Verify track.stop() was called during component unmount
     const wasStopped = await page.evaluate(
