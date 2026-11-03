@@ -1,4 +1,4 @@
-import { ensureBrowserSession } from "@/lib/session";
+import { ensureBrowserSession, notifyUnauthorized } from "@/lib/session";
 
 export interface HealthResponse {
   status: "ok" | "degraded" | "disconnected" | string;
@@ -475,6 +475,9 @@ async function parseApiError(
   res: Response,
   fallbackMsg: string
 ): Promise<ApiError> {
+  if (res.status === 401) {
+    notifyUnauthorized();
+  }
   let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
   let errorCode: string | undefined;
   try {

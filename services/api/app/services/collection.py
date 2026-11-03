@@ -652,110 +652,75 @@ class CollectionService:
             set_id = card_id.split("-")[0] if "-" in card_id else "unknown"
 
         acquired_at = data.acquired_at or date.today()
-        item = self._find_merge_target(
-            card_id=card_id,
-            provider="tcgdex",
-            language="en",
-            variant=data.variant,
-            condition=data.condition,
-            user_id=effective_user_id,
-            anonymous_session_id=effective_anon_id,
-            use_explicit_owner=True,
-        )
-        if item is None:
-            item = CollectionItem(
-                id=str(uuid.uuid4()),
-                user_id=effective_user_id,
-                anonymous_session_id=effective_anon_id,
-                card_id=card_id,
-                provider="tcgdex",
-                card_name=card_name,
-                set_id=set_id,
-                set_name=set_name,
-                collector_number=collector_number,
-                card_image_url=card_image_url,
-                quantity=data.quantity,
-                language="en",
-                variant=data.variant,
-                condition=data.condition,
-                notes=data.notes,
-                purchase_price=data.purchase_price,
-                currency=data.currency,
-                acquired_at=acquired_at,
-                source_scan_id=scan_id,
-                version=1,
-            )
+        for attempt in range(6):
             try:
-                self.db.add(item)
-                self.db.flush()
-                self.db.add(
-                    CollectionScanLink(scan_id=scan_id, collection_item_id=item.id)
+                # Check if this scan was already linked concurrently
+                raw_linked = await self.get_item_for_scan(
+                    scan_id,
+                    user_id=effective_user_id,
+                    anonymous_session_id=effective_anon_id,
+                    use_explicit_owner=True,
                 )
-                self.db.commit()
-                self.db.refresh(item)
-                return item, True
-            except (IntegrityError, OperationalError):
-                self.db.rollback()
-                for _ in range(5):
-                    # Check if this scan was already linked concurrently
-                    raw_linked = await self.get_item_for_scan(
-                        scan_id,
+                if raw_linked is not None:
+                    return raw_linked, False
+
+                item = self._find_merge_target(
+                    card_id=card_id,
+                    provider="tcgdex",
+                    language="en",
+                    variant=data.variant,
+                    condition=data.condition,
+                    user_id=effective_user_id,
+                    anonymous_session_id=effective_anon_id,
+                    use_explicit_owner=True,
+                )
+                if item is None:
+                    item = CollectionItem(
+                        id=str(uuid.uuid4()),
                         user_id=effective_user_id,
                         anonymous_session_id=effective_anon_id,
-                        use_explicit_owner=True,
-                    )
-                    if raw_linked is not None:
-                        return raw_linked, False
-
-                    # Race with another scan for the same grouping card
-                    winner = self._find_merge_target(
                         card_id=card_id,
                         provider="tcgdex",
+                        card_name=card_name,
+                        set_id=set_id,
+                        set_name=set_name,
+                        collector_number=collector_number,
+                        card_image_url=card_image_url,
+                        quantity=data.quantity,
                         language="en",
                         variant=data.variant,
                         condition=data.condition,
-                        user_id=effective_user_id,
-                        anonymous_session_id=effective_anon_id,
-                        use_explicit_owner=True,
+                        notes=data.notes,
+                        purchase_price=data.purchase_price,
+                        currency=data.currency,
+                        acquired_at=acquired_at,
+                        source_scan_id=scan_id,
+                        version=1,
                     )
-                    if winner is not None:
-                        winner.quantity += data.quantity
-                        winner.version += 1
-                        winner.updated_at = datetime.now(UTC).replace(tzinfo=None)
-                        if winner.source_scan_id is None:
-                            winner.source_scan_id = scan_id
-                        try:
-                            self.db.add(
-                                CollectionScanLink(
-                                    scan_id=scan_id, collection_item_id=winner.id
-                                )
-                            )
-                            self.db.commit()
-                            self.db.refresh(winner)
-                            return winner, True
-                        except IntegrityError:
-                            self.db.rollback()
-                            continue
-                    time.sleep(0.05)
-                raise
+                    self.db.add(item)
+                    self.db.flush()
+                    self.db.add(
+                        CollectionScanLink(scan_id=scan_id, collection_item_id=item.id)
+                    )
+                    self.db.commit()
+                    self.db.refresh(item)
+                    return item, True
+                else:
+                    item.quantity += data.quantity
+                    item.version += 1
+                    item.updated_at = datetime.now(UTC).replace(tzinfo=None)
+                    if item.source_scan_id is None:
+                        item.source_scan_id = scan_id
 
-        else:
-            item.quantity += data.quantity
-            item.version += 1
-            item.updated_at = datetime.now(UTC).replace(tzinfo=None)
-            if item.source_scan_id is None:
-                item.source_scan_id = scan_id
-
-            try:
-                self.db.add(
-                    CollectionScanLink(scan_id=scan_id, collection_item_id=item.id)
-                )
-                self.db.commit()
-                self.db.refresh(item)
-                return item, True
+                    self.db.add(
+                        CollectionScanLink(scan_id=scan_id, collection_item_id=item.id)
+                    )
+                    self.db.commit()
+                    self.db.refresh(item)
+                    return item, True
             except (IntegrityError, OperationalError):
                 self.db.rollback()
-                # Same scan added concurrently
+                # Check if this scan was already linked concurrently
                 linked = await self.get_item_for_scan(
                     scan_id,
                     user_id=effective_user_id,
@@ -764,4 +729,6 @@ class CollectionService:
                 )
                 if linked is not None:
                     return linked, False
-                raise
+                if attempt == 5:
+                    raise
+                time.sleep(0.05 * (attempt + 1))

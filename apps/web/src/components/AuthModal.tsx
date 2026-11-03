@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: () => void | Promise<void>;
   initialMode?: "login" | "register";
 }
 
@@ -15,6 +16,7 @@ export default function AuthModal({
   onSuccess,
   initialMode = "login",
 }: AuthModalProps) {
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -29,7 +31,16 @@ export default function AuthModal({
       setMode(initialMode);
       setError(null);
       setSuccessMsg(null);
-      setTimeout(() => emailInputRef.current?.focus(), 50);
+      const timer = setTimeout(() => {
+        if (
+          !document.activeElement ||
+          document.activeElement === document.body ||
+          document.activeElement.tagName === "BUTTON"
+        ) {
+          emailInputRef.current?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialMode]);
 
@@ -67,35 +78,21 @@ export default function AuthModal({
     setLoading(true);
 
     try {
-      const endpoint =
-        mode === "register" ? "/api/v1/auth/register" : "/api/v1/auth/login";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: trimmedEmail, password }),
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        const detailMsg =
-          errJson.detail?.message ||
-          errJson.detail ||
-          "Inloggen mislukt. Controleer je gegevens.";
-        throw new Error(
-          typeof detailMsg === "string" ? detailMsg : "Ongeldige inloggegevens."
-        );
+      if (mode === "register") {
+        await register({ email: trimmedEmail, password });
+        setSuccessMsg("Account succesvol aangemaakt!");
+      } else {
+        await login({ email: trimmedEmail, password });
+        setSuccessMsg("Succesvol ingelogd!");
       }
 
-      setSuccessMsg(
-        mode === "register"
-          ? "Account succesvol aangemaakt!"
-          : "Succesvol ingelogd!"
-      );
-      setTimeout(() => {
-        onSuccess?.();
-        onClose();
-      }, 700);
+      if (onSuccess) {
+        await onSuccess();
+      }
+
+      // Smooth visual feedback before closing modal
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Er ging iets mis.");
     } finally {

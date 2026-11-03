@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test:camera": "node --experimental-transform-types --test src/lib/camera/cardQualityAnalyzer.test.ts",
+    "test:session": "node --experimental-transform-types --test src/lib/session.test.ts",
+    "test": "npm run test:session && npm run test:camera",
     "test:e2e": "playwright test"
   },
   "dependencies": {

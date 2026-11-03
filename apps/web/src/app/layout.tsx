@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import AppChrome from "@/components/AppChrome";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -50,7 +51,9 @@ export default function RootLayout({
         <a className="skip-link" href="#main-content">
           Naar de inhoud
         </a>
-        <AppChrome>{children}</AppChrome>
+        <AuthProvider>
+          <AppChrome>{children}</AppChrome>
+        </AuthProvider>
       </body>
     </html>
   );

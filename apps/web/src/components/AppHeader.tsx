@@ -1,52 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import AuthModal from "@/components/AuthModal";
-import {
-  ensureBrowserSession,
-  resetBrowserSessionBootstrap,
-} from "@/lib/session";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AppHeader() {
   const pathname = usePathname();
-  const [user, setUser] = useState<{
-    id: string;
-    email: string;
-    role: string;
-  } | null>(null);
+  const { status, user, logout, refreshAuth } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-
-  const checkUser = useCallback(async () => {
-    try {
-      const data = await ensureBrowserSession();
-      if (data.user) {
-        setUser(data.user);
-        return;
-      }
-      setUser(null);
-    } catch {
-      setUser(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    void checkUser();
-  }, [checkUser]);
+  const [authActionError, setAuthActionError] = useState<string | null>(null);
 
   const handleLogout = async () => {
+    setAuthActionError(null);
     try {
-      await fetch("/api/v1/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-      resetBrowserSessionBootstrap();
-      setUser(null);
-      window.location.reload();
+      await logout();
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error
+          ? error.message
+          : "Uitloggen is niet gelukt. Probeer het opnieuw."
+      );
+    }
+  };
+
+  const handleAuthRetry = async () => {
+    setAuthActionError(null);
+    try {
+      await refreshAuth();
     } catch {
-      // Non-fatal
+      setAuthActionError(
+        "Je accountstatus kon niet worden geladen. Controleer je verbinding."
+      );
     }
   };
 
@@ -83,15 +70,38 @@ export default function AppHeader() {
         </nav>
         <div className="header-actions">
           <ThemeToggle />
-          {user ? (
+          {status === "loading" ? (
+            <div
+              className="header-auth-skeleton"
+              aria-label="Account laden..."
+              role="status"
+            />
+          ) : status === "error" ? (
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={handleAuthRetry}
               className="ink-button secondary small"
-              title={`Ingelogd als ${user.email}`}
+              title="Accountstatus opnieuw laden"
             >
-              Uitloggen
+              Opnieuw
             </button>
+          ) : status === "authenticated" && user ? (
+            <div className="flex items-center gap-2">
+              <span
+                className="hidden max-w-[140px] truncate font-mono text-[11px] font-bold text-[var(--muted)] lg:inline"
+                title={user.email}
+              >
+                {user.email}
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ink-button secondary small"
+                title={`Ingelogd als ${user.email}`}
+              >
+                Uitloggen
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -101,19 +111,23 @@ export default function AppHeader() {
               Inloggen
             </button>
           )}
-          <Link className="ink-button red small" href="/scan">
+          <Link className="ink-button red small header-scan-btn" href="/scan">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
               <span>Live Scanner</span>
             </span>
             <span aria-hidden="true">◎</span>
           </Link>
+          {authActionError ? (
+            <span className="header-auth-error" role="alert">
+              {authActionError}
+            </span>
+          ) : null}
         </div>
       </div>
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onSuccess={checkUser}
       />
     </header>
   );

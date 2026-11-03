@@ -141,9 +141,36 @@ button:disabled {
   color: var(--red);
 }
 .header-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.header-auth-skeleton {
+  display: inline-block;
+  min-height: 40px;
+  width: 88px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line);
+  background-color: var(--line);
+  opacity: 0.35;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.header-auth-error {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--red);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--red) 24%, transparent);
 }
 .ink-button {
   display: inline-flex;
@@ -835,8 +862,18 @@ button:disabled {
   .header-actions {
     gap: 10px;
   }
-  .header-actions .ink-button {
+  .header-actions .header-scan-btn {
     display: none;
+  }
+  .header-actions .ink-button.small {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 11px;
+    gap: 8px;
+  }
+  .header-auth-skeleton {
+    min-height: 36px;
+    width: 74px;
   }
   .collector-page {
     padding: 0 20px;
