@@ -13,7 +13,7 @@ def test_register_success_sets_session_cookie(client: TestClient, db: Session):
     email = f"pilot_{uuid.uuid4().hex[:8]}@example.com"
     payload = {
         "email": email,
-        "password": "SecurePassword123!",
+        "password": "DexLensUnpwnedPassword2026!",
     }
     response = client.post("/api/v1/auth/register", json=payload)
     assert response.status_code == 201
@@ -30,14 +30,14 @@ def test_register_success_sets_session_cookie(client: TestClient, db: Session):
     db_user = db.query(User).filter(User.email == email).first()
     assert db_user is not None
     assert db_user.password_hash.startswith("$argon2id$")
-    assert "SecurePassword123!" not in db_user.password_hash
+    assert "DexLensUnpwnedPassword2026!" not in db_user.password_hash
 
 
 def test_register_duplicate_email_fails(client: TestClient):
     email = f"duplicate_{uuid.uuid4().hex[:8]}@example.com"
     payload = {
         "email": email,
-        "password": "SecurePassword123!",
+        "password": "DexLensUnpwnedPassword2026!",
     }
     res1 = client.post("/api/v1/auth/register", json=payload)
     assert res1.status_code == 201
@@ -182,7 +182,7 @@ def test_claim_anonymous_session(client: TestClient, db: Session):
         "/api/v1/auth/register",
         json={
             "email": user_email,
-            "password": "Password123!",
+            "password": "ClaimerPassword123!",
         },
     )
     assert reg_res.status_code == 201

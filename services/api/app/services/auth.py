@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -18,7 +19,7 @@ from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.feedback import ScanFeedback
 from app.models.scan import Scan
 from app.models.scan_session import ScanSession
-from app.models.user import User, UserSession
+from app.models.user import EmailVerification, User, UserSession
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ def dummy_verify_password(password: str) -> None:
 
 
 def hash_token(raw_token: str) -> str:
-    """Hash a raw session token using SHA-256 for database lookup."""
+    """Hash a raw session or verification token using SHA-256 for database lookup."""
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
@@ -125,8 +126,39 @@ def pseudonymize_identifier(identifier: str) -> str:
     ).hexdigest()
 
 
+def generate_default_username(email: str, db: Session) -> str:
+    """Generate a clean, unique default username from an email address."""
+    base = re.sub(r"[^a-z0-9_-]", "", email.split("@")[0].lower())[:20]
+    if len(base) < 3:
+        base = "collector"
+    candidate = base
+    suffix_len = 4
+    while True:
+        existing = (
+            db.query(User)
+            .filter(func.lower(User.username) == candidate.lower())
+            .first()
+        )
+        if not existing:
+            return candidate
+        candidate = f"{base[:15]}_{secrets.token_hex(suffix_len // 2)}"
+        suffix_len += 2
+
+
 class EmailAlreadyExistsError(Exception):
     """Raised when registration loses a concurrent unique-email race."""
+
+
+class UsernameAlreadyExistsError(Exception):
+    """Raised when registration or update loses a concurrent unique-username race."""
+
+
+class UsernameCooldownError(Exception):
+    """Raised when username change is requested before cooldown expires."""
+
+
+class InvalidPasswordError(Exception):
+    """Raised when password verification fails during sensitive actions."""
 
 
 class AuthService:
@@ -139,6 +171,14 @@ class AuthService:
         norm_email = email.strip().lower()
         return self.db.query(User).filter(func.lower(User.email) == norm_email).first()
 
+    def get_user_by_username(self, username: str) -> User | None:
+        norm_username = username.strip().lower()
+        return (
+            self.db.query(User)
+            .filter(func.lower(User.username) == norm_username)
+            .first()
+        )
+
     def get_user_by_id(self, user_id: str) -> User | None:
         return self.db.query(User).filter(User.id == user_id).first()
 
@@ -146,24 +186,242 @@ class AuthService:
         self,
         email: str,
         password: str,
+        username: str | None = None,
         role: str = "user",
-    ) -> User:
+        accepted_policies: bool = True,
+    ) -> tuple[User, str]:
+        """Register a new collector account with normalized credentials and
+        initial email verification token.
+        """
         norm_email = email.strip().lower()
+        if username:
+            norm_username = username.strip().lower()
+            if self.get_user_by_username(norm_username):
+                raise UsernameAlreadyExistsError("Deze gebruikersnaam is al in gebruik")
+        else:
+            norm_username = generate_default_username(norm_email, self.db)
+
         pw_hash = hash_password(password)
+        now = _utcnow()
         user = User(
             email=norm_email,
+            username=norm_username,
             password_hash=pw_hash,
             role=role,
             is_active=True,
+            email_verified=False,
+            policies_accepted_at=now if accepted_policies else None,
         )
         self.db.add(user)
+        try:
+            self.db.flush()
+        except IntegrityError as exc:
+            self.db.rollback()
+            if self.get_user_by_email(norm_email):
+                raise EmailAlreadyExistsError from exc
+            if self.get_user_by_username(norm_username):
+                raise UsernameAlreadyExistsError from exc
+            raise EmailAlreadyExistsError from exc
+
+        # Create initial email verification token
+        raw_verification_token = secrets.token_urlsafe(32)
+        verification = EmailVerification(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            token_hash=hash_token(raw_verification_token),
+            token_type="email_verification",
+            expires_at=now + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
+            created_at=now,
+        )
+        self.db.add(verification)
         try:
             self.db.commit()
         except IntegrityError as exc:
             self.db.rollback()
             raise EmailAlreadyExistsError from exc
+
+        self.db.refresh(user)
+        logger.info(
+            "Registered user %s (%s). Verification token generated.",
+            user.email,
+            user.username,
+        )
+        return user, raw_verification_token
+
+    def create_email_verification(
+        self,
+        user_id: str,
+        token_type: str = "email_verification",
+        target_email: str | None = None,
+    ) -> tuple[EmailVerification, str]:
+        """Create a secure, hashed single-use email verification token."""
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hash_token(raw_token)
+        now = _utcnow()
+        expires_at = now + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS)
+
+        verification = EmailVerification(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            token_hash=token_hash,
+            token_type=token_type,
+            target_email=target_email.strip().lower() if target_email else None,
+            expires_at=expires_at,
+            created_at=now,
+        )
+        self.db.add(verification)
+        self.db.commit()
+        self.db.refresh(verification)
+        return verification, raw_token
+
+    def verify_email_token(self, raw_token: str) -> tuple[bool, str, User | None]:
+        """Verify an email token with single-use semantics and expiration checking."""
+        token_hash = hash_token(raw_token)
+        now = _utcnow()
+        verification = (
+            self.db.query(EmailVerification)
+            .filter(
+                EmailVerification.token_hash == token_hash,
+                EmailVerification.used_at.is_(None),
+                EmailVerification.expires_at > now,
+            )
+            .first()
+        )
+        if verification is None:
+            return False, "Verificatielink is ongeldig of verlopen", None
+
+        user = self.get_user_by_id(verification.user_id)
+        if user is None:
+            return False, "Verificatielink is ongeldig of verlopen", None
+
+        # Mark single-use consumption
+        verification.used_at = now
+
+        if verification.token_type == "email_change":
+            if not verification.target_email:
+                return False, "Ongeldige verificatieaanvraag", None
+            existing = self.get_user_by_email(verification.target_email)
+            if existing and existing.id != user.id:
+                return (
+                    False,
+                    "E-mailadres is inmiddels al in gebruik door een ander account",
+                    None,
+                )
+            user.email = verification.target_email
+            user.email_verified = True
+        else:
+            user.email_verified = True
+
+        self.db.commit()
+        self.db.refresh(user)
+        return True, "E-mailadres succesvol geverifieerd", user
+
+    def resend_verification_token(
+        self, email: str
+    ) -> tuple[bool, str, str | None, int | None]:
+        """Resend verification email with throttling and non-enumerating responses."""
+        norm_email = email.strip().lower()
+        user = self.get_user_by_email(norm_email)
+
+        # Non-enumeration: uniform response if user does not exist or already verified
+        msg = (
+            "Als het e-mailadres bij ons bekend is en nog niet is geverifieerd, "
+            "hebben we een nieuwe verificatielink verzonden."
+        )
+        if user is None or user.email_verified:
+            return (True, msg, None, None)
+
+        now = _utcnow()
+        # Throttling check
+        recent = (
+            self.db.query(EmailVerification)
+            .filter(
+                EmailVerification.user_id == user.id,
+                EmailVerification.token_type == "email_verification",
+            )
+            .order_by(EmailVerification.created_at.desc())
+            .first()
+        )
+        if recent is not None:
+            elapsed = (now - recent.created_at).total_seconds()
+            if elapsed < settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:
+                remaining = int(
+                    settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS - elapsed
+                )
+                return (
+                    False,
+                    f"Wacht {remaining} seconden voordat je een nieuwe "
+                    "verificatielink aanvraagt.",
+                    None,
+                    remaining,
+                )
+
+        _, raw_token = self.create_email_verification(
+            user_id=user.id, token_type="email_verification"
+        )
+        logger.info("Resent verification token for %s: %s", user.email, raw_token)
+        return (True, msg, raw_token, None)
+
+    def change_username(self, user: User, new_username: str) -> User:
+        """Change username subject to uniqueness and a 30-day cooldown period."""
+        norm = new_username.strip().lower()
+        if user.username and norm == user.username.lower():
+            return user
+
+        existing = self.get_user_by_username(norm)
+        if existing and existing.id != user.id:
+            raise UsernameAlreadyExistsError("Deze gebruikersnaam is al in gebruik")
+
+        now = _utcnow()
+        if user.username_changed_at:
+            elapsed_days = (now - user.username_changed_at).days
+            if elapsed_days < settings.USERNAME_CHANGE_COOLDOWN_DAYS:
+                remaining = settings.USERNAME_CHANGE_COOLDOWN_DAYS - elapsed_days
+                raise UsernameCooldownError(
+                    "Je kunt je gebruikersnaam maximaal één keer per 30 dagen "
+                    f"wijzigen. Probeer het over {remaining} dag(en) opnieuw."
+                )
+
+        user.username = norm
+        user.username_changed_at = now
+        self.db.commit()
         self.db.refresh(user)
         return user
+
+    def request_email_change(
+        self, user: User, new_email: str, current_password: str
+    ) -> tuple[bool, str, str | None]:
+        """Request email change with password verification and unverified transition."""
+        if not verify_password(current_password, user.password_hash):
+            raise InvalidPasswordError("Huidig wachtwoord is onjuist")
+
+        norm_new = new_email.strip().lower()
+        if norm_new == user.email.lower():
+            raise ValueError(
+                "Het nieuwe e-mailadres is gelijk aan je huidige e-mailadres"
+            )
+
+        msg = (
+            "Als het nieuwe e-mailadres beschikbaar is, hebben we een "
+            "verificatielink verstuurd."
+        )
+        existing = self.get_user_by_email(norm_new)
+        if existing and existing.id != user.id:
+            # Non-enumerating response
+            return (True, msg, None)
+
+        _, raw_token = self.create_email_verification(
+            user_id=user.id,
+            token_type="email_change",
+            target_email=norm_new,
+        )
+        logger.info(
+            "Issued email change verification token for %s -> %s: %s",
+            user.email,
+            norm_new,
+            raw_token,
+        )
+        return (True, msg, raw_token)
 
     def authenticate_user(self, email: str, password: str) -> User | None:
         user = self.get_user_by_email(email)
@@ -263,7 +521,6 @@ class AuthService:
         )
 
         for item in anon_items:
-            # Check if user already owns an item with the same grouping identity
             existing_user_item = (
                 self.db.query(CollectionItem)
                 .filter(
@@ -278,20 +535,16 @@ class AuthService:
             )
 
             if existing_user_item is not None:
-                # Merge quantities
                 existing_user_item.quantity += item.quantity
                 existing_user_item.version += 1
                 existing_user_item.updated_at = _utcnow()
 
-                # Re-point scan links from anonymous item to the existing user item
                 self.db.query(CollectionScanLink).filter(
                     CollectionScanLink.collection_item_id == item.id
                 ).update({"collection_item_id": existing_user_item.id})
 
-                # Delete the redundant anonymous item
                 self.db.delete(item)
             else:
-                # Transfer ownership
                 item.user_id = user.id
                 item.anonymous_session_id = None
                 item.version += 1

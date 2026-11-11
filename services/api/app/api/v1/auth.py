@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -5,19 +6,29 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from app.api.deps import SessionContext, get_auth_service, get_session_context
 from app.core.config import settings
 from app.schemas.auth import (
+    AccountMessageResponse,
+    ChangeUsernameRequest,
     ClaimAnonymousSessionRequest,
     ClaimAnonymousSessionResponse,
     LoginRequest,
     MeResponse,
     RegisterRequest,
+    RequestEmailChangeRequest,
+    ResendVerificationRequest,
     UserResponse,
+    VerifyEmailRequest,
 )
 from app.services.auth import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DAYS,
     AuthService,
     EmailAlreadyExistsError,
+    InvalidPasswordError,
+    UsernameAlreadyExistsError,
+    UsernameCooldownError,
+    dummy_verify_password,
 )
+from app.services.hibp import check_password_pwned
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +43,26 @@ def register(
     response: Response,
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
-) -> UserResponse:
-    """Register a new collector account."""
+) -> UserResponse | Response:
+    """Register a new collector account with modern password policy, HIBP
+    checks, and email verification.
+    """
+    # 1. Check Have I Been Pwned database using k-anonymity
+    is_pwned, breach_count = check_password_pwned(data.password)
+    if is_pwned:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "PASSWORD_COMPROMISED",
+                "message": (
+                    "Dit wachtwoord is voorgekomen in een bekend datalek "
+                    "(Have I Been Pwned). Kies een ander, veiliger wachtwoord."
+                ),
+                "breach_count": breach_count,
+            },
+        )
+
+    # 2. Check for prior anonymous session to claim
     old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
     old_anon_session_id = None
     if old_cookie:
@@ -41,8 +70,24 @@ def register(
         if old_session and old_session.session_type == "anonymous":
             old_anon_session_id = old_session.id
 
+    # 3. Check for existing email address
     existing = auth_service.get_user_by_email(data.email)
     if existing:
+        dummy_verify_password(data.password)
+        if settings.REGISTRATION_NON_ENUMERATION:
+            return Response(
+                content=json.dumps(
+                    {
+                        "message": (
+                            "Als het account nog niet bestaat, is er een "
+                            "verificatielink verstuurd. Controleer je inbox."
+                        ),
+                        "email_verified": False,
+                    }
+                ),
+                media_type="application/json",
+                status_code=status.HTTP_200_OK,
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -51,9 +96,41 @@ def register(
             },
         )
 
+    # 4. Check for existing username if provided
+    if data.username:
+        existing_username = auth_service.get_user_by_username(data.username)
+        if existing_username:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "USERNAME_ALREADY_EXISTS",
+                    "message": "Deze gebruikersnaam is al in gebruik",
+                },
+            )
+
+    # 5. Create user account
     try:
-        user = auth_service.register_user(data.email, data.password)
+        user, _ = auth_service.register_user(
+            email=data.email,
+            password=data.password,
+            username=data.username,
+            accepted_policies=data.accepted_policies,
+        )
     except EmailAlreadyExistsError:
+        if settings.REGISTRATION_NON_ENUMERATION:
+            return Response(
+                content=json.dumps(
+                    {
+                        "message": (
+                            "Als het account nog niet bestaat, is er een "
+                            "verificatielink verstuurd. Controleer je inbox."
+                        ),
+                        "email_verified": False,
+                    }
+                ),
+                media_type="application/json",
+                status_code=status.HTTP_200_OK,
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -61,8 +138,16 @@ def register(
                 "message": "E-mailadres is al in gebruik",
             },
         ) from None
+    except UsernameAlreadyExistsError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "USERNAME_ALREADY_EXISTS",
+                "message": "Deze gebruikersnaam is al in gebruik",
+            },
+        ) from None
 
-    # Automatically log the user in with a new session
+    # 6. Establish authenticated session
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     _, raw_token = auth_service.create_session(
@@ -109,7 +194,6 @@ def login(
             },
         )
 
-    # Check if there is an existing anonymous session cookie that can be claimed
     old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
     old_anon_session_id = None
     if old_cookie:
@@ -117,7 +201,6 @@ def login(
         if old_session and old_session.session_type == "anonymous":
             old_anon_session_id = old_session.id
 
-    # Create new authenticated session
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     _, raw_token = auth_service.create_session(
@@ -127,7 +210,6 @@ def login(
         user_agent=user_agent,
     )
 
-    # Auto-claim previous anonymous pilot data if present
     if old_anon_session_id:
         try:
             auth_service.claim_anonymous_session(user, old_anon_session_id)
@@ -179,6 +261,151 @@ def get_me(
         session_id=session_ctx.session_id,
         session_type=session_ctx.session.session_type,
     )
+
+
+@router.post("/verify-email", response_model=AccountMessageResponse)
+@router.get("/verify-email", response_model=AccountMessageResponse)
+def verify_email(
+    data: VerifyEmailRequest | None = None,
+    token: str | None = None,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> AccountMessageResponse:
+    """Verify an email token with single-use semantics."""
+    raw_token = data.token if data and data.token else token
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "TOKEN_REQUIRED",
+                "message": "Verificatietoken is verplicht",
+            },
+        )
+
+    success, msg, _ = auth_service.verify_email_token(raw_token)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "INVALID_OR_EXPIRED_TOKEN",
+                "message": msg,
+            },
+        )
+
+    return AccountMessageResponse(message=msg, email_verified=True)
+
+
+@router.post("/resend-verification", response_model=AccountMessageResponse)
+def resend_verification(
+    data: ResendVerificationRequest | None = None,
+    session_ctx: SessionContext = Depends(get_session_context),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> AccountMessageResponse:
+    """Resend email verification with throttling and non-enumerating responses."""
+    target_email = None
+    if data and data.email:
+        target_email = data.email
+    elif session_ctx.user:
+        target_email = session_ctx.user.email
+
+    if not target_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "EMAIL_REQUIRED",
+                "message": (
+                    "E-mailadres is verplicht om een verificatielink te versturen"
+                ),
+            },
+        )
+
+    success, msg, _, remaining = auth_service.resend_verification_token(target_email)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "RESEND_THROTTLED",
+                "message": msg,
+                "retry_after": remaining,
+            },
+        )
+
+    return AccountMessageResponse(message=msg)
+
+
+@router.patch("/username", response_model=UserResponse)
+def change_username(
+    data: ChangeUsernameRequest,
+    session_ctx: SessionContext = Depends(get_session_context),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    """Change username subject to uniqueness and cooldown period."""
+    if not session_ctx.is_authenticated or not session_ctx.user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "UNAUTHENTICATED",
+                "message": "Inloggen vereist om je gebruikersnaam te wijzigen",
+            },
+        )
+
+    try:
+        updated_user = auth_service.change_username(session_ctx.user, data.username)
+        return UserResponse.model_validate(updated_user)
+    except UsernameAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "USERNAME_ALREADY_EXISTS",
+                "message": str(exc),
+            },
+        ) from None
+    except UsernameCooldownError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "USERNAME_COOLDOWN",
+                "message": str(exc),
+            },
+        ) from None
+
+
+@router.post("/email/request-change", response_model=AccountMessageResponse)
+def request_email_change(
+    data: RequestEmailChangeRequest,
+    session_ctx: SessionContext = Depends(get_session_context),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> AccountMessageResponse:
+    """Request an email change with password verification and unverified transition."""
+    if not session_ctx.is_authenticated or not session_ctx.user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "UNAUTHENTICATED",
+                "message": "Inloggen vereist om je e-mailadres te wijzigen",
+            },
+        )
+
+    try:
+        _, msg, _ = auth_service.request_email_change(
+            session_ctx.user, data.new_email, data.current_password
+        )
+        return AccountMessageResponse(message=msg)
+    except InvalidPasswordError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "INVALID_PASSWORD",
+                "message": str(exc),
+            },
+        ) from None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "INVALID_EMAIL",
+                "message": str(exc),
+            },
+        ) from None
 
 
 @router.post("/claim-anonymous-session", response_model=ClaimAnonymousSessionResponse)

@@ -62,6 +62,17 @@ class Settings(BaseSettings):
     ANALYTICS_MAX_PAYLOAD_BYTES: int = 2048
     TRUSTED_PROXY_IPS: list[str] | str = []
 
+    # Phase 9: Account Security Configuration
+    HIBP_API_ENABLED: bool = True
+    HIBP_API_TIMEOUT_SECONDS: float = 2.0
+    HIBP_FAIL_CLOSED: bool = False
+    PASSWORD_MIN_LENGTH: int = 15
+    PASSWORD_MAX_LENGTH: int = 128
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+    EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
+    USERNAME_CHANGE_COOLDOWN_DAYS: int = 30
+    REGISTRATION_NON_ENUMERATION: bool = False
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if self.ENVIRONMENT.lower() in {"production", "prod"}:

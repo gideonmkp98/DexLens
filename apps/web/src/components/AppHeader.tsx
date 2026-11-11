@@ -91,7 +91,7 @@ export default function AppHeader() {
                 className="hidden max-w-[140px] truncate font-mono text-[11px] font-bold text-[var(--muted)] lg:inline"
                 title={user.email}
               >
-                {user.email}
+                {user.username ? `@${user.username}` : user.email}
               </span>
               <button
                 type="button"
