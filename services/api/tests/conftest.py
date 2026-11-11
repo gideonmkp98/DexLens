@@ -1,6 +1,12 @@
 import os
+import sys
 from collections.abc import Generator
 from typing import Any
+
+# Ensure tests.conftest and conftest are aliased to the same module instance
+# so that module-level test_engine and TestingSessionLocal are never duplicated.
+sys.modules.setdefault("tests.conftest", sys.modules[__name__])
+sys.modules.setdefault("conftest", sys.modules[__name__])
 
 import pytest
 from fastapi.testclient import TestClient
