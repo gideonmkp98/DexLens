@@ -62,6 +62,21 @@ class Settings(BaseSettings):
     ANALYTICS_MAX_PAYLOAD_BYTES: int = 2048
     TRUSTED_PROXY_IPS: list[str] | str = []
 
+    # Phase 9: Admin, Quota, and Cloudflare Turnstile / Abuse Prevention Configuration
+    TURNSTILE_SECRET_KEY: str = "1x0000000000000000000000000000000AA"
+    TURNSTILE_SITE_KEY: str = "1x0000000000000000000000000000000AA"
+    TURNSTILE_ENABLED: bool = True
+    TURNSTILE_VERIFY_URL: str = (
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+    )
+    TURNSTILE_EXPECTED_HOSTNAME: str | None = None
+    TURNSTILE_TOKEN_TTL_SECONDS: int = 300
+    SCAN_BURST_WINDOW_SECONDS: int = 15
+    SCAN_BURST_THRESHOLD: int = 5
+    SCAN_HARD_RATE_LIMIT_PER_MINUTE: int = 30
+    GLOBAL_DEFAULT_DAILY_SCAN_QUOTA: int = 100
+    GLOBAL_DEFAULT_HOURLY_SCAN_QUOTA: int = 30
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if self.ENVIRONMENT.lower() in {"production", "prod"}:
@@ -75,6 +90,14 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "PILOT_ADMIN_SECRET must be a non-default 32+ character secret "
                     "in production"
+                )
+            if self.TURNSTILE_ENABLED and (
+                self.TURNSTILE_SECRET_KEY
+                == "1x0000000000000000000000000000000AA"
+                or self.TURNSTILE_SECRET_KEY.startswith("replace-")
+            ):
+                raise ValueError(
+                    "TURNSTILE_SECRET_KEY must be configured with a valid Cloudflare secret in production"
                 )
         return self
 

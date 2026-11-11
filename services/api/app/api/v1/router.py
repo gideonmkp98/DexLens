@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+from app.api.v1.admin.router import admin_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.beta import router as beta_router
 from app.api.v1.cards import router as cards_router
 from app.api.v1.collection import router as collection_router
 from app.api.v1.feedback import router as feedback_router
@@ -15,6 +17,8 @@ from app.core.config import settings
 api_router = APIRouter()
 api_router.include_router(health_router, tags=["Health"])
 api_router.include_router(auth_router)
+api_router.include_router(admin_router)
+api_router.include_router(beta_router)
 api_router.include_router(analytics_router)
 api_router.include_router(feedback_router)
 api_router.include_router(sets_router)

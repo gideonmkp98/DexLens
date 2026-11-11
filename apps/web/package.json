@@ -12,8 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test:camera": "node --experimental-transform-types --test src/lib/camera/cardQualityAnalyzer.test.ts",
     "test:session": "node --experimental-transform-types --test src/lib/session.test.ts",
-    "test": "npm run test:session && npm run test:camera",
-    "test:e2e": "playwright test"
+    "test": "npm run test:session && npm run test:camera && npm run test:admin",
+    "test:e2e": "playwright test",
+    "test:admin": "node --experimental-transform-types --test src/lib/admin.test.ts"
   },
   "dependencies": {
     "next": "^15.5.28",

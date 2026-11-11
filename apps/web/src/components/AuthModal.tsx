@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function AuthModal({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +33,7 @@ export default function AuthModal({
       setMode(initialMode);
       setError(null);
       setSuccessMsg(null);
+      setTurnstileToken(null);
       const timer = setTimeout(() => {
         if (
           !document.activeElement ||
@@ -79,7 +82,7 @@ export default function AuthModal({
 
     try {
       if (mode === "register") {
-        await register({ email: trimmedEmail, password });
+        await register({ email: trimmedEmail, password, turnstile_token: turnstileToken || undefined });
         setSuccessMsg("Account succesvol aangemaakt!");
       } else {
         await login({ email: trimmedEmail, password });
@@ -156,6 +159,7 @@ export default function AuthModal({
             onClick={() => {
               setMode("login");
               setError(null);
+              setTurnstileToken(null);
             }}
             className={`flex-1 rounded-[3px] px-3 py-2.5 text-[13px] font-bold tracking-wide transition ${
               mode === "login"
@@ -170,6 +174,7 @@ export default function AuthModal({
             onClick={() => {
               setMode("register");
               setError(null);
+              setTurnstileToken(null);
             }}
             className={`flex-1 rounded-[3px] px-3 py-2.5 text-[13px] font-bold tracking-wide transition ${
               mode === "register"
@@ -224,6 +229,16 @@ export default function AuthModal({
               className="mt-2 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3.5 text-[15px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
             />
           </div>
+
+          {mode === "register" && (
+            <div className="pt-1">
+              <TurnstileWidget
+                action="register"
+                onVerify={(tok) => setTurnstileToken(tok)}
+                onExpire={() => setTurnstileToken(null)}
+              />
+            </div>
+          )}
 
           {error && (
             <div className="rounded-[4px] border border-[#eb6b5d]/40 bg-[#eb6b5d]/10 px-3.5 py-3 text-[13px] leading-relaxed text-[#ff9387]">

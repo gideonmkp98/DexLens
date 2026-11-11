@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -71,8 +71,14 @@ def setup_test_database():
     tables with an older model shape; the database-name guard above guarantees
     that this can never target a non-test database.
     """
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
+    with test_engine.connect() as conn:
+        if test_engine.url.get_backend_name() != "sqlite":
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        Base.metadata.drop_all(bind=conn)
+        Base.metadata.create_all(bind=conn)
+        if test_engine.url.get_backend_name() != "sqlite":
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+        conn.commit()
     yield
     # Keep the isolated schema intact after the suite. Alembic verification may
     # run next, and dropping ORM tables while leaving alembic_version at head
@@ -88,8 +94,24 @@ def clean_test_database():
     RateLimitMiddleware.reset()
     with test_engine.connect() as conn:
         with conn.begin():
+            if test_engine.url.get_backend_name() != "sqlite":
+                conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
             for table in reversed(Base.metadata.sorted_tables):
                 conn.execute(table.delete())
+            for extra_tbl in (
+                "beta_code_redemptions",
+                "beta_codes",
+                "invitations",
+                "daily_scan_usage",
+                "user_scan_quotas",
+                "scan_quota_settings",
+            ):
+                try:
+                    conn.execute(text(f"DELETE FROM {extra_tbl}"))
+                except Exception:
+                    pass
+            if test_engine.url.get_backend_name() != "sqlite":
+                conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
     yield
     RateLimitMiddleware.reset()
 

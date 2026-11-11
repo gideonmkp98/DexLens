@@ -32,7 +32,7 @@ export interface AuthContextValue {
   sessionType: string | null;
   refreshAuth: () => Promise<BrowserSessionState>;
   login: (credentials: { email: string; password: string }) => Promise<void>;
-  register: (credentials: { email: string; password: string }) => Promise<void>;
+  register: (credentials: { email: string; password: string; turnstile_token?: string }) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySessionState]);
 
   const login = useCallback(
-    async (credentials: { email: string; password: string }): Promise<void> => {
+    async (credentials: { email: string; password: string; turnstile_token?: string }): Promise<void> => {
       const endpoint = "/api/v1/auth/login";
       const res = await fetch(endpoint, {
         method: "POST",

@@ -463,15 +463,18 @@ export class ApiError extends Error {
   code?: string;
   status: number;
 
-  constructor(message: string, status: number, code?: string) {
+  siteKey?: string;
+
+  constructor(message: string, status: number, code?: string, siteKey?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.siteKey = siteKey;
   }
 }
 
-async function parseApiError(
+export async function parseApiError(
   res: Response,
   fallbackMsg: string
 ): Promise<ApiError> {
@@ -480,11 +483,15 @@ async function parseApiError(
   }
   let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
   let errorCode: string | undefined;
+  let siteKey: string | undefined;
   try {
     const err = await res.json();
     if (err?.detail && typeof err.detail === "object") {
       errorMsg = err.detail.message || errorMsg;
       errorCode = err.detail.code;
+      if (err.detail.site_key) {
+        siteKey = String(err.detail.site_key);
+      }
     } else if (typeof err?.detail === "string") {
       errorMsg = err.detail;
     } else if (err?.message) {
@@ -494,18 +501,30 @@ async function parseApiError(
   } catch {
     // Non-JSON response
   }
-  return new ApiError(errorMsg, res.status, errorCode);
+  return new ApiError(errorMsg, res.status, errorCode, siteKey);
 }
 
 /**
  * Upload a single card image file to /api/v1/scans.
  */
-export async function uploadScan(file: File): Promise<ScanResponse> {
+export async function uploadScan(
+  file: File,
+  turnstileToken?: string
+): Promise<ScanResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  if (turnstileToken) {
+    formData.append("turnstile_token", turnstileToken);
+  }
+
+  const headers: Record<string, string> = {};
+  if (turnstileToken) {
+    headers["X-Turnstile-Token"] = turnstileToken;
+  }
 
   const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
     method: "POST",
+    headers,
     body: formData,
   });
 
@@ -1131,13 +1150,17 @@ export async function getScanSession(
 export async function captureLiveScanFrame(
   sessionId: string,
   imageFile: File | Blob,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  turnstileToken?: string
 ): Promise<LiveCaptureResponse> {
   const formData = new FormData();
   if (imageFile instanceof File) {
     formData.append("file", imageFile);
   } else {
     formData.append("file", imageFile, "live_frame.jpg");
+  }
+  if (turnstileToken) {
+    formData.append("turnstile_token", turnstileToken);
   }
 
   const res = await fetch(
@@ -1147,6 +1170,7 @@ export async function captureLiveScanFrame(
       headers: {
         Accept: "application/json",
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...(turnstileToken ? { "X-Turnstile-Token": turnstileToken } : {}),
       },
       cache: "no-store",
       body: formData,

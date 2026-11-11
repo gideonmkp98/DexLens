@@ -375,6 +375,15 @@ async def upload_scan(
 ) -> ScanResponse:
     """Upload a single image, validate and normalize it, and store metadata."""
     form = await request.form()
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get("turnstile_token")
+    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
+
+    from app.services.abuse import ScanAbuseService
+    ScanAbuseService.check_and_record_scan(
+        request=request,
+        user_id=session_ctx.user_id,
+        turnstile_token=turnstile_token,
+    )
     if (
         sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
         != 1

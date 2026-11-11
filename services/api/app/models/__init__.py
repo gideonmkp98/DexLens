@@ -1,5 +1,6 @@
 from app.core.database import Base
 from app.models.analytics import ProductAnalyticsEvent
+from app.models.audit import AdminAuditLog
 from app.models.card import Card
 from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.feedback import ScanFeedback
@@ -10,6 +11,7 @@ from app.models.set import Set
 from app.models.user import User, UserSession
 
 __all__ = [
+    "AdminAuditLog",
     "Base",
     "Card",
     "CollectionItem",

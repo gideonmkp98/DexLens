@@ -18,6 +18,7 @@ from app.services.auth import (
     AuthService,
     EmailAlreadyExistsError,
 )
+from app.services.turnstile import TurnstileService
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,29 @@ def register(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Register a new collector account."""
+    """Register a new collector account with Turnstile abuse prevention."""
+    turnstile_token = data.turnstile_token or request.headers.get("x-turnstile-token")
+    client_ip = TurnstileService.get_trusted_client_ip(request)
+
+    # In production, Turnstile verification is mandatory
+    is_prod = settings.ENVIRONMENT.lower() in {"production", "prod"}
+    force_turnstile = bool(request.headers.get("x-enforce-turnstile"))
+
+    if is_prod or force_turnstile or turnstile_token is not None:
+        t_result = TurnstileService.verify(
+            token=turnstile_token,
+            expected_action="register",
+            client_ip=client_ip,
+        )
+        if not t_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": t_result.error_code or "TURNSTILE_FAILED",
+                    "message": t_result.error_message or "Veiligheidscontrole mislukt. Probeer het opnieuw.",
+                },
+            )
+
     old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
     old_anon_session_id = None
     if old_cookie:
@@ -63,7 +86,6 @@ def register(
         ) from None
 
     # Automatically log the user in with a new session
-    client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     _, raw_token = auth_service.create_session(
         user_id=user.id,

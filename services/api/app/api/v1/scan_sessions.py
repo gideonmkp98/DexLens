@@ -14,6 +14,7 @@ from fastapi import (
 )
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
+from app.api.deps import SessionContext, get_session_context
 from app.schemas.scan_session import (
     LiveCaptureResponse,
     ScanSessionCreateRequest,
@@ -34,13 +35,21 @@ router = APIRouter(prefix="/scan-sessions", tags=["Scan Sessions"])
 def _validate_uuid(val: str) -> str:
     """Validate that val is a valid UUID string to prevent path traversal."""
     try:
-        parsed = uuid.UUID(val)
-        return str(parsed)
-    except ValueError:
+        uuid_obj = uuid.UUID(val)
+        return str(uuid_obj)
+    except (ValueError, AttributeError):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "SESSION_NOT_FOUND", "message": "Scan session not found."},
-        ) from None
+            status_code=400,
+            detail={"code": "INVALID_UUID", "message": f"Invalid UUID: '{val}'"},
+        )
+
+
+@router.get("", response_model=list[ScanSessionResponse])
+def list_sessions(
+    service: ScanSessionService = Depends(get_scan_session_service),
+) -> list[ScanSessionResponse]:
+    """List recent scan sessions."""
+    return service.list_sessions()
 
 
 @router.post(
@@ -52,14 +61,9 @@ def create_session(
     body: ScanSessionCreateRequest | None = None,
     service: ScanSessionService = Depends(get_scan_session_service),
 ) -> ScanSessionResponse:
-    """Create a new active scan session for continuous card scanning."""
-    try:
-        return service.create_session()
-    except ScanSessionError as err:
-        raise HTTPException(
-            status_code=err.status_code,
-            detail={"code": err.code, "message": err.message},
-        ) from err
+    """Initialize a new scanning session."""
+    device_info = body.device_info if body else None
+    return service.create_session(device_info=device_info)
 
 
 @router.get(
@@ -67,16 +71,14 @@ def create_session(
     response_model=ScanSessionDetailResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_session(
+def get_session(
     id: str,
-    response: Response,
     service: ScanSessionService = Depends(get_scan_session_service),
 ) -> ScanSessionDetailResponse:
-    """Retrieve scan session details and ordered list of scanned cards."""
-    response.headers["Cache-Control"] = "no-store"
+    """Get active session state with all associated scans."""
     session_id = _validate_uuid(id)
     try:
-        return await service.get_session(session_id)
+        return service.get_session(session_id)
     except ScanSessionError as err:
         raise HTTPException(
             status_code=err.status_code,
@@ -105,12 +107,24 @@ async def capture_frame(
         pattern=r"^[A-Za-z0-9._:-]+$",
     ),
     service: ScanSessionService = Depends(get_scan_session_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> LiveCaptureResponse:
     """Live frame capture: detects card bounds and runs recognition."""
     response.headers["Cache-Control"] = "no-store"
     session_id = _validate_uuid(id)
 
     form = await request.form()
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get("turnstile_token")
+    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
+
+    from app.services.abuse import ScanAbuseService
+
+    ScanAbuseService.check_and_record_scan(
+        request=request,
+        user_id=session_ctx.user_id,
+        turnstile_token=turnstile_token,
+    )
+
     if (
         sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
         != 1

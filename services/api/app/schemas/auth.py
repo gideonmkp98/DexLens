@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    turnstile_token: str | None = None
 
     @field_validator("email")
     @classmethod

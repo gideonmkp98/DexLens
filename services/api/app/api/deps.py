@@ -174,3 +174,57 @@ def require_admin_or_pilot_secret(
         status_code=status.HTTP_403_FORBIDDEN,
         detail={"code": "FORBIDDEN", "message": "Pilot admin access required"},
     )
+
+
+def require_admin_user(
+    session_ctx: SessionContext = Depends(get_session_context),
+) -> User:
+    """Verify admin privileges strictly via authenticated database-backed user record."""
+    if not session_ctx.is_authenticated or not session_ctx.user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "UNAUTHENTICATED", "message": "Inloggen als beheerder vereist."},
+        )
+
+    user = session_ctx.user
+    if user.role != "admin" or not user.is_active or getattr(user, "status", "active") != "active":
+        logger.warning(
+            "Unauthorized admin access attempt by user_id=%s, role=%s, status=%s",
+            user.id,
+            user.role,
+            getattr(user, "status", None),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "Geen beheerderstoegang."},
+        )
+
+    return user
+
+
+def get_audit_service(db: Session = Depends(get_db)):
+    from app.services.audit import AuditService
+
+    return AuditService(db)
+
+
+def get_quota_service(db: Session = Depends(get_db)):
+    from app.services.quota_service import DefaultQuotaService
+
+    return DefaultQuotaService(db)
+
+
+def get_beta_service(db: Session = Depends(get_db)):
+    from app.services.beta_service import DefaultBetaService
+
+    return DefaultBetaService(db)
+
+
+def get_admin_service(
+    db: Session = Depends(get_db),
+    audit=Depends(get_audit_service),
+    quota=Depends(get_quota_service),
+):
+    from app.services.admin import AdminService
+
+    return AdminService(db, audit_service=audit, quota_service=quota)
