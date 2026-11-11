@@ -4,6 +4,9 @@ export interface SessionUser {
   role: string;
   username?: string | null;
   email_verified?: boolean;
+  has_beta_access?: boolean;
+  beta_entitlement?: string | null;
+  scan_quota?: number | null;
 }
 
 export interface BrowserSessionState {

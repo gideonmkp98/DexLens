@@ -15,6 +15,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from sqlalchemy import update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
@@ -1198,7 +1199,14 @@ async def recognize_card(
     )
 
     try:
-        res = db.execute(update_candidates_stmt)
+        try:
+            res = db.execute(update_candidates_stmt)
+        except OperationalError as op_err:
+            if getattr(op_err.orig, "args", None) and op_err.orig.args[0] == 1213:
+                db.rollback()
+                res = db.execute(update_ocr_only_stmt)
+            else:
+                raise
         if res.rowcount == 0:
             curr = db.query(Scan).filter(Scan.id == scan_id).first()
             if curr is None:

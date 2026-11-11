@@ -49,14 +49,14 @@ def hash_password(password: str) -> str:
         lanes=4,
         memory_cost=65536,
     )
-    derived = kdf.derive(password.encode("utf-8"))
+    raw_hash = kdf.derive(password.encode("utf-8"))
     salt_b64 = base64.b64encode(salt).decode("ascii").rstrip("=")
-    hash_b64 = base64.b64encode(derived).decode("ascii").rstrip("=")
+    hash_b64 = base64.b64encode(raw_hash).decode("ascii").rstrip("=")
     return f"$argon2id$v=19$m=65536,t=3,p=4${salt_b64}${hash_b64}"
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    """Verify password against Argon2id hash in constant time."""
+    """Verify password against Argon2id hash."""
     try:
         parts = password_hash.split("$")
         if len(parts) != 6 or parts[1] != "argon2id":
@@ -189,9 +189,13 @@ class AuthService:
         username: str | None = None,
         role: str = "user",
         accepted_policies: bool = True,
+        has_beta_access: bool = False,
+        beta_entitlement: str | None = None,
+        scan_quota: int | None = None,
+        registration_mode_used: str | None = None,
     ) -> tuple[User, str]:
-        """Register a new collector account with normalized credentials and
-        initial email verification token.
+        """Register a new collector account with normalized credentials, beta fields,
+        and initial email verification token.
         """
         norm_email = email.strip().lower()
         if username:
@@ -211,6 +215,10 @@ class AuthService:
             is_active=True,
             email_verified=False,
             policies_accepted_at=now if accepted_policies else None,
+            has_beta_access=has_beta_access,
+            beta_entitlement=beta_entitlement,
+            scan_quota=scan_quota,
+            registration_mode_used=registration_mode_used,
         )
         self.db.add(user)
         try:
@@ -423,6 +431,168 @@ class AuthService:
         )
         return (True, msg, raw_token)
 
+    def register_with_beta_access(
+        self,
+        email: str,
+        password: str,
+        username: str | None = None,
+        accepted_policies: bool = True,
+        beta_code: str | None = None,
+        invite_token: str | None = None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        anonymous_session_id: str | None = None,
+    ) -> tuple[User, str]:
+        """Atomically register a user with beta-code or invitation redemption,
+        account security fields (username, email verification, policy acceptance),
+        and authenticated session.
+
+        Guarantees:
+        - If any step fails, the entire transaction is rolled back.
+        - No orphan user, session, verification, or redemption record is ever committed.
+        - Beta code count is never incremented on failure.
+        - Single commit at the very end of the unit of work.
+        """
+        from app.models.beta_access import BetaCodeRedemption
+        from app.services.beta_access import (
+            BetaAccessError,
+            BetaAccessService,
+        )
+
+        norm_email = email.strip().lower()
+        if not norm_email or not password:
+            raise ValueError("Email and password are required")
+
+        # 1. Check if user already exists
+        existing = self.get_user_by_email(norm_email)
+        if existing:
+            raise EmailAlreadyExistsError("E-mailadres is al in gebruik")
+
+        if username:
+            norm_username = username.strip().lower()
+            if self.get_user_by_username(norm_username):
+                raise UsernameAlreadyExistsError("Deze gebruikersnaam is al in gebruik")
+        else:
+            norm_username = generate_default_username(norm_email, self.db)
+
+        beta_service = BetaAccessService(self.db)
+        active_mode = beta_service.get_registration_mode(self.db)
+
+        try:
+            # 2. Lock and consume credential uncommitted
+            matched_code, matched_invite, cred_entitlement, cred_quota = (
+                beta_service.lock_and_consume_credential(
+                    email=norm_email,
+                    beta_code_str=beta_code,
+                    invite_token_str=invite_token,
+                )
+            )
+
+            has_beta = (active_mode.value == "open") or bool(
+                matched_code or matched_invite
+            )
+            entitlement = (
+                cred_entitlement
+                if (matched_code or matched_invite)
+                else ("beta" if has_beta else None)
+            )
+            quota = cred_quota
+
+            # 3. Create user and flush within transaction
+            now = _utcnow()
+            pw_hash = hash_password(password)
+            user_id = str(uuid.uuid4())
+            user = User(
+                id=user_id,
+                email=norm_email,
+                username=norm_username,
+                password_hash=pw_hash,
+                role="user",
+                is_active=True,
+                email_verified=False,
+                policies_accepted_at=now if accepted_policies else None,
+                has_beta_access=has_beta,
+                beta_entitlement=entitlement,
+                scan_quota=quota,
+                registration_mode_used=active_mode.value,
+            )
+            self.db.add(user)
+            self.db.flush()
+
+            # 4. Create initial email verification token (uncommitted)
+            raw_verification_token = secrets.token_urlsafe(32)
+            verification = EmailVerification(
+                id=str(uuid.uuid4()),
+                user_id=user.id,
+                token_hash=hash_token(raw_verification_token),
+                token_type="email_verification",
+                expires_at=now + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
+                created_at=now,
+            )
+            self.db.add(verification)
+
+            # 5. Bind redemption or accepted invitation
+            if matched_code:
+                redemption = BetaCodeRedemption(
+                    id=str(uuid.uuid4()),
+                    beta_code_id=matched_code.id,
+                    user_id=user.id,
+                    redeemed_at=now,
+                    ip_hash=hash_ip(ip),
+                    user_agent=user_agent[:255] if user_agent else None,
+                )
+                self.db.add(redemption)
+            elif matched_invite:
+                matched_invite.accepted_by_user_id = user.id
+
+            # 6. Claim anonymous session if provided (uncommitted)
+            if anonymous_session_id:
+                try:
+                    self._claim_anonymous_session_uncommitted(
+                        user, anonymous_session_id
+                    )
+                except Exception as exc:
+                    logger.warning("Auto-claim during registration failed: %s", exc)
+
+            # 7. Create authenticated session (uncommitted)
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = hash_token(raw_token)
+            expires_at = now + timedelta(days=SESSION_DURATION_DAYS)
+            session = UserSession(
+                id=str(uuid.uuid4()),
+                session_token_hash=token_hash,
+                user_id=user.id,
+                session_type="authenticated",
+                created_at=now,
+                expires_at=expires_at,
+                ip_hash=hash_ip(ip),
+                user_agent=user_agent[:255] if user_agent else None,
+            )
+            self.db.add(session)
+
+            # 8. Single atomic commit for the entire unit of work
+            self.db.commit()
+            self.db.refresh(user)
+            return user, raw_token
+
+        except IntegrityError as exc:
+            self.db.rollback()
+            err_msg = (
+                str(exc.orig).lower() if hasattr(exc, "orig") else str(exc).lower()
+            )
+            if (
+                "users.email" in err_msg
+                or "uq_users_email" in err_msg
+                or "email" in err_msg
+            ):
+                raise EmailAlreadyExistsError("E-mailadres is al in gebruik") from exc
+            if "username" in err_msg:
+                raise UsernameAlreadyExistsError("Deze gebruikersnaam is al in gebruik") from exc
+            raise
+        except (BetaAccessError, Exception):
+            self.db.rollback()
+            raise
+
     def authenticate_user(self, email: str, password: str) -> User | None:
         user = self.get_user_by_email(email)
         if not user or not user.is_active:
@@ -487,14 +657,11 @@ class AuthService:
             return True
         return False
 
-    def claim_anonymous_session(
+    def _claim_anonymous_session_uncommitted(
         self,
         user: User,
         anonymous_session_id: str,
     ) -> int:
-        """Transfer collection items, scans, and sessions from an anonymous
-        pilot session to user.
-        """
         if not anonymous_session_id:
             return 0
 
@@ -592,5 +759,16 @@ class AuthService:
         # 5. Expire the anonymous session
         self.db.delete(source_session)
 
-        self.db.commit()
         return claimed_items_count
+
+    def claim_anonymous_session(
+        self,
+        user: User,
+        anonymous_session_id: str,
+    ) -> int:
+        """Transfer collection items, scans, and sessions from an anonymous
+        pilot session to user.
+        """
+        count = self._claim_anonymous_session_uncommitted(user, anonymous_session_id)
+        self.db.commit()
+        return count

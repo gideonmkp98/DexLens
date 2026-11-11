@@ -30,6 +30,8 @@ export default function AuthModal({
   const [password, setPassword] = useState<string>("");
   const [passwordConfirm, setPasswordConfirm] = useState<string>("");
   const [acceptedPolicies, setAcceptedPolicies] = useState<boolean>(true);
+  const [betaCode, setBetaCode] = useState<string>("");
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -41,6 +43,16 @@ export default function AuthModal({
       setMode(initialMode);
       setError(null);
       setSuccessMsg(null);
+      setBetaCode("");
+      if (typeof window !== "undefined" && window.location.hash) {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const token = params.get("token") || params.get("invite");
+        if (token) {
+          setInviteToken(token);
+          setMode("register");
+        }
+      }
       const timer = setTimeout(() => {
         if (
           !document.activeElement ||
@@ -100,6 +112,8 @@ export default function AuthModal({
           username: trimmedUsername || undefined,
           password_confirmation: passwordConfirm || undefined,
           accepted_policies: acceptedPolicies,
+          beta_code: betaCode.trim() || undefined,
+          invite_token: inviteToken || undefined,
         });
         setSuccessMsg("Account succesvol aangemaakt!");
 
@@ -277,6 +291,28 @@ export default function AuthModal({
               className="mt-1.5 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3 text-[14px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
             />
           </div>
+
+          {mode === "register" && (
+            <div>
+              <label
+                className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8dacd]"
+                htmlFor="auth-beta-code"
+              >
+                Bètacode of Uitnodiging{" "}
+                <span className="font-normal normal-case text-[#8f9587]">
+                  (optioneel tenzij vereist)
+                </span>
+              </label>
+              <input
+                id="auth-beta-code"
+                type="text"
+                value={betaCode}
+                onChange={(e) => setBetaCode(e.target.value)}
+                placeholder="BETA-XXXX-XXXX"
+                className="mt-2 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3.5 font-mono text-[15px] uppercase leading-5 text-[#f3efdf] placeholder:font-sans placeholder:normal-case placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
+              />
+            </div>
+          )}
 
           <div>
             <label

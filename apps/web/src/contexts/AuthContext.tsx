@@ -25,6 +25,9 @@ export interface AuthUser {
   role: string;
   username?: string | null;
   email_verified?: boolean;
+  has_beta_access?: boolean;
+  beta_entitlement?: string | null;
+  scan_quota?: number | null;
 }
 
 export interface RegisterCredentials {
@@ -33,6 +36,8 @@ export interface RegisterCredentials {
   username?: string | null;
   password_confirmation?: string | null;
   accepted_policies?: boolean;
+  beta_code?: string;
+  invite_token?: string;
 }
 
 export interface AuthContextValue {
@@ -147,7 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+          ...(credentials.beta_code ? { beta_code: credentials.beta_code } : {}),
+          ...(credentials.invite_token ? { invite_token: credentials.invite_token } : {}),
+        }),
       });
 
       if (!res.ok) {

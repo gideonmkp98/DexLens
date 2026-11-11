@@ -18,6 +18,14 @@ from app.schemas.auth import (
     UserResponse,
     VerifyEmailRequest,
 )
+from app.schemas.beta_access import (
+    RegistrationMode,
+    RegistrationStatusResponse,
+    ValidateBetaCodeRequest,
+    ValidateBetaCodeResponse,
+    ValidateInvitationRequest,
+    ValidateInvitationResponse,
+)
 from app.services.auth import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DAYS,
@@ -29,10 +37,60 @@ from app.services.auth import (
     dummy_verify_password,
 )
 from app.services.hibp import check_password_pwned
+from app.services.beta_access import (
+    BetaAccessError,
+    BetaAccessService,
+    mask_email,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.get("/registration-status", response_model=RegistrationStatusResponse)
+def get_registration_status(
+    auth_service: AuthService = Depends(get_auth_service),
+) -> RegistrationStatusResponse:
+    """Return active registration mode and requirements for client guidance."""
+    mode = BetaAccessService.get_mode(auth_service.db)
+    return RegistrationStatusResponse(
+        registration_mode=mode.value,
+        allows_open_registration=(mode == RegistrationMode.OPEN),
+        requires_code_or_invite=(
+            mode in (RegistrationMode.BETA_CODE_REQUIRED, RegistrationMode.INVITE_ONLY)
+        ),
+    )
+
+
+@router.post("/validate-beta-code", response_model=ValidateBetaCodeResponse)
+def validate_beta_code(
+    data: ValidateBetaCodeRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ValidateBetaCodeResponse:
+    """Validate a beta code prior to registration form submission."""
+    beta_service = BetaAccessService(auth_service.db)
+    valid, msg, code = beta_service.validate_beta_code(data.code)
+    return ValidateBetaCodeResponse(
+        valid=valid,
+        label=code.label if code and valid else None,
+        message=msg if not valid else None,
+    )
+
+
+@router.post("/validate-invitation", response_model=ValidateInvitationResponse)
+def validate_invitation(
+    data: ValidateInvitationRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ValidateInvitationResponse:
+    """Validate a personal invitation token prior to registration form submission."""
+    beta_service = BetaAccessService(auth_service.db)
+    valid, msg, invitation = beta_service.validate_invitation(data.token)
+    return ValidateInvitationResponse(
+        valid=valid,
+        masked_email=mask_email(invitation.email) if invitation and valid else None,
+        message=msg if not valid else None,
+    )
 
 
 @router.post(
@@ -45,7 +103,7 @@ def register(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse | Response:
     """Register a new collector account with modern password policy, HIBP
-    checks, and email verification.
+    checks, atomic beta access controls, and email verification.
     """
     # 1. Check Have I Been Pwned database using k-anonymity
     is_pwned, breach_count = check_password_pwned(data.password)
@@ -61,6 +119,9 @@ def register(
                 "breach_count": breach_count,
             },
         )
+
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
 
     # 2. Check for prior anonymous session to claim
     old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
@@ -108,13 +169,19 @@ def register(
                 },
             )
 
-    # 5. Create user account
+    # 5. Atomically create user account with beta access and session
     try:
-        user, _ = auth_service.register_user(
+        user, raw_token = auth_service.register_with_beta_access(
             email=data.email,
             password=data.password,
             username=data.username,
             accepted_policies=data.accepted_policies,
+            beta_code=data.beta_code,
+            invite_token=data.invite_token,
+            ip=client_ip,
+            user_agent=user_agent,
+            anonymous_session_id=old_anon_session_id,
+        )
         )
     except EmailAlreadyExistsError:
         if settings.REGISTRATION_NON_ENUMERATION:
@@ -146,22 +213,16 @@ def register(
                 "message": "Deze gebruikersnaam is al in gebruik",
             },
         ) from None
-
-    # 6. Establish authenticated session
-    client_ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
-    _, raw_token = auth_service.create_session(
-        user_id=user.id,
-        session_type="authenticated",
-        ip=client_ip,
-        user_agent=user_agent,
-    )
-
-    if old_anon_session_id:
-        try:
-            auth_service.claim_anonymous_session(user, old_anon_session_id)
-        except Exception as exc:
-            logger.warning("Auto-claim during registration failed: %s", exc)
+    except BetaAccessError as exc:
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if exc.code.startswith("REGISTRATION_")
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from None
 
     response.set_cookie(
         key=SESSION_COOKIE_NAME,

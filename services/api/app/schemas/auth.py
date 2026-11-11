@@ -73,6 +73,8 @@ class RegisterRequest(BaseModel):
             "accepted_policies", "accept_policies", "accept_terms"
         ),
     )
+    beta_code: str | None = None
+    invite_token: str | None = None
 
     @field_validator("username")
     @classmethod
@@ -99,6 +101,14 @@ class RegisterRequest(BaseModel):
                 "Je moet akkoord gaan met de gebruiksvoorwaarden en het privacybeleid"
             )
         return self
+
+    @field_validator("beta_code", "invite_token")
+    @classmethod
+    def clean_optional_token(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip()
+        return clean if clean else None
 
 
 class LoginRequest(BaseModel):
@@ -164,6 +174,9 @@ class UserResponse(BaseModel):
     email_verified: bool = False
     policies_accepted_at: datetime | None = None
     username_changed_at: datetime | None = None
+    has_beta_access: bool = False
+    beta_entitlement: str | None = None
+    scan_quota: int | None = None
     created_at: datetime
 
 
