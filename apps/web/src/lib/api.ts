@@ -472,22 +472,25 @@ export class ApiError extends Error {
   code?: string;
   status: number;
   quota?: ScanQuotaInfo;
+  siteKey?: string;
 
   constructor(
     message: string,
     status: number,
     code?: string,
-    quota?: ScanQuotaInfo
+    quota?: ScanQuotaInfo,
+    siteKey?: string
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.quota = quota;
+    this.siteKey = siteKey;
   }
 }
 
-async function parseApiError(
+export async function parseApiError(
   res: Response,
   fallbackMsg: string
 ): Promise<ApiError> {
@@ -496,14 +499,23 @@ async function parseApiError(
   }
   let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
   let errorCode: string | undefined;
+<<<<<<< HEAD
   let quotaInfo: ScanQuotaInfo | undefined;
+=======
+  let siteKey: string | undefined;
+>>>>>>> admin_experience_abuse_protection
   try {
     const err = await res.json();
     if (err?.detail && typeof err.detail === "object") {
       errorMsg = err.detail.message || errorMsg;
       errorCode = err.detail.code;
+<<<<<<< HEAD
       if (err.detail.quota) {
         quotaInfo = err.detail.quota as ScanQuotaInfo;
+=======
+      if (err.detail.site_key) {
+        siteKey = String(err.detail.site_key);
+>>>>>>> admin_experience_abuse_protection
       }
     } else if (typeof err?.detail === "string") {
       errorMsg = err.detail;
@@ -517,7 +529,11 @@ async function parseApiError(
   } catch {
     // Non-JSON response
   }
+<<<<<<< HEAD
   return new ApiError(errorMsg, res.status, errorCode, quotaInfo);
+=======
+  return new ApiError(errorMsg, res.status, errorCode, siteKey);
+>>>>>>> admin_experience_abuse_protection
 }
 
 /**
@@ -525,17 +541,40 @@ async function parseApiError(
  */
 export async function uploadScan(
   file: File,
-  idempotencyKey?: string
+  turnstileTokenOrIdempotencyKey?: string,
+  turnstileToken?: string
 ): Promise<ScanResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
+  let idempotencyKey: string | undefined;
+  let token: string | undefined;
+
+  if (turnstileToken !== undefined) {
+    idempotencyKey = turnstileTokenOrIdempotencyKey;
+    token = turnstileToken;
+  } else if (turnstileTokenOrIdempotencyKey) {
+    token = turnstileTokenOrIdempotencyKey;
+    idempotencyKey = turnstileTokenOrIdempotencyKey;
+  }
+
+  if (token) {
+    formData.append("turnstile_token", token);
+  }
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (token) {
+    headers["X-Turnstile-Token"] = token;
+  }
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-    },
+    headers,
     body: formData,
   });
 
@@ -1179,13 +1218,17 @@ export async function getScanSession(
 export async function captureLiveScanFrame(
   sessionId: string,
   imageFile: File | Blob,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  turnstileToken?: string
 ): Promise<LiveCaptureResponse> {
   const formData = new FormData();
   if (imageFile instanceof File) {
     formData.append("file", imageFile);
   } else {
     formData.append("file", imageFile, "live_frame.jpg");
+  }
+  if (turnstileToken) {
+    formData.append("turnstile_token", turnstileToken);
   }
 
   const res = await fetch(
@@ -1195,6 +1238,7 @@ export async function captureLiveScanFrame(
       headers: {
         Accept: "application/json",
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...(turnstileToken ? { "X-Turnstile-Token": turnstileToken } : {}),
       },
       cache: "no-store",
       body: formData,

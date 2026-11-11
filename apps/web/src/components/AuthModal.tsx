@@ -9,6 +9,7 @@ import {
   validatePassword,
   validateRegistration,
 } from "@/lib/authValidation";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function AuthModal({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +46,7 @@ export default function AuthModal({
       setError(null);
       setSuccessMsg(null);
       setBetaCode("");
+      setTurnstileToken(null);
       if (typeof window !== "undefined" && window.location.hash) {
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
@@ -114,6 +117,7 @@ export default function AuthModal({
           accepted_policies: acceptedPolicies,
           beta_code: betaCode.trim() || undefined,
           invite_token: inviteToken || undefined,
+          turnstile_token: turnstileToken || undefined,
         });
         setSuccessMsg("Account succesvol aangemaakt!");
 
@@ -220,6 +224,7 @@ export default function AuthModal({
             onClick={() => {
               setMode("login");
               setError(null);
+              setTurnstileToken(null);
             }}
             className={`flex-1 rounded-[3px] px-3 py-2.5 text-[13px] font-bold tracking-wide transition ${
               mode === "login"
@@ -234,6 +239,7 @@ export default function AuthModal({
             onClick={() => {
               setMode("register");
               setError(null);
+              setTurnstileToken(null);
             }}
             className={`flex-1 rounded-[3px] px-3 py-2.5 text-[13px] font-bold tracking-wide transition ${
               mode === "register"
@@ -373,6 +379,16 @@ export default function AuthModal({
           )}
 
           {mode === "register" && (
+            <div className="pt-1">
+              <TurnstileWidget
+                action="register"
+                onVerify={(tok) => setTurnstileToken(tok)}
+                onExpire={() => setTurnstileToken(null)}
+              />
+            </div>
+          )}
+
+          {mode === "register" && (
             <div className="flex items-start gap-3 pt-1">
               <input
                 id="auth-policies"
@@ -407,7 +423,6 @@ export default function AuthModal({
               </label>
             </div>
           )}
-
           {error && (
             <div
               role="alert"

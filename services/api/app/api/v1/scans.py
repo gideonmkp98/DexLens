@@ -507,6 +507,18 @@ async def upload_scan(
     """Upload a single image, validate and normalize it, meter quota, and store metadata."""
     response.headers["Cache-Control"] = "no-store"
     form = await request.form()
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get(
+        "turnstile_token"
+    )
+    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
+
+    from app.services.abuse import ScanAbuseService
+
+    ScanAbuseService.check_scan_permission(
+        request=request,
+        user_id=session_ctx.user_id,
+        turnstile_token=turnstile_token,
+    )
     if (
         sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
         != 1
@@ -627,6 +639,10 @@ async def upload_scan(
         )
         quota_service.commit_scan_idempotency(owner_key, idempotency_key, scan_id)
         set_quota_headers(response, quota_info)
+        ScanAbuseService.record_scan_activity(
+            request=request,
+            user_id=session_ctx.user_id,
+        )
         return persisted
     except Exception:
         quota_service.rollback_consumption(

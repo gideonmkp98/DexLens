@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ApiError, uploadScan } from "@/lib/api";
 import LiveCameraScanner from "@/components/LiveCameraScanner";
 import { trackEvent } from "@/lib/analytics";
+import ScanChallengeModal from "@/components/ScanChallengeModal";
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MiB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -34,6 +35,8 @@ export default function ScanPage() {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [challengeOpen, setChallengeOpen] = useState<boolean>(false);
+  const [challengeSiteKey, setChallengeSiteKey] = useState<string | undefined>();
 
   // Detect camera API support on client mount
   useEffect(() => {
@@ -125,6 +128,11 @@ export default function ScanPage() {
       router.push(`/scan/${scan.id}`);
     } catch (err: unknown) {
       setIsUploading(false);
+      if (err instanceof ApiError && err.code === "CHALLENGE_REQUIRED") {
+        setChallengeSiteKey(err.siteKey);
+        setChallengeOpen(true);
+        return;
+      }
       trackEvent("scan_processing_failed", {
         capture_mode: "upload",
         failure_category: "upload_failed",
@@ -133,6 +141,28 @@ export default function ScanPage() {
         err instanceof ApiError || err instanceof Error
           ? err.message
           : "Uploaden is niet gelukt. Probeer opnieuw."
+      );
+    }
+  };
+
+  const handleChallengeSolved = async (token: string) => {
+    setChallengeOpen(false);
+    if (!selectedFile) return;
+    setIsUploading(true);
+    setErrorMessage(null);
+    try {
+      const scan = await uploadScan(selectedFile, token);
+      trackEvent("upload_completed", {
+        scan_id: scan.id,
+        capture_mode: "upload",
+      });
+      router.push(`/scan/${scan.id}`);
+    } catch (err: unknown) {
+      setIsUploading(false);
+      setErrorMessage(
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Uploaden is niet gelukt na beveiligingscontrole."
       );
     }
   };
@@ -443,6 +473,12 @@ export default function ScanPage() {
           </aside>
         </main>
       )}
+      <ScanChallengeModal
+        isOpen={challengeOpen}
+        siteKey={challengeSiteKey}
+        onSolved={handleChallengeSolved}
+        onCancel={() => setChallengeOpen(false)}
+      />
     </div>
   );
 }

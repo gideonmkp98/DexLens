@@ -42,6 +42,7 @@ from app.services.beta_access import (
     BetaAccessService,
     mask_email,
 )
+from app.services.turnstile import TurnstileService
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +103,37 @@ def register(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse | Response:
-    """Register a new collector account with modern password policy, HIBP
-    checks, atomic beta access controls, and email verification.
+    """Register a new collector account with Turnstile protection, modern password
+    policy, HIBP checks, atomic beta access controls, and email verification.
     """
+    turnstile_token = data.turnstile_token or request.headers.get("x-turnstile-token")
+    client_ip = TurnstileService.get_trusted_client_ip(request)
+    user_agent = request.headers.get("user-agent")
+
+    is_prod = settings.ENVIRONMENT.lower() in {"production", "prod"}
+    force_turnstile = bool(request.headers.get("x-enforce-turnstile"))
+
+    if (
+        is_prod
+        or settings.TURNSTILE_ENABLED
+        or force_turnstile
+        or turnstile_token is not None
+    ):
+        t_result = TurnstileService.verify(
+            token=turnstile_token,
+            expected_action="register",
+            client_ip=client_ip,
+        )
+        if not t_result.success:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": t_result.error_code or "TURNSTILE_FAILED",
+                    "message": t_result.error_message
+                    or "Veiligheidscontrole mislukt. Probeer het opnieuw.",
+                },
+            )
+
     # 1. Check Have I Been Pwned database using k-anonymity
     is_pwned, breach_count = check_password_pwned(data.password)
     if is_pwned:
@@ -119,9 +148,6 @@ def register(
                 "breach_count": breach_count,
             },
         )
-
-    client_ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
 
     # 2. Check for prior anonymous session to claim
     old_cookie = request.cookies.get(SESSION_COOKIE_NAME)

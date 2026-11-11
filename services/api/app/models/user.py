@@ -56,6 +56,16 @@ class User(Base):
         default=True,
         server_default="1",
     )
+    # Phase 9: Administrative status
+    status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="active",
+        server_default="active",
+        index=True,
+    )
+
+    # Phase 9: Account Security
     email_verified: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -86,6 +96,18 @@ class User(Base):
         String(32),
         nullable=True,
     )
+
+    @property
+    def verification_status(self) -> str:
+        """Verification status derived from email_verified, NOT is_active."""
+        return "verified" if self.email_verified else "unverified"
+
+    @property
+    def scan_quota_override(self) -> int | None:
+        """Scan quota overrides sourced from the official UserScanQuota relationship."""
+        if self.scan_quota and self.scan_quota.override_mode == "custom":
+            return self.scan_quota.custom_limit
+        return None
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

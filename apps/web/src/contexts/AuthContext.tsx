@@ -38,6 +38,7 @@ export interface RegisterCredentials {
   accepted_policies?: boolean;
   beta_code?: string;
   invite_token?: string;
+  turnstile_token?: string;
 }
 
 export interface AuthContextValue {
@@ -46,7 +47,7 @@ export interface AuthContextValue {
   sessionId: string | null;
   sessionType: string | null;
   refreshAuth: () => Promise<BrowserSessionState>;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string; turnstile_token?: string }) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySessionState]);
 
   const login = useCallback(
-    async (credentials: { email: string; password: string }): Promise<void> => {
+    async (credentials: { email: string; password: string; turnstile_token?: string }): Promise<void> => {
       const endpoint = "/api/v1/auth/login";
       const res = await fetch(endpoint, {
         method: "POST",
@@ -155,8 +156,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           email: credentials.email,
           password: credentials.password,
+          ...(credentials.username ? { username: credentials.username } : {}),
+          ...(credentials.password_confirmation ? { password_confirmation: credentials.password_confirmation } : {}),
+          ...(credentials.accepted_policies !== undefined ? { accepted_policies: credentials.accepted_policies } : {}),
           ...(credentials.beta_code ? { beta_code: credentials.beta_code } : {}),
           ...(credentials.invite_token ? { invite_token: credentials.invite_token } : {}),
+          ...(credentials.turnstile_token ? { turnstile_token: credentials.turnstile_token } : {}),
         }),
       });
 

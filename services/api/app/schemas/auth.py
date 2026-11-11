@@ -76,6 +76,7 @@ class RegisterRequest(BaseModel):
     )
     beta_code: str | None = None
     invite_token: str | None = None
+    turnstile_token: str | None = None
 
     @field_validator("username")
     @classmethod

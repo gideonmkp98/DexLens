@@ -15,12 +15,14 @@ from fastapi import (
 )
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
+from app.api.deps import SessionContext, get_session_context
 from app.schemas.scan_session import (
     LiveCaptureResponse,
     ScanSessionCreateRequest,
     ScanSessionDetailResponse,
     ScanSessionResponse,
 )
+from app.services.abuse import ScanAbuseService
 from app.services.scan_session import (
     ScanSessionError,
     ScanSessionService,
@@ -37,7 +39,7 @@ def _validate_uuid(val: str) -> str:
     try:
         parsed = uuid.UUID(val)
         return str(parsed)
-    except ValueError:
+    except (ValueError, AttributeError):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "SESSION_NOT_FOUND", "message": "Scan session not found."},
@@ -106,6 +108,7 @@ async def capture_frame(
         pattern=r"^[A-Za-z0-9._:-]+$",
     ),
     service: ScanSessionService = Depends(get_scan_session_service),
+    session_ctx: SessionContext = Depends(get_session_context),
 ) -> LiveCaptureResponse:
     """Live frame capture: detects card bounds and runs recognition."""
     response.headers["Cache-Control"] = "no-store"
@@ -123,6 +126,18 @@ async def capture_frame(
                 "message": "Please upload exactly one image.",
             },
         )
+
+    # Adaptive abuse protection check
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get(
+        "turnstile_token"
+    )
+    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
+
+    ScanAbuseService.check_scan_permission(
+        request=request,
+        user_id=session_ctx.user_id,
+        turnstile_token=turnstile_token,
+    )
 
     try:
         result = await service.capture_frame(
@@ -161,6 +176,14 @@ async def capture_frame(
             detail=detail,
             headers=headers,
         ) from err
+
+    # Record scan activity only after successful capture/processing
+    ScanAbuseService.record_scan_activity(
+        request=request,
+        user_id=session_ctx.user_id,
+    )
+
+    return result
 
 
 @router.post(
