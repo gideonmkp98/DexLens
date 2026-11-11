@@ -23,6 +23,16 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  has_beta_access?: boolean;
+  beta_entitlement?: string | null;
+  scan_quota?: number | null;
+}
+
+export interface RegisterCredentials {
+  email: string;
+  password: string;
+  beta_code?: string;
+  invite_token?: string;
 }
 
 export interface AuthContextValue {
@@ -32,7 +42,7 @@ export interface AuthContextValue {
   sessionType: string | null;
   refreshAuth: () => Promise<BrowserSessionState>;
   login: (credentials: { email: string; password: string }) => Promise<void>;
-  register: (credentials: { email: string; password: string }) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -131,13 +141,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (credentials: { email: string; password: string }): Promise<void> => {
+    async (credentials: RegisterCredentials): Promise<void> => {
       const endpoint = "/api/v1/auth/register";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+          ...(credentials.beta_code ? { beta_code: credentials.beta_code } : {}),
+          ...(credentials.invite_token ? { invite_token: credentials.invite_token } : {}),
+        }),
       });
 
       if (!res.ok) {

@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, field_validator
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    beta_code: str | None = None
+    invite_token: str | None = None
 
     @field_validator("email")
     @classmethod
@@ -26,6 +28,14 @@ class RegisterRequest(BaseModel):
         if len(v) > 128:
             raise ValueError("Wachtwoord is te lang (maximaal 128 tekens)")
         return v
+
+    @field_validator("beta_code", "invite_token")
+    @classmethod
+    def clean_optional_token(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip()
+        return clean if clean else None
 
 
 class LoginRequest(BaseModel):
@@ -50,6 +60,9 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool
+    has_beta_access: bool = False
+    beta_entitlement: str | None = None
+    scan_quota: int | None = None
     created_at: datetime
 
 

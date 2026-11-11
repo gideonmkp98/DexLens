@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     ANALYTICS_MAX_PAYLOAD_BYTES: int = 2048
     TRUSTED_PROXY_IPS: list[str] | str = []
 
+    # Phase 9: Beta Access & Invitation Configuration
+    REGISTRATION_MODE: str = "open"  # "open", "beta_code_required", "invite_only"
+    EMAIL_PROVIDER: str = "memory"  # "memory", "console"
+    INVITATION_EXPIRE_DAYS: int = 7
+    DEFAULT_BETA_SCAN_QUOTA: int = 50
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if self.ENVIRONMENT.lower() in {"production", "prod"}:
@@ -76,6 +82,11 @@ class Settings(BaseSettings):
                     "PILOT_ADMIN_SECRET must be a non-default 32+ character secret "
                     "in production"
                 )
+        if self.REGISTRATION_MODE not in {"open", "beta_code_required", "invite_only"}:
+            raise ValueError(
+                f"Invalid REGISTRATION_MODE: {self.REGISTRATION_MODE}. "
+                "Must be one of: open, beta_code_required, invite_only."
+            )
         return self
 
     @field_validator(

@@ -12,16 +12,72 @@ from app.schemas.auth import (
     RegisterRequest,
     UserResponse,
 )
+from app.schemas.beta_access import (
+    RegistrationMode,
+    RegistrationStatusResponse,
+    ValidateBetaCodeRequest,
+    ValidateBetaCodeResponse,
+    ValidateInvitationRequest,
+    ValidateInvitationResponse,
+)
 from app.services.auth import (
     SESSION_COOKIE_NAME,
     SESSION_DURATION_DAYS,
     AuthService,
     EmailAlreadyExistsError,
 )
+from app.services.beta_access import (
+    BetaAccessError,
+    BetaAccessService,
+    mask_email,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.get("/registration-status", response_model=RegistrationStatusResponse)
+def get_registration_status() -> RegistrationStatusResponse:
+    """Return active registration mode and requirements for client guidance."""
+    mode = BetaAccessService.get_registration_mode()
+    return RegistrationStatusResponse(
+        registration_mode=mode.value,
+        allows_open_registration=(mode == RegistrationMode.OPEN),
+        requires_code_or_invite=(
+            mode in (RegistrationMode.BETA_CODE_REQUIRED, RegistrationMode.INVITE_ONLY)
+        ),
+    )
+
+
+@router.post("/validate-beta-code", response_model=ValidateBetaCodeResponse)
+def validate_beta_code(
+    data: ValidateBetaCodeRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ValidateBetaCodeResponse:
+    """Validate a beta code prior to registration form submission."""
+    beta_service = BetaAccessService(auth_service.db)
+    valid, msg, code = beta_service.validate_beta_code(data.code)
+    return ValidateBetaCodeResponse(
+        valid=valid,
+        label=code.label if code and valid else None,
+        message=msg if not valid else None,
+    )
+
+
+@router.post("/validate-invitation", response_model=ValidateInvitationResponse)
+def validate_invitation(
+    data: ValidateInvitationRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+) -> ValidateInvitationResponse:
+    """Validate a personal invitation token prior to registration form submission."""
+    beta_service = BetaAccessService(auth_service.db)
+    valid, msg, invitation = beta_service.validate_invitation(data.token)
+    return ValidateInvitationResponse(
+        valid=valid,
+        masked_email=mask_email(invitation.email) if invitation and valid else None,
+        message=msg if not valid else None,
+    )
 
 
 @router.post(
@@ -33,14 +89,28 @@ def register(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Register a new collector account."""
-    old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
-    old_anon_session_id = None
-    if old_cookie:
-        old_session = auth_service.get_session(old_cookie)
-        if old_session and old_session.session_type == "anonymous":
-            old_anon_session_id = old_session.id
+    """Register a new collector account with server-enforced beta access controls."""
+    beta_service = BetaAccessService(auth_service.db)
 
+    # 1. Enforce active server registration mode before checking user database
+    try:
+        matched_code, matched_invite = beta_service.verify_registration_requirements(
+            email=data.email,
+            beta_code=data.beta_code,
+            invite_token=data.invite_token,
+        )
+    except BetaAccessError as exc:
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if exc.code.startswith("REGISTRATION_")
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from None
+
+    # 2. Check for duplicate account
     existing = auth_service.get_user_by_email(data.email)
     if existing:
         raise HTTPException(
@@ -51,8 +121,36 @@ def register(
             },
         )
 
+    # 3. Determine beta entitlements and scan quota allocation
+    active_mode = beta_service.get_registration_mode()
+    has_beta = active_mode == RegistrationMode.OPEN or bool(
+        matched_code or matched_invite
+    )
+    entitlement = None
+    quota = None
+
+    if matched_invite:
+        has_beta = True
+        entitlement = matched_invite.beta_entitlement or "beta"
+        quota = matched_invite.scan_quota_allocated
+    elif matched_code:
+        has_beta = True
+        entitlement = matched_code.beta_entitlement or "beta"
+        quota = matched_code.scan_quota_allocated
+
+    # 4. Create user account
+    # (quota will be credited atomically during redemption if applicable)
+    initial_quota = quota if not (matched_code or matched_invite) else None
     try:
-        user = auth_service.register_user(data.email, data.password)
+        user = auth_service.register_user(
+            email=data.email,
+            password=data.password,
+            role="user",
+            has_beta_access=has_beta,
+            beta_entitlement=entitlement,
+            scan_quota=initial_quota,
+            registration_mode_used=active_mode.value,
+        )
     except EmailAlreadyExistsError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,9 +160,33 @@ def register(
             },
         ) from None
 
-    # Automatically log the user in with a new session
+    # 5. Atomically redeem credentials if provided
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
+
+    if matched_invite and data.invite_token:
+        try:
+            beta_service.redeem_invitation(data.invite_token, user)
+        except BetaAccessError as exc:
+            logger.warning("Redeem invitation post-registration failed: %s", exc.code)
+    elif matched_code and data.beta_code:
+        try:
+            beta_service.redeem_beta_code(
+                data.beta_code, user, ip=client_ip, user_agent=user_agent
+            )
+        except BetaAccessError as exc:
+            logger.warning("Redeem beta code post-registration failed: %s", exc.code)
+
+    auth_service.db.refresh(user)
+
+    # 6. Automatically log the user in with a new session
+    old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    old_anon_session_id = None
+    if old_cookie:
+        old_session = auth_service.get_session(old_cookie)
+        if old_session and old_session.session_type == "anonymous":
+            old_anon_session_id = old_session.id
+
     _, raw_token = auth_service.create_session(
         user_id=user.id,
         session_type="authenticated",

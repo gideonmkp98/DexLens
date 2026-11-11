@@ -71,8 +71,15 @@ def setup_test_database():
     tables with an older model shape; the database-name guard above guarantees
     that this can never target a non-test database.
     """
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
+    with test_engine.connect() as conn:
+        if test_engine.url.get_backend_name() in ("mysql", "mariadb"):
+            conn.exec_driver_sql("SET FOREIGN_KEY_CHECKS=0")
+            Base.metadata.drop_all(bind=conn)
+            Base.metadata.create_all(bind=conn)
+            conn.exec_driver_sql("SET FOREIGN_KEY_CHECKS=1")
+        else:
+            Base.metadata.drop_all(bind=conn)
+            Base.metadata.create_all(bind=conn)
     yield
     # Keep the isolated schema intact after the suite. Alembic verification may
     # run next, and dropping ORM tables while leaving alembic_version at head

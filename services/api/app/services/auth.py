@@ -147,6 +147,10 @@ class AuthService:
         email: str,
         password: str,
         role: str = "user",
+        has_beta_access: bool = False,
+        beta_entitlement: str | None = None,
+        scan_quota: int | None = None,
+        registration_mode_used: str | None = None,
     ) -> User:
         norm_email = email.strip().lower()
         pw_hash = hash_password(password)
@@ -155,6 +159,10 @@ class AuthService:
             password_hash=pw_hash,
             role=role,
             is_active=True,
+            has_beta_access=has_beta_access,
+            beta_entitlement=beta_entitlement,
+            scan_quota=scan_quota,
+            registration_mode_used=registration_mode_used,
         )
         self.db.add(user)
         try:

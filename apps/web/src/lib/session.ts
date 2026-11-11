@@ -1,6 +1,13 @@
 export interface BrowserSessionState {
   is_authenticated: boolean;
-  user: { id: string; email: string; role: string } | null;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    has_beta_access?: boolean;
+    beta_entitlement?: string | null;
+    scan_quota?: number | null;
+  } | null;
   session_id: string;
   session_type: string;
 }

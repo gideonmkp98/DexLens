@@ -2,12 +2,13 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.beta_access import BetaCodeRedemption, Invitation
     from app.models.collection import CollectionItem
     from app.models.scan import Scan
 
@@ -48,6 +49,27 @@ class User(Base):
         default=True,
         server_default="1",
     )
+
+    # Phase 9: Beta Access & Entitlements
+    has_beta_access: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    beta_entitlement: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+    scan_quota: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    registration_mode_used: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -75,6 +97,16 @@ class User(Base):
     scans: Mapped[list["Scan"]] = relationship(
         "Scan",
         back_populates="user",
+    )
+    beta_code_redemptions: Mapped[list["BetaCodeRedemption"]] = relationship(
+        "BetaCodeRedemption",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    accepted_invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation",
+        foreign_keys="Invitation.accepted_by_user_id",
+        back_populates="accepted_by_user",
     )
 
 
