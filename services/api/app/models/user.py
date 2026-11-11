@@ -10,6 +10,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.collection import CollectionItem
     from app.models.scan import Scan
+    from app.models.scan_quota import UserScanQuota
 
 
 def _utcnow() -> datetime:
@@ -71,6 +72,12 @@ class User(Base):
     collection_items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem",
         back_populates="user",
+    )
+    scan_quota: Mapped["UserScanQuota | None"] = relationship(
+        "UserScanQuota",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     scans: Mapped[list["Scan"]] = relationship(
         "Scan",

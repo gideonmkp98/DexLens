@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.admin.scan_quota import router as admin_scan_quota_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.cards import router as cards_router
@@ -22,6 +23,7 @@ api_router.include_router(cards_router)
 api_router.include_router(scans_router)
 api_router.include_router(scan_sessions_router)
 api_router.include_router(collection_router)
+api_router.include_router(admin_scan_quota_router)
 
 # Mount testing routes only in non-production environments
 if settings.ENVIRONMENT != "production":

@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     ANALYTICS_MAX_PAYLOAD_BYTES: int = 2048
     TRUSTED_PROXY_IPS: list[str] | str = []
 
+    # Daily Scan Quota Configuration
+    DEFAULT_DAILY_SCAN_LIMIT: int = 50
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if self.ENVIRONMENT.lower() in {"production", "prod"}:
@@ -100,9 +103,16 @@ class Settings(BaseSettings):
 
     @field_validator("UPLOAD_REQUEST_OVERHEAD_BYTES", mode="after")
     @classmethod
-    def validate_non_negative_int(cls, v: int) -> int:
+    def validate_overhead_bytes(cls, v: int) -> int:
         if v < 0:
-            raise ValueError("Value cannot be negative")
+            raise ValueError("Overhead bytes must be non-negative")
+        return v
+
+    @field_validator("DEFAULT_DAILY_SCAN_LIMIT", mode="after")
+    @classmethod
+    def validate_default_daily_scan_limit(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Default daily scan limit must be non-negative")
         return v
 
     @field_validator("CORS_ORIGINS", "TRUSTED_PROXY_IPS", mode="after")

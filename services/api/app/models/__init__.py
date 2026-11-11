@@ -5,6 +5,12 @@ from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.feedback import ScanFeedback
 from app.models.import_run import ImportRun
 from app.models.scan import Scan
+from app.models.scan_quota import (
+    DailyScanUsage,
+    ScanIdempotencyRecord,
+    ScanQuotaSetting,
+    UserScanQuota,
+)
 from app.models.scan_session import ScanSession
 from app.models.set import Set
 from app.models.user import User, UserSession
@@ -14,12 +20,16 @@ __all__ = [
     "Card",
     "CollectionItem",
     "CollectionScanLink",
+    "DailyScanUsage",
     "ImportRun",
     "ProductAnalyticsEvent",
     "Scan",
     "ScanFeedback",
+    "ScanIdempotencyRecord",
+    "ScanQuotaSetting",
     "ScanSession",
     "Set",
     "User",
+    "UserScanQuota",
     "UserSession",
 ]

@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -71,8 +71,16 @@ def setup_test_database():
     tables with an older model shape; the database-name guard above guarantees
     that this can never target a non-test database.
     """
+    if test_engine.url.get_backend_name() in ("mysql", "mariadb"):
+        with test_engine.connect() as conn:
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+            conn.commit()
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
+    if test_engine.url.get_backend_name() in ("mysql", "mariadb"):
+        with test_engine.connect() as conn:
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+            conn.commit()
     yield
     # Keep the isolated schema intact after the suite. Alembic verification may
     # run next, and dropping ORM tables while leaving alembic_version at head
