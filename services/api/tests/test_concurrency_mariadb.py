@@ -14,11 +14,18 @@ from app.api.v1.cards import get_tcgdex_client
 from app.core.config import settings
 from app.core.database import get_db
 from app.main import app
+from app.models.beta_access import BetaCode, BetaCodeRedemption, Invitation
 from app.models.collection import CollectionItem, CollectionScanLink
 from app.models.scan import Scan
-from app.models.user import UserSession
+from app.models.user import User, UserSession
 from app.services import crop_service
-from app.services.auth import SESSION_COOKIE_NAME, hash_token
+from app.services.auth import (
+    SESSION_COOKIE_NAME,
+    AuthService,
+    EmailAlreadyExistsError,
+    hash_token,
+)
+from app.services.beta_access import BetaAccessError, BetaAccessService
 from tests.conftest import TestingSessionLocal, test_engine
 from tests.test_card_detection_and_crop import (
     _create_synthetic_card_image,
@@ -1255,3 +1262,276 @@ def test_mariadb_collection_concurrent_delete_vs_update() -> None:
         )
         assert len(orphans) == 0, f"Found orphan scan links: {orphans}"
     verify_db.close()
+
+
+def test_mariadb_beta_code_ten_concurrent_registrations_max_uses_three():
+    """Beta code with max_uses=3 and 10 concurrent registrations on MariaDB.
+
+    Proofs required:
+    - exactly 3 registrations succeed;
+    - exactly 7 fail with the correct business error (BetaCodeExhaustedError);
+    - exactly 3 users exist in the database;
+    - code.used_count == 3;
+    - exactly 3 redemption records exist in beta_code_redemptions;
+    - no failed request leaves a session or partial user.
+    """
+    setup_db = TestingSessionLocal()
+    beta_service = BetaAccessService(setup_db)
+    code_obj, raw_code = beta_service.create_beta_code(
+        label="MariaDB 10-Worker Race",
+        max_uses=3,
+    )
+    code_id = code_obj.id
+    setup_db.close()
+
+    barrier = threading.Barrier(10)
+    successes = []
+    failures = []
+    worker_emails = [f"mariadb_race_{i}@example.com" for i in range(10)]
+
+    def _worker(worker_id: int, email: str):
+        worker_db = TestingSessionLocal()
+        auth_service = AuthService(worker_db)
+        try:
+            barrier.wait(timeout=10)
+            user, token = auth_service.register_with_beta_access(
+                email=email,
+                password="Password123!",
+                beta_code=raw_code,
+            )
+            successes.append(
+                {"worker_id": worker_id, "email": email, "user_id": user.id}
+            )
+        except BetaAccessError as exc:
+            failures.append(
+                {
+                    "worker_id": worker_id,
+                    "email": email,
+                    "code": exc.code,
+                    "error": str(exc),
+                }
+            )
+        except Exception as exc:
+            failures.append(
+                {
+                    "worker_id": worker_id,
+                    "email": email,
+                    "code": "UNEXPECTED",
+                    "error": str(exc),
+                }
+            )
+        finally:
+            worker_db.close()
+
+    threads = [
+        threading.Thread(target=_worker, args=(i, worker_emails[i])) for i in range(10)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=15)
+
+    assert len(successes) == 3, (
+        f"Expected 3 successes, got {len(successes)}: {successes}"
+    )
+    assert len(failures) == 7, f"Expected 7 failures, got {len(failures)}: {failures}"
+
+    # Verify failure reasons: all losing requests got EXHAUSTED_BETA_CODE
+    for fail in failures:
+        assert fail["code"] == "EXHAUSTED_BETA_CODE", f"Unexpected failure code: {fail}"
+
+    verify_db = TestingSessionLocal()
+    try:
+        # Verify code usage
+        code_in_db = verify_db.query(BetaCode).filter(BetaCode.id == code_id).first()
+        assert code_in_db is not None
+        assert code_in_db.used_count == 3
+
+        # Verify exactly 3 users exist out of the 10 worker emails
+        users_in_db = verify_db.query(User).filter(User.email.in_(worker_emails)).all()
+        assert len(users_in_db) == 3
+        winning_user_ids = {u.id for u in users_in_db}
+        winning_emails = {u.email for u in users_in_db}
+        assert winning_emails == {s["email"] for s in successes}
+
+        # Verify exactly 3 redemptions exist
+        redemptions = (
+            verify_db.query(BetaCodeRedemption)
+            .filter(BetaCodeRedemption.beta_code_id == code_id)
+            .all()
+        )
+        assert len(redemptions) == 3
+        redemption_user_ids = {r.user_id for r in redemptions}
+        assert redemption_user_ids == winning_user_ids
+
+        # Verify losing requests left NO user and NO session
+        losing_emails = [f["email"] for f in failures]
+        for fail_email in losing_emails:
+            user = verify_db.query(User).filter(User.email == fail_email).first()
+            assert user is None, f"Losing request created an orphan user: {fail_email}"
+
+        # Verify all sessions in DB belong ONLY to winning users
+        all_sessions = verify_db.query(UserSession).all()
+        for sess in all_sessions:
+            if sess.user_id is not None:
+                assert sess.user_id in winning_user_ids, (
+                    f"Orphan session found for user_id {sess.user_id}"
+                )
+    finally:
+        verify_db.close()
+
+
+def test_mariadb_invitation_concurrent_registration_single_use():
+    """Two concurrent registration requests to redeem single-use invite on MariaDB.
+
+    Proofs required:
+    - exactly one registration succeeds;
+    - exactly one user exists for the invited email;
+    - the invitation is accepted and bound to the winning user;
+    - no failed request leaves a session or user.
+    """
+    setup_db = TestingSessionLocal()
+    beta_service = BetaAccessService(setup_db)
+    target_email = "mariadb_single_invite_race@example.com"
+    invitation_obj, raw_token = beta_service.create_invitation(email=target_email)
+    invitation_id = invitation_obj.id
+    setup_db.close()
+
+    barrier = threading.Barrier(2)
+    successes = []
+    failures = []
+
+    def _worker(worker_id: int):
+        worker_db = TestingSessionLocal()
+        auth_service = AuthService(worker_db)
+        try:
+            barrier.wait(timeout=10)
+            user, token = auth_service.register_with_beta_access(
+                email=target_email,
+                password="Password123!",
+                invite_token=raw_token,
+            )
+            successes.append({"worker_id": worker_id, "user_id": user.id})
+        except BetaAccessError as exc:
+            failures.append(
+                {"worker_id": worker_id, "code": exc.code, "error": str(exc)}
+            )
+        except Exception as exc:
+            failures.append(
+                {"worker_id": worker_id, "code": "UNEXPECTED", "error": str(exc)}
+            )
+        finally:
+            worker_db.close()
+
+    t1 = threading.Thread(target=_worker, args=(1,))
+    t2 = threading.Thread(target=_worker, args=(2,))
+    t1.start()
+    t2.start()
+    t1.join(timeout=15)
+    t2.join(timeout=15)
+
+    assert len(successes) == 1, f"Expected 1 success, got {len(successes)}: {successes}"
+    assert len(failures) == 1, f"Expected 1 failure, got {len(failures)}: {failures}"
+    assert failures[0]["code"] in ("INVITATION_ALREADY_USED", "INVALID_INVITATION")
+
+    verify_db = TestingSessionLocal()
+    try:
+        # Exactly one user in DB
+        users = verify_db.query(User).filter(User.email == target_email).all()
+        assert len(users) == 1
+        winning_user = users[0]
+        assert winning_user.id == successes[0]["user_id"]
+
+        # Invitation is accepted and bound to winning user
+        inv_in_db = (
+            verify_db.query(Invitation).filter(Invitation.id == invitation_id).first()
+        )
+        assert inv_in_db is not None
+        assert inv_in_db.status == "accepted"
+        assert inv_in_db.accepted_by_user_id == winning_user.id
+
+        # No extra session
+        sessions = (
+            verify_db.query(UserSession)
+            .filter(UserSession.user_id == winning_user.id)
+            .all()
+        )
+        assert len(sessions) == 1
+    finally:
+        verify_db.close()
+
+
+def test_mariadb_registration_rollback_on_failed_user_insert():
+    """Deliberate rollback test: verify a failed registration leaves no side effects.
+
+    Proofs required:
+    - no user created;
+    - no session created;
+    - no redemption record created;
+    - no incremented code usage;
+    - no accepted invitation.
+    """
+    setup_db = TestingSessionLocal()
+    beta_service = BetaAccessService(setup_db)
+    code_obj, raw_code = beta_service.create_beta_code(
+        label="Rollback Test Code",
+        max_uses=5,
+    )
+    code_id = code_obj.id
+    target_email = "rollback_target@example.com"
+    inv_obj, raw_token = beta_service.create_invitation(email=target_email)
+    inv_id = inv_obj.id
+    setup_db.close()
+
+    # Pre-create a user with target email to force an EmailAlreadyExistsError
+    pre_db = TestingSessionLocal()
+    pre_auth = AuthService(pre_db)
+    pre_auth.register_user(
+        email=target_email,
+        password="ExistingPassword123!",
+    )
+    pre_db.close()
+
+    # 1. Attempt beta-code registration with duplicate email -> fails
+    reg_db = TestingSessionLocal()
+    reg_auth = AuthService(reg_db)
+    with pytest.raises(EmailAlreadyExistsError):
+        reg_auth.register_with_beta_access(
+            email=target_email,
+            password="AnotherPassword123!",
+            beta_code=raw_code,
+        )
+    reg_db.close()
+
+    # Verify code was NOT consumed and no redemption record exists
+    check_db = TestingSessionLocal()
+    try:
+        code_after = check_db.query(BetaCode).filter(BetaCode.id == code_id).first()
+        assert code_after is not None
+        assert code_after.used_count == 0
+
+        redemptions = (
+            check_db.query(BetaCodeRedemption)
+            .filter(BetaCodeRedemption.beta_code_id == code_id)
+            .all()
+        )
+        assert len(redemptions) == 0
+
+        # 2. Attempt invitation registration with duplicate email -> fails
+        reg_db2 = TestingSessionLocal()
+        reg_auth2 = AuthService(reg_db2)
+        with pytest.raises(EmailAlreadyExistsError):
+            reg_auth2.register_with_beta_access(
+                email=target_email,
+                password="AnotherPassword123!",
+                invite_token=raw_token,
+            )
+        reg_db2.close()
+
+        # Verify invitation is still pending and not accepted
+        inv_after = check_db.query(Invitation).filter(Invitation.id == inv_id).first()
+        assert inv_after is not None
+        assert inv_after.status == "pending"
+        assert inv_after.accepted_by_user_id is None
+    finally:
+        check_db.close()

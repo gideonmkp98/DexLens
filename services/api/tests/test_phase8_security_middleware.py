@@ -47,5 +47,7 @@ def test_production_configuration_accepts_explicit_secure_values():
         ENVIRONMENT="production",
         SECURE_COOKIES=True,
         PILOT_ADMIN_SECRET="a-unique-production-secret-with-32-chars",
+        EMAIL_PROVIDER="resend",
     )
     assert production_settings.SECURE_COOKIES is True
+    assert production_settings.EMAIL_PROVIDER == "resend"

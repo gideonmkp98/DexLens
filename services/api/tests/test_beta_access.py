@@ -14,6 +14,7 @@ from app.services.auth import AuthService, EmailAlreadyExistsError
 from app.services.beta_access import (
     BetaAccessService,
     BetaCodeAlreadyRedeemedError,
+    DatabaseConfigurationError,
 )
 from tests.conftest import TestingSessionLocal
 
@@ -71,6 +72,29 @@ def test_registration_mode_switching_and_persistence(client: TestClient, db: Ses
     assert resp.json()["requires_code_or_invite"] is True
 
     BetaAccessService.reset_mode(db)
+
+
+def test_registration_mode_missing_table_raises_observable_error():
+    """Missing app_settings table must produce observable configuration error."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    empty_engine = create_engine("sqlite:///:memory:")
+    empty_session_factory = sessionmaker(bind=empty_engine)
+    empty_db = empty_session_factory()
+    try:
+        service = BetaAccessService(empty_db)
+        with pytest.raises(DatabaseConfigurationError) as exc_info:
+            service.get_registration_mode()
+        assert exc_info.value.code == "DATABASE_SCHEMA_MISSING"
+    finally:
+        empty_db.close()
+
+
+def test_registration_mode_offline_env_fallback():
+    """Fallback to settings.REGISTRATION_MODE when db=None is passed."""
+    mode = BetaAccessService.get_mode(db=None)
+    assert mode == settings.REGISTRATION_MODE
 
 
 def test_registration_enforcement_open_mode(client: TestClient, db: Session):
@@ -396,6 +420,10 @@ def test_concurrent_registration_beta_code_no_over_redemption(db: Session):
     - Losing transactions leave NO user in the database.
     - Beta code used_count == 3.
     """
+    if db.get_bind().dialect.name == "sqlite":
+        pytest.skip(
+            "SQLite cannot simulate row locking. See test_concurrency_mariadb.py."
+        )
     beta_service = BetaAccessService(db)
     max_limit = 3
     total_workers = 10
@@ -457,6 +485,10 @@ def test_concurrent_invitation_registration_single_use(db: Session):
     - 1 fails with INVITATION_ALREADY_USED or INVALID_INVITATION.
     - Exactly 1 user exists in DB.
     """
+    if db.get_bind().dialect.name == "sqlite":
+        pytest.skip(
+            "SQLite cannot simulate row locking. See test_concurrency_mariadb.py."
+        )
     beta_service = BetaAccessService(db)
     target_email = "single_invite_race@test.com"
     invitation, raw_token = beta_service.create_invitation(email=target_email)
