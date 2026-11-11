@@ -7,13 +7,14 @@ from app.models.import_run import ImportRun
 from app.models.scan import Scan
 from app.models.scan_session import ScanSession
 from app.models.set import Set
-from app.models.user import User, UserSession
+from app.models.user import EmailVerification, User, UserSession
 
 __all__ = [
     "Base",
     "Card",
     "CollectionItem",
     "CollectionScanLink",
+    "EmailVerification",
     "ImportRun",
     "ProductAnalyticsEvent",
     "Scan",

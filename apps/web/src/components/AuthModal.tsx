@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  normalizeEmail,
+  normalizeUsername,
+  validateEmail,
+  validatePassword,
+  validateRegistration,
+} from "@/lib/authValidation";
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -18,8 +25,11 @@ export default function AuthModal({
 }: AuthModalProps) {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
+  const [username, setUsername] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [passwordConfirm, setPasswordConfirm] = useState<string>("");
+  const [acceptedPolicies, setAcceptedPolicies] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -65,38 +75,78 @@ export default function AuthModal({
     setError(null);
     setSuccessMsg(null);
 
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !trimmedEmail.includes("@")) {
-      setError("Vul een geldig e-mailadres in.");
-      return;
-    }
-    if (password.length < 8) {
-      setError("Wachtwoord moet minimaal 8 tekens bevatten.");
-      return;
-    }
+    const trimmedEmail = normalizeEmail(email);
 
-    setLoading(true);
+    if (mode === "register") {
+      const trimmedUsername = normalizeUsername(username);
+      const valResult = validateRegistration({
+        username: trimmedUsername || undefined,
+        email: trimmedEmail,
+        password,
+        passwordConfirmation: passwordConfirm || undefined,
+        acceptedPolicies,
+      });
 
-    try {
-      if (mode === "register") {
-        await register({ email: trimmedEmail, password });
+      if (!valResult.valid) {
+        setError(valResult.error || "Validatiefout.");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await register({
+          email: trimmedEmail,
+          password,
+          username: trimmedUsername || undefined,
+          password_confirmation: passwordConfirm || undefined,
+          accepted_policies: acceptedPolicies,
+        });
         setSuccessMsg("Account succesvol aangemaakt!");
-      } else {
+
+        if (onSuccess) {
+          await onSuccess();
+        }
+
+        // Smooth visual feedback before closing modal
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Er ging iets mis.");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      const emailVal = validateEmail(trimmedEmail);
+      if (!emailVal.valid) {
+        setError(emailVal.error || "Vul een geldig e-mailadres in.");
+        return;
+      }
+
+      const passVal = validatePassword(password, 8);
+      if (!passVal.valid) {
+        setError(
+          passVal.error || "Wachtwoord moet minimaal 8 tekens bevatten."
+        );
+        return;
+      }
+
+      setLoading(true);
+      try {
         await login({ email: trimmedEmail, password });
         setSuccessMsg("Succesvol ingelogd!");
-      }
 
-      if (onSuccess) {
-        await onSuccess();
-      }
+        if (onSuccess) {
+          await onSuccess();
+        }
 
-      // Smooth visual feedback before closing modal
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Er ging iets mis.");
-    } finally {
-      setLoading(false);
+        // Smooth visual feedback before closing modal
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Er ging iets mis.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -182,7 +232,31 @@ export default function AuthModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="mt-7 space-y-4">
+          {mode === "register" && (
+            <div>
+              <label
+                className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8dacd]"
+                htmlFor="auth-username"
+              >
+                Gebruikersnaam (optioneel)
+              </label>
+              <input
+                id="auth-username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                placeholder="bijv. pokeverzamelaar"
+                aria-invalid={!!error && error.includes("Gebruikersnaam")}
+                className="mt-1.5 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3 text-[14px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
+              />
+              <p className="mt-1 text-[11px] text-[#8f9587]">
+                3-30 tekens (letters, cijfers, streepjes en underscores).
+              </p>
+            </div>
+          )}
+
           <div>
             <label
               className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8dacd]"
@@ -199,7 +273,8 @@ export default function AuthModal({
               required
               autoComplete="email"
               placeholder="verzamelaar@voorbeeld.nl"
-              className="mt-2 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3.5 text-[15px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
+              aria-invalid={!!error && error.includes("e-mailadres")}
+              className="mt-1.5 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3 text-[14px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
             />
           </div>
 
@@ -208,7 +283,9 @@ export default function AuthModal({
               className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8dacd]"
               htmlFor="auth-password"
             >
-              Wachtwoord (minimaal 8 tekens)
+              {mode === "register"
+                ? "Wachtwoord (minimaal 15 tekens)"
+                : "Wachtwoord"}
             </label>
             <input
               id="auth-password"
@@ -216,23 +293,100 @@ export default function AuthModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={mode === "register" ? 15 : 8}
               autoComplete={
                 mode === "login" ? "current-password" : "new-password"
               }
-              placeholder="••••••••"
-              className="mt-2 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3.5 text-[15px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
+              placeholder="•••••••••••••••"
+              aria-invalid={!!error && error.includes("Wachtwoord")}
+              aria-describedby={
+                mode === "register" ? "password-policy-hint" : undefined
+              }
+              className="mt-1.5 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3 text-[14px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
             />
+            {mode === "register" && (
+              <p
+                id="password-policy-hint"
+                className="mt-1 text-[11px] text-[#8f9587]"
+              >
+                Minimaal 15 tekens. Wachtwoordzinnen en wachtwoordmanagers zijn
+                toegestaan.
+              </p>
+            )}
           </div>
 
+          {mode === "register" && (
+            <div>
+              <label
+                className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#d8dacd]"
+                htmlFor="auth-password-confirm"
+              >
+                Bevestig wachtwoord
+              </label>
+              <input
+                id="auth-password-confirm"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                autoComplete="new-password"
+                placeholder="•••••••••••••••"
+                aria-invalid={!!error && error.includes("overeen")}
+                className="mt-1.5 w-full rounded-[4px] border border-[#f3efdf]/25 bg-[#171c16] px-4 py-3 text-[14px] leading-5 text-[#f3efdf] placeholder:text-[#b6bbaa]/45 focus:border-[#f1ca53] focus:outline-none focus:ring-1 focus:ring-[#f1ca53]/40"
+              />
+            </div>
+          )}
+
+          {mode === "register" && (
+            <div className="flex items-start gap-3 pt-1">
+              <input
+                id="auth-policies"
+                type="checkbox"
+                checked={acceptedPolicies}
+                onChange={(e) => setAcceptedPolicies(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-[#f3efdf]/30 bg-[#171c16] text-[#f1ca53] focus:ring-[#f1ca53]"
+              />
+              <label
+                htmlFor="auth-policies"
+                className="text-[12px] leading-relaxed text-[#d8dacd]"
+              >
+                Ik ga akkoord met de{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-[#f1ca53]"
+                >
+                  gebruiksvoorwaarden
+                </a>{" "}
+                en het{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-[#f1ca53]"
+                >
+                  privacybeleid
+                </a>
+                .
+              </label>
+            </div>
+          )}
+
           {error && (
-            <div className="rounded-[4px] border border-[#eb6b5d]/40 bg-[#eb6b5d]/10 px-3.5 py-3 text-[13px] leading-relaxed text-[#ff9387]">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded-[4px] border border-[#eb6b5d]/40 bg-[#eb6b5d]/10 px-3.5 py-3 text-[13px] leading-relaxed text-[#ff9387]"
+            >
               {error}
             </div>
           )}
 
           {successMsg && (
-            <div className="rounded-[4px] border border-emerald-500/40 bg-emerald-950/40 px-3.5 py-3 text-[13px] font-bold leading-relaxed text-emerald-300">
+            <div
+              role="status"
+              className="rounded-[4px] border border-emerald-500/40 bg-emerald-950/40 px-3.5 py-3 text-[13px] font-bold leading-relaxed text-emerald-300"
+            >
               {successMsg}
             </div>
           )}
@@ -254,7 +408,7 @@ export default function AuthModal({
           <p className="text-[11px] leading-relaxed text-[#8f9587]">
             Geen reclame of cookies van derden.
             <br className="hidden sm:block" /> Je wachtwoord wordt veilig
-            beschermd met Argon2id.
+            beschermd met Argon2id en gecontroleerd tegen bekende datalekken.
           </p>
         </div>
       </div>

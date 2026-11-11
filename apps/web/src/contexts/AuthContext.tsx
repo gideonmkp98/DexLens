@@ -23,6 +23,16 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  username?: string | null;
+  email_verified?: boolean;
+}
+
+export interface RegisterCredentials {
+  email: string;
+  password: string;
+  username?: string | null;
+  password_confirmation?: string | null;
+  accepted_policies?: boolean;
 }
 
 export interface AuthContextValue {
@@ -32,7 +42,7 @@ export interface AuthContextValue {
   sessionType: string | null;
   refreshAuth: () => Promise<BrowserSessionState>;
   login: (credentials: { email: string; password: string }) => Promise<void>;
-  register: (credentials: { email: string; password: string }) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -131,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (credentials: { email: string; password: string }): Promise<void> => {
+    async (credentials: RegisterCredentials): Promise<void> => {
       const endpoint = "/api/v1/auth/register";
       const res = await fetch(endpoint, {
         method: "POST",

@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -32,6 +32,12 @@ class User(Base):
         nullable=False,
         index=True,
     )
+    username: Mapped[str | None] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -47,6 +53,20 @@ class User(Base):
         nullable=False,
         default=True,
         server_default="1",
+    )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("0"),
+    )
+    policies_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+    username_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -68,6 +88,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    email_verifications: Mapped[list["EmailVerification"]] = relationship(
+        "EmailVerification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     collection_items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem",
         back_populates="user",
@@ -75,6 +100,63 @@ class User(Base):
     scans: Mapped[list["Scan"]] = relationship(
         "Scan",
         back_populates="user",
+    )
+
+
+class EmailVerification(Base):
+    """Email verification and email change tokens with cryptographic hashing."""
+
+    __tablename__ = "email_verifications"
+    __table_args__ = (
+        Index("ix_email_verifications_user_id", "user_id"),
+        Index("ix_email_verifications_expires_at", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="email_verification",
+        server_default="email_verification",
+    )
+    target_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+    )
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
+
+    # Relationship
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="email_verifications",
     )
 
 

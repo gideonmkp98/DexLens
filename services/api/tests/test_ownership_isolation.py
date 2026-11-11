@@ -10,7 +10,7 @@ from app.models.scan import Scan
 
 def _create_user(client: TestClient, label: str) -> dict[str, str]:
     email = f"{label}_{uuid.uuid4().hex[:8]}@example.com"
-    password = "SecurePassword123!"
+    password = "DexLensUnpwnedPassword2026!"
     res = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": password},

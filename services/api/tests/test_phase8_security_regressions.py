@@ -15,7 +15,7 @@ def _register(client: TestClient, prefix: str) -> str:
         "/api/v1/auth/register",
         json={
             "email": f"{prefix}-{uuid.uuid4().hex}@example.com",
-            "password": "SecurePassword123!",
+            "password": "DexLensUnpwnedPassword2026!",
         },
     )
     assert response.status_code == 201

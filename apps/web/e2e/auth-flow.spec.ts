@@ -41,7 +41,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
     page,
   }) => {
     const testEmail = `collector_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     await page.goto("/");
     await page.waitForLoadState("domcontentloaded");
@@ -100,7 +100,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
     page,
   }) => {
     const testEmail = `logout_user_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     // Register first
     await page.goto("/");
@@ -144,7 +144,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
     page,
   }) => {
     const testEmail = `login_nav_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     // Register account via API first
     const regRes = await page.request.post("/api/v1/auth/register", {
@@ -203,7 +203,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
     page,
   }) => {
     const testEmail = `noflash_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     // Register via API to set authenticated cookie
     const regRes = await page.request.post("/api/v1/auth/register", {
@@ -291,13 +291,13 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
 
     // 3. Register user account via header modal
     const testEmail = `claimed_owner_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     await page.getByRole("button", { name: "Inloggen" }).click();
     const authModal = page.getByRole("dialog");
     await authModal.getByRole("button", { name: "Registreren" }).click();
     await authModal.getByLabel("E-mailadres").fill(testEmail);
-    await authModal.getByLabel("Wachtwoord").fill(testPassword);
+    await authModal.locator("#auth-password").fill(testPassword);
     await authModal.getByRole("button", { name: "Account Maken" }).click();
     await expect(authModal).not.toBeVisible({ timeout: 10000 });
 
@@ -325,7 +325,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
 
     // Register / Log in in page1
     const testEmail = `multitab_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     await page1.getByRole("button", { name: "Inloggen" }).click();
     const modal = page1.getByRole("dialog");
@@ -382,7 +382,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
     await expect(modal).toBeVisible();
 
     const testEmail = `mobile_${Date.now()}@example.com`;
-    const testPassword = "ValidPassword123!";
+    const testPassword = "DexLensUnpwnedPassword2026!";
 
     await modal.getByRole("button", { name: "Registreren" }).click();
     await modal.locator("#auth-email").fill(testEmail);
@@ -439,7 +439,7 @@ test.describe("Authentication State & Lifecycle Regression Suite", () => {
   }) => {
     const testEmail = `logout_failure_${Date.now()}@example.com`;
     const registerResponse = await page.request.post("/api/v1/auth/register", {
-      data: { email: testEmail, password: "ValidPassword123!" },
+      data: { email: testEmail, password: "DexLensUnpwnedPassword2026!" },
     });
     expect(registerResponse.status()).toBe(201);
 
