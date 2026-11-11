@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.integrations.email import BaseEmailProvider, get_email_provider
+from app.models.app_setting import AppSetting
 from app.models.beta_access import BetaCode, BetaCodeRedemption, Invitation
 from app.models.user import User
 from app.schemas.beta_access import RegistrationMode
@@ -34,6 +35,9 @@ def mask_email(email: str) -> str:
     return f"{masked_name}@{domain}"
 
 
+# Structured Error Classes with Stable Error Codes
+
+
 class BetaAccessError(Exception):
     """Base exception for beta access and invitation operations."""
 
@@ -53,12 +57,29 @@ class BetaCodeInvalidError(BetaAccessError):
         super().__init__(message, code="INVALID_BETA_CODE")
 
 
+class BetaCodeExpiredError(BetaAccessError):
+    def __init__(self, message: str = "Bètacode is verlopen") -> None:
+        super().__init__(message, code="EXPIRED_BETA_CODE")
+
+
+class BetaCodeRevokedError(BetaAccessError):
+    def __init__(self, message: str = "Bètacode is ingetrokken") -> None:
+        super().__init__(message, code="REVOKED_BETA_CODE")
+
+
 class BetaCodeExhaustedError(BetaAccessError):
     def __init__(
         self,
         message: str = "Bètacode heeft het maximale aantal registraties bereikt",
     ) -> None:
-        super().__init__(message, code="BETA_CODE_EXHAUSTED")
+        super().__init__(message, code="EXHAUSTED_BETA_CODE")
+
+
+class BetaCodeEmailMismatchError(BetaAccessError):
+    def __init__(
+        self, message: str = "Bètacode is niet geldig voor dit e-mailadres"
+    ) -> None:
+        super().__init__(message, code="BETA_CODE_EMAIL_MISMATCH")
 
 
 class BetaCodeAlreadyRedeemedError(BetaAccessError):
@@ -73,9 +94,19 @@ class InvitationInvalidError(BetaAccessError):
         super().__init__(message, code="INVALID_INVITATION")
 
 
+class InvitationUsedError(BetaAccessError):
+    def __init__(self, message: str = "Deze uitnodiging is al gebruikt") -> None:
+        super().__init__(message, code="INVITATION_ALREADY_USED")
+
+
 class InvitationExpiredError(BetaAccessError):
-    def __init__(self, message: str = "Uitnodiging is verlopen") -> None:
-        super().__init__(message, code="INVITATION_EXPIRED")
+    def __init__(self, message: str = "Deze uitnodiging is verlopen") -> None:
+        super().__init__(message, code="EXPIRED_INVITATION")
+
+
+class InvitationRevokedError(BetaAccessError):
+    def __init__(self, message: str = "Deze uitnodiging is ingetrokken") -> None:
+        super().__init__(message, code="REVOKED_INVITATION")
 
 
 class InvitationEmailMismatchError(BetaAccessError):
@@ -86,8 +117,11 @@ class InvitationEmailMismatchError(BetaAccessError):
         super().__init__(message, code="INVITATION_EMAIL_MISMATCH")
 
 
-# Dynamic registration mode override (allows runtime switching via admin API)
-_runtime_registration_mode: RegistrationMode | None = None
+class ConcurrentClaimLostError(BetaAccessError):
+    def __init__(
+        self, message: str = "De bètacode is zojuist door een andere gebruiker geclaimd"
+    ) -> None:
+        super().__init__(message, code="CONCURRENT_CLAIM_LOST")
 
 
 class BetaAccessService:
@@ -103,29 +137,87 @@ class BetaAccessService:
 
     # --- Registration Mode Management ---
 
+    @classmethod
+    def get_mode(cls, db: Session | None = None) -> RegistrationMode:
+        return cls._fetch_registration_mode(db)
+
+    @classmethod
+    def set_mode(cls, mode: RegistrationMode, db: Session) -> None:
+        cls._persist_registration_mode(mode, db)
+
+    @classmethod
+    def reset_mode(cls, db: Session | None = None) -> None:
+        if db is not None:
+            try:
+                db.query(AppSetting).filter(
+                    AppSetting.key == "registration_mode"
+                ).delete()
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+                logger.warning("Could not reset registration_mode: %s", exc)
+
+    def get_registration_mode(self, db: Session | None = None) -> RegistrationMode:
+        target_db = db or getattr(self, "db", None)
+        return self._fetch_registration_mode(target_db)
+
+    def set_registration_mode(
+        self, mode: RegistrationMode, db: Session | None = None
+    ) -> None:
+        target_db = db or getattr(self, "db", None)
+        if target_db is None:
+            raise ValueError(
+                "A database session is required to persist registration mode"
+            )
+        self._persist_registration_mode(mode, target_db)
+
+    @classmethod
+    def reset_registration_mode(cls, db: Session | None = None) -> None:
+        cls.reset_mode(db)
+
     @staticmethod
-    def get_registration_mode() -> RegistrationMode:
-        """Get the active registration mode (runtime override or env setting)."""
-        global _runtime_registration_mode
-        if _runtime_registration_mode is not None:
-            return _runtime_registration_mode
+    def _fetch_registration_mode(db: Session | None) -> RegistrationMode:
+        """Fetch registration mode from database, fallback to env setting."""
+        if db is not None:
+            try:
+                setting = (
+                    db.query(AppSetting)
+                    .filter(AppSetting.key == "registration_mode")
+                    .first()
+                )
+                if setting and setting.value:
+                    return RegistrationMode(setting.value.strip().lower())
+            except Exception as exc:
+                logger.warning(
+                    "Could not read registration_mode from database, falling back: %s",
+                    exc,
+                )
+
         try:
-            return RegistrationMode(settings.REGISTRATION_MODE.lower().strip())
+            return RegistrationMode(settings.REGISTRATION_MODE.strip().lower())
         except ValueError:
             return RegistrationMode.OPEN
 
     @staticmethod
-    def set_registration_mode(mode: RegistrationMode) -> None:
-        """Set runtime registration mode."""
-        global _runtime_registration_mode
-        _runtime_registration_mode = mode
-        logger.info("Server registration mode updated to: %s", mode.value)
-
-    @staticmethod
-    def reset_registration_mode() -> None:
-        """Reset runtime override to default environment configuration."""
-        global _runtime_registration_mode
-        _runtime_registration_mode = None
+    def _persist_registration_mode(mode: RegistrationMode, db: Session) -> None:
+        """Persist registration mode into app_settings table."""
+        now = _utcnow()
+        setting = (
+            db.query(AppSetting)
+            .filter(AppSetting.key == "registration_mode")
+            .with_for_update()
+            .first()
+        )
+        if setting:
+            setting.value = mode.value
+            setting.updated_at = now
+        else:
+            setting = AppSetting(
+                key="registration_mode", value=mode.value, updated_at=now
+            )
+            db.add(setting)
+        db.commit()
+        logger.info("Persisted server registration mode updated to: %s", mode.value)
 
     # --- Beta Code Cryptography & Normalization ---
 
@@ -248,7 +340,7 @@ class BetaAccessService:
 
         code = self.get_beta_code_by_raw_code(code_str)
         if not code:
-            return False, "Bètacode is ongeldig of niet gevonden", None
+            return False, "Bètacode is ongeldig", None
 
         now = _utcnow()
         if not code.is_active:
@@ -278,13 +370,7 @@ class BetaAccessService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> tuple[BetaCode, BetaCodeRedemption]:
-        """Atomically redeem a beta code for an authenticated user account.
-
-        Guarantees:
-        - Prevents duplicate redemption by the same user.
-        - Atomic SQL conditional update prevents concurrent race conditions
-          and over-redemption.
-        """
+        """Atomically redeem a beta code for an authenticated user account."""
         valid, msg, code = self.validate_beta_code(code_str, user.email)
         if not valid or not code:
             raise BetaCodeInvalidError(msg)
@@ -451,7 +537,7 @@ class BetaAccessService:
 
         invitation = self.get_invitation_by_raw_token(token_str)
         if not invitation:
-            return False, "Uitnodigingstoken is ongeldig of niet gevonden", None
+            return False, "Uitnodigingstoken is ongeldig", None
 
         now = _utcnow()
         if invitation.status == "accepted":
@@ -461,10 +547,12 @@ class BetaAccessService:
             return False, "Deze uitnodiging is ingetrokken", None
 
         if invitation.expires_at <= now:
-            # Mark expired in memory/db if not already marked
             if invitation.status != "expired":
                 invitation.status = "expired"
-                self.db.commit()
+                try:
+                    self.db.commit()
+                except Exception:
+                    self.db.rollback()
             return False, "Deze uitnodiging is verlopen", None
 
         if invitation.status != "pending":
@@ -477,12 +565,7 @@ class BetaAccessService:
         token_str: str,
         user: User,
     ) -> Invitation:
-        """Atomically complete and bind invitation to the registering user.
-
-        Guarantees:
-        - Binds account strictly to invited email.
-        - Atomic status transition from 'pending' to 'accepted' prevents replay attacks.
-        """
+        """Atomically complete and bind invitation to the registering user."""
         valid, msg, invitation = self.validate_invitation(token_str)
         if not valid or not invitation:
             raise InvitationInvalidError(msg)
@@ -490,7 +573,6 @@ class BetaAccessService:
         norm_user_email = self.normalize_email(user.email)
         norm_invite_email = self.normalize_email(invitation.email)
 
-        # Strict binding: user email must match invited email
         if norm_user_email != norm_invite_email:
             raise InvitationEmailMismatchError()
 
@@ -514,7 +596,7 @@ class BetaAccessService:
         result = self.db.execute(stmt)
         if result.rowcount == 0:
             self.db.rollback()
-            raise InvitationInvalidError("Uitnodiging is al gebruikt of verlopen.")
+            raise InvitationUsedError()
 
         # Apply entitlements and quota
         user.has_beta_access = True
@@ -570,7 +652,6 @@ class BetaAccessService:
                 code="INVITATION_ALREADY_ACCEPTED",
             )
 
-        # Generate fresh token (invalidates old token immediately)
         new_token = self.generate_invite_token()
         new_token_hash = self.hash_invite_token(new_token)
 
@@ -602,26 +683,118 @@ class BetaAccessService:
 
         return invitation, new_token
 
-    # --- Registration Mode Enforcement ---
+    # --- Unit of Work: Lock and Consume Credential ---
 
+    def lock_and_consume_credential(
+        self,
+        email: str,
+        beta_code_str: str | None = None,
+        invite_token_str: str | None = None,
+    ) -> tuple[BetaCode | None, Invitation | None, str | None, int | None]:
+        """Enforces registration mode, locks credential with SELECT FOR UPDATE,
+        validates all rules, and consumes usage UNCOMMITTED.
+
+        Must be called within an active transaction. Does not commit.
+        """
+        mode = self.get_registration_mode(self.db)
+        norm_email = self.normalize_email(email)
+
+        # 1. Enforce mode requirements
+        if mode == RegistrationMode.INVITE_ONLY:
+            if not invite_token_str:
+                raise RegistrationModeBlockedError(
+                    "Registratie is alleen mogelijk op persoonlijke uitnodiging.",
+                    code="REGISTRATION_INVITE_ONLY",
+                )
+        elif mode == RegistrationMode.BETA_CODE_REQUIRED:
+            if not invite_token_str and not beta_code_str:
+                raise RegistrationModeBlockedError(
+                    "Een geldige bètacode is vereist om te registreren.",
+                    code="REGISTRATION_BETA_CODE_REQUIRED",
+                )
+
+        now = _utcnow()
+
+        # 2. Process invitation token if provided
+        if invite_token_str:
+            token_hash = self.hash_invite_token(invite_token_str)
+            invitation = (
+                self.db.query(Invitation)
+                .filter(Invitation.token_hash == token_hash)
+                .with_for_update()
+                .first()
+            )
+            if not invitation:
+                raise InvitationInvalidError("Uitnodigingstoken is ongeldig")
+
+            if invitation.status == "accepted":
+                raise InvitationUsedError()
+            if invitation.status == "revoked":
+                raise InvitationRevokedError()
+            if invitation.expires_at <= now:
+                invitation.status = "expired"
+                raise InvitationExpiredError()
+            if invitation.status != "pending":
+                raise InvitationInvalidError("Uitnodiging is niet meer geldig")
+
+            if self.normalize_email(invitation.email) != norm_email:
+                raise InvitationEmailMismatchError()
+
+            # Atomically claim uncommitted
+            invitation.status = "accepted"
+            invitation.accepted_at = now
+            invitation.updated_at = now
+
+            entitlement = invitation.beta_entitlement or "beta"
+            quota = invitation.scan_quota_allocated
+            return None, invitation, entitlement, quota
+
+        # 3. Process beta code if provided
+        if beta_code_str:
+            code_hash = self.hash_code(beta_code_str)
+            code = (
+                self.db.query(BetaCode)
+                .filter(BetaCode.code_hash == code_hash)
+                .with_for_update()
+                .first()
+            )
+            if not code:
+                raise BetaCodeInvalidError("Bètacode is ongeldig")
+
+            if not code.is_active:
+                raise BetaCodeRevokedError("Bètacode is ingetrokken of inactief")
+
+            if code.expires_at and code.expires_at <= now:
+                raise BetaCodeExpiredError("Bètacode is verlopen")
+
+            if code.max_uses is not None and code.used_count >= code.max_uses:
+                raise BetaCodeExhaustedError()
+
+            if code.allowed_email and code.allowed_email != norm_email:
+                raise BetaCodeEmailMismatchError()
+
+            # Atomically increment uncommitted
+            code.used_count += 1
+            code.updated_at = now
+
+            entitlement = code.beta_entitlement or "beta"
+            quota = code.scan_quota_allocated
+            return code, None, entitlement, quota
+
+        # 4. Mode is OPEN with no credentials
+        return None, None, None, None
+
+    # Backward-compatibility alias
     def verify_registration_requirements(
         self,
         email: str,
         beta_code: str | None = None,
         invite_token: str | None = None,
     ) -> tuple[BetaCode | None, Invitation | None]:
-        """Verify registration eligibility under active mode BEFORE creating user.
-
-        Raises:
-            RegistrationModeBlockedError
-            BetaCodeInvalidError
-            InvitationInvalidError
-            InvitationEmailMismatchError
-        """
-        mode = self.get_registration_mode()
+        """Validate registration eligibility without locking."""
+        mode = self.get_registration_mode(self.db)
         norm_email = self.normalize_email(email)
 
-        # 1. Mode: invite_only
         if mode == RegistrationMode.INVITE_ONLY:
             if not invite_token:
                 raise RegistrationModeBlockedError(
@@ -635,9 +808,7 @@ class BetaAccessService:
                 raise InvitationEmailMismatchError()
             return None, invitation
 
-        # 2. Mode: beta_code_required
         if mode == RegistrationMode.BETA_CODE_REQUIRED:
-            # Allow invitation token as an equivalent or superior credential
             if invite_token:
                 valid, msg, invitation = self.validate_invitation(invite_token)
                 if not valid or not invitation:
@@ -656,8 +827,6 @@ class BetaAccessService:
                 raise BetaCodeInvalidError(msg)
             return code, None
 
-        # 3. Mode: open
-        # Code or invitation is optional; if provided, validate them
         matched_code: BetaCode | None = None
         matched_invitation: Invitation | None = None
 

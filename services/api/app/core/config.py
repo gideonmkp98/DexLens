@@ -82,6 +82,11 @@ class Settings(BaseSettings):
                     "PILOT_ADMIN_SECRET must be a non-default 32+ character secret "
                     "in production"
                 )
+            if self.EMAIL_PROVIDER in {"memory", "console"}:
+                raise ValueError(
+                    "In-memory and console email providers are not permitted in "
+                    "production. A production email provider must be configured."
+                )
         if self.REGISTRATION_MODE not in {"open", "beta_code_required", "invite_only"}:
             raise ValueError(
                 f"Invalid REGISTRATION_MODE: {self.REGISTRATION_MODE}. "

@@ -38,18 +38,21 @@ router = APIRouter(
 
 
 @router.get("/registration-mode")
-def get_registration_mode() -> dict[str, str]:
+def get_registration_mode(
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
     """Get the active registration mode."""
-    mode = BetaAccessService.get_registration_mode()
+    mode = BetaAccessService.get_mode(db)
     return {"registration_mode": mode.value}
 
 
 @router.put("/registration-mode")
 def update_registration_mode(
     data: UpdateRegistrationModeRequest,
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Update the server-wide active registration mode."""
-    BetaAccessService.set_registration_mode(data.registration_mode)
+    BetaAccessService.set_mode(data.registration_mode, db)
     return {
         "registration_mode": data.registration_mode.value,
         "message": f"Registratiemodus bijgewerkt naar {data.registration_mode.value}",

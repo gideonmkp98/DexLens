@@ -1,15 +1,19 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.integrations.email import InMemoryEmailProvider
+from app.models.app_setting import AppSetting
 from app.models.user import User
 from app.schemas.beta_access import RegistrationMode
+from app.services.auth import AuthService, EmailAlreadyExistsError
 from app.services.beta_access import (
     BetaAccessService,
+    BetaCodeAlreadyRedeemedError,
 )
 from tests.conftest import TestingSessionLocal
 
@@ -18,39 +22,60 @@ def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-def test_registration_mode_switching_and_status(client: TestClient):
-    """Verify registration status endpoint reflects server registration mode."""
-    BetaAccessService.reset_registration_mode()
+def test_registration_mode_switching_and_persistence(client: TestClient, db: Session):
+    """Verify registration mode persists in DB and survives new service instances."""
+    BetaAccessService.reset_mode(db)
 
     # 1. Default mode from settings
     resp = client.get("/api/v1/auth/registration-status")
     assert resp.status_code == 200
     data = resp.json()
-    assert "registration_mode" in data
+    assert data["registration_mode"] == "open"
     assert data["allows_open_registration"] is True
 
-    # 2. Switch to beta_code_required
-    BetaAccessService.set_registration_mode(RegistrationMode.BETA_CODE_REQUIRED)
-    resp = client.get("/api/v1/auth/registration-status")
-    data = resp.json()
-    assert data["registration_mode"] == "beta_code_required"
-    assert data["allows_open_registration"] is False
-    assert data["requires_code_or_invite"] is True
+    # 2. Switch to beta_code_required via admin API
+    admin_headers = {"X-Pilot-Admin-Token": settings.PILOT_ADMIN_SECRET}
+    resp = client.put(
+        "/api/v1/admin/registration-mode",
+        headers=admin_headers,
+        json={"registration_mode": "beta_code_required"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["registration_mode"] == "beta_code_required"
+
+    # Verify persisted in app_settings table
+    setting_row = (
+        db.query(AppSetting).filter(AppSetting.key == "registration_mode").first()
+    )
+    assert setting_row is not None
+    assert setting_row.value == "beta_code_required"
+
+    # Verify a brand new service instance reads from the database
+    new_db = TestingSessionLocal()
+    new_service = BetaAccessService(new_db)
+    assert new_service.get_registration_mode() == RegistrationMode.BETA_CODE_REQUIRED
+    new_db.close()
 
     # 3. Switch to invite_only
-    BetaAccessService.set_registration_mode(RegistrationMode.INVITE_ONLY)
-    resp = client.get("/api/v1/auth/registration-status")
-    data = resp.json()
-    assert data["registration_mode"] == "invite_only"
-    assert data["allows_open_registration"] is False
-    assert data["requires_code_or_invite"] is True
+    resp = client.put(
+        "/api/v1/admin/registration-mode",
+        headers=admin_headers,
+        json={"registration_mode": "invite_only"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["registration_mode"] == "invite_only"
 
-    BetaAccessService.reset_registration_mode()
+    # Verify registration-status reflects it
+    resp = client.get("/api/v1/auth/registration-status")
+    assert resp.json()["registration_mode"] == "invite_only"
+    assert resp.json()["requires_code_or_invite"] is True
+
+    BetaAccessService.reset_mode(db)
 
 
 def test_registration_enforcement_open_mode(client: TestClient, db: Session):
     """In open mode, registration succeeds with or without credentials."""
-    BetaAccessService.set_registration_mode(RegistrationMode.OPEN)
+    BetaAccessService.set_mode(RegistrationMode.OPEN, db)
 
     resp = client.post(
         "/api/v1/auth/register",
@@ -61,14 +86,14 @@ def test_registration_enforcement_open_mode(client: TestClient, db: Session):
     assert user_data["email"] == "open1@example.com"
     assert user_data["has_beta_access"] is True
 
-    BetaAccessService.reset_registration_mode()
+    BetaAccessService.reset_mode(db)
 
 
 def test_registration_enforcement_beta_code_required_mode(
     client: TestClient, db: Session
 ):
     """In beta_code_required mode, registration without a code or invite is blocked."""
-    BetaAccessService.set_registration_mode(RegistrationMode.BETA_CODE_REQUIRED)
+    BetaAccessService.set_mode(RegistrationMode.BETA_CODE_REQUIRED, db)
     service = BetaAccessService(db)
 
     # 1. Attempt registration without code -> 403
@@ -98,6 +123,7 @@ def test_registration_enforcement_beta_code_required_mode(
         scan_quota_allocated=25,
         beta_entitlement="wave1_tester",
     )
+
     resp = client.post(
         "/api/v1/auth/register",
         json={
@@ -117,12 +143,12 @@ def test_registration_enforcement_beta_code_required_mode(
     db.refresh(code_obj)
     assert code_obj.used_count == 1
 
-    BetaAccessService.reset_registration_mode()
+    BetaAccessService.reset_mode(db)
 
 
 def test_registration_enforcement_invite_only_mode(client: TestClient, db: Session):
     """In invite_only mode, only a valid invitation matching the email succeeds."""
-    BetaAccessService.set_registration_mode(RegistrationMode.INVITE_ONLY)
+    BetaAccessService.set_mode(RegistrationMode.INVITE_ONLY, db)
     email_provider = InMemoryEmailProvider()
     service = BetaAccessService(db, email_provider=email_provider)
 
@@ -192,9 +218,9 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
         },
     )
     assert resp.status_code == 400
-    assert resp.json()["detail"]["code"] == "INVALID_INVITATION"
+    assert resp.json()["detail"]["code"] == "INVITATION_ALREADY_USED"
 
-    BetaAccessService.reset_registration_mode()
+    BetaAccessService.reset_mode(db)
 
 
 def test_beta_code_expiry_and_revocation(client: TestClient, db: Session):
@@ -245,7 +271,6 @@ def test_invitation_expiry_revocation_and_resend(client: TestClient, db: Session
     invitation, raw_token = service.create_invitation(
         email="expired@test.com", expires_in_days=1
     )
-    # Manually expire it in DB
     invitation.expires_at = _utcnow() - timedelta(minutes=5)
     db.commit()
 
@@ -278,120 +303,222 @@ def test_invitation_expiry_revocation_and_resend(client: TestClient, db: Session
     assert valid is True
 
 
-def test_beta_code_atomic_concurrency_no_over_redemption(db: Session):
-    """Concurrent threads attempting to redeem a code with max_uses=3.
+def test_failed_user_creation_does_not_consume_code(db: Session):
+    """If registration fails, beta code usage must NOT increment."""
+    auth_service = AuthService(db)
+    beta_service = BetaAccessService(db)
 
-    Guarantees: Exactly 3 succeed, remaining fail with exhaustion, used_count == 3.
+    # 1. Create initial user
+    auth_service.register_user(email="existing_user@test.com", password="Password123!")
+
+    # 2. Create beta code with max_uses=1
+    code_obj, raw_code = beta_service.create_beta_code(
+        label="Single Use Code", max_uses=1
+    )
+    assert code_obj.used_count == 0
+
+    # 3. Attempt registration with the same email
+    with pytest.raises(EmailAlreadyExistsError):
+        auth_service.register_with_beta_access(
+            email="existing_user@test.com",
+            password="Password123!",
+            beta_code=raw_code,
+        )
+
+    # 4. Verify code was NOT consumed
+    db.rollback()
+    db.refresh(code_obj)
+    assert code_obj.used_count == 0
+
+    # 5. A legitimate new user can now register using the unconsumed code
+    new_user, token = auth_service.register_with_beta_access(
+        email="new_user@test.com",
+        password="Password123!",
+        beta_code=raw_code,
+    )
+    assert new_user is not None
+    db.refresh(code_obj)
+    assert code_obj.used_count == 1
+
+
+def test_failed_invitation_registration_does_not_accept_invite(db: Session):
+    """If registration fails, the invitation remains pending and not consumed."""
+    auth_service = AuthService(db)
+    beta_service = BetaAccessService(db)
+
+    # 1. Create existing user
+    auth_service.register_user(email="invitee_exists@test.com", password="Password123!")
+
+    # 2. Create invitation for this email
+    invitation, raw_token = beta_service.create_invitation(
+        email="invitee_exists@test.com"
+    )
+    assert invitation.status == "pending"
+
+    # 3. Attempt registration with existing email
+    with pytest.raises(EmailAlreadyExistsError):
+        auth_service.register_with_beta_access(
+            email="invitee_exists@test.com",
+            password="Password123!",
+            invite_token=raw_token,
+        )
+
+    # 4. Verify invitation status remains pending
+    db.rollback()
+    db.refresh(invitation)
+    assert invitation.status == "pending"
+    assert invitation.accepted_by_user_id is None
+
+
+def test_duplicate_beta_code_redemption_rejected(db: Session):
+    """One user cannot redeem the same beta code twice."""
+    auth_service = AuthService(db)
+    beta_service = BetaAccessService(db)
+
+    code_obj, raw_code = beta_service.create_beta_code(label="Multi Use", max_uses=10)
+    user, _ = auth_service.register_with_beta_access(
+        email="dupe_redeemer@test.com",
+        password="Password123!",
+        beta_code=raw_code,
+    )
+
+    # Attempt second redemption
+    with pytest.raises(BetaCodeAlreadyRedeemedError):
+        beta_service.redeem_beta_code(raw_code, user)
+
+
+def test_concurrent_registration_beta_code_no_over_redemption(db: Session):
+    """10 concurrent registration requests for a code with max_uses=3.
+
+    Guarantees:
+    - Exactly 3 succeed and create user accounts.
+    - Exactly 7 fail with structured business errors.
+    - Losing transactions leave NO user in the database.
+    - Beta code used_count == 3.
     """
-    service = BetaAccessService(db)
+    beta_service = BetaAccessService(db)
     max_limit = 3
-    total_threads = 10
+    total_workers = 10
 
-    code_obj, raw_code = service.create_beta_code(
-        label="Concurrency Test",
+    code_obj, raw_code = beta_service.create_beta_code(
+        label="Atomic Reg Concurrency",
         max_uses=max_limit,
     )
 
-    # Pre-create 10 users to attempt redemption
-    users = []
-    for i in range(total_threads):
-        user = User(
-            email=f"concurrent_user_{i}@test.com",
-            password_hash="test",
-            role="user",
-            is_active=True,
-        )
-        db.add(user)
-    db.commit()
-    for u in users:
-        db.refresh(u)
+    success_emails = []
+    failed_emails = []
 
-    user_ids = [
-        u.id
-        for u in db.query(User)
-        .filter(User.email.like("concurrent_user_%@test.com"))
-        .all()
-    ]
-    assert len(user_ids) == total_threads
-
-    successes = []
-    failures = []
-
-    def _attempt_redemption(uid: str):
-        # Dedicated DB session per thread to simulate true concurrent clients
+    def _attempt_registration(i: int):
         thread_db = TestingSessionLocal()
-        thread_service = BetaAccessService(thread_db)
+        thread_auth = AuthService(thread_db)
+        email = f"atomic_concurrent_{i}@test.com"
         try:
-            target_user = thread_db.query(User).filter(User.id == uid).first()
-            thread_service.redeem_beta_code(raw_code, target_user)
-            successes.append(uid)
-        except Exception as exc:
-            failures.append(str(exc))
+            user, token = thread_auth.register_with_beta_access(
+                email=email,
+                password="Password123!",
+                beta_code=raw_code,
+            )
+            success_emails.append(email)
+        except Exception:
+            failed_emails.append(email)
         finally:
             thread_db.close()
 
-    with ThreadPoolExecutor(max_workers=total_threads) as executor:
-        list(executor.map(_attempt_redemption, user_ids))
+    with ThreadPoolExecutor(max_workers=total_workers) as executor:
+        list(executor.map(_attempt_registration, range(total_workers)))
 
-    assert len(successes) == max_limit
-    assert len(failures) == (total_threads - max_limit)
+    assert len(success_emails) == max_limit
+    assert len(failed_emails) == (total_workers - max_limit)
 
+    # Check DB state
     db.commit()
     db.refresh(code_obj)
     assert code_obj.used_count == max_limit
 
+    # Verify losers left NO user in the database
+    for failed_email in failed_emails:
+        user_in_db = db.query(User).filter(User.email == failed_email).first()
+        assert user_in_db is None, (
+            f"Losing registration left behind user: {failed_email}"
+        )
 
-def test_invitation_concurrency_single_use(db: Session):
-    """Concurrent threads attempting to redeem the exact same invitation token.
+    # Verify winners exist in the database with beta access
+    for win_email in success_emails:
+        user_in_db = db.query(User).filter(User.email == win_email).first()
+        assert user_in_db is not None
+        assert user_in_db.has_beta_access is True
 
-    Guarantees: Exactly 1 succeeds, other fails (single-use token protection).
+
+def test_concurrent_invitation_registration_single_use(db: Session):
+    """Two concurrent registration requests attempting to use the same invitation token.
+
+    Guarantees:
+    - Exactly 1 succeeds and creates an account.
+    - 1 fails with INVITATION_ALREADY_USED or INVALID_INVITATION.
+    - Exactly 1 user exists in DB.
     """
-    email_provider = InMemoryEmailProvider()
-    service = BetaAccessService(db, email_provider=email_provider)
-
-    target_email = "singleuse@test.com"
-    _, raw_token = service.create_invitation(email=target_email)
-
-    user1 = User(
-        email=target_email,
-        password_hash="test",
-        role="user",
-        is_active=True,
-    )
-    db.add(user1)
-    db.commit()
-    db.refresh(user1)
+    beta_service = BetaAccessService(db)
+    target_email = "single_invite_race@test.com"
+    invitation, raw_token = beta_service.create_invitation(email=target_email)
 
     results = []
 
-    def _attempt_redeem(worker_idx: int):
-        t_db = TestingSessionLocal()
-        t_service = BetaAccessService(t_db)
+    def _attempt_register(worker_id: int):
+        thread_db = TestingSessionLocal()
+        thread_auth = AuthService(thread_db)
         try:
-            u = t_db.query(User).filter(User.id == user1.id).first()
-            t_service.redeem_invitation(raw_token, u)
+            user, token = thread_auth.register_with_beta_access(
+                email=target_email,
+                password="Password123!",
+                invite_token=raw_token,
+            )
             results.append("success")
         except Exception:
             results.append("failure")
         finally:
-            t_db.close()
+            thread_db.close()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        list(executor.map(_attempt_redeem, [1, 2]))
+        list(executor.map(_attempt_register, [1, 2]))
 
     assert results.count("success") == 1
     assert results.count("failure") == 1
 
+    db.commit()
+    db.refresh(invitation)
+    assert invitation.status == "accepted"
+
+    # Exactly one user in DB
+    user_count = db.query(User).filter(User.email == target_email).count()
+    assert user_count == 1
+
+
+def test_raw_token_never_appears_in_logs(caplog, db: Session):
+    """Ensure raw invitation tokens are never emitted to application logs."""
+    import logging
+
+    email_provider = InMemoryEmailProvider()
+    service = BetaAccessService(db, email_provider=email_provider)
+
+    with caplog.at_level(logging.DEBUG):
+        invitation, raw_token = service.create_invitation(email="logger_test@test.com")
+        service.validate_invitation(raw_token)
+
+    # Assert raw token does NOT appear in any logged record
+    for record in caplog.records:
+        assert raw_token not in record.message, (
+            f"Raw token leaked in log message: {record.message}"
+        )
+
 
 def test_admin_api_authorization_and_token_leakage(client: TestClient, db: Session):
     """Verify admin endpoints require auth and never leak secret tokens."""
-    # 1. Unauthenticated request -> 403
     resp = client.get("/api/v1/admin/beta-codes")
     assert resp.status_code == 403
 
     admin_headers = {"X-Pilot-Admin-Token": settings.PILOT_ADMIN_SECRET}
 
-    # 2. Create beta code via Admin API
+    # 1. Create beta code via Admin API
     resp = client.post(
         "/api/v1/admin/beta-codes",
         headers=admin_headers,
@@ -403,7 +530,7 @@ def test_admin_api_authorization_and_token_leakage(client: TestClient, db: Sessi
     plain_secret = created_code["code"]
     code_id = created_code["id"]
 
-    # 3. List beta codes -> plaintext code secret MUST NOT be present
+    # 2. List beta codes -> plaintext code secret MUST NOT be present
     resp = client.get("/api/v1/admin/beta-codes", headers=admin_headers)
     assert resp.status_code == 200
     listing = resp.json()["items"]
@@ -413,7 +540,7 @@ def test_admin_api_authorization_and_token_leakage(client: TestClient, db: Sessi
     assert "code_prefix" in found
     assert plain_secret not in str(resp.json())
 
-    # 4. Create personal invitation via Admin API
+    # 3. Create personal invitation via Admin API
     resp = client.post(
         "/api/v1/admin/invitations",
         headers=admin_headers,
@@ -425,7 +552,7 @@ def test_admin_api_authorization_and_token_leakage(client: TestClient, db: Sessi
     assert created_invite["email"] == "pilot_admin_invite@example.com"
     invite_id = created_invite["id"]
 
-    # 5. List invitations -> token MUST NOT be present
+    # 4. List invitations -> token MUST NOT be present
     resp = client.get("/api/v1/admin/invitations", headers=admin_headers)
     assert resp.status_code == 200
     inv_listing = resp.json()["items"]
@@ -434,7 +561,7 @@ def test_admin_api_authorization_and_token_leakage(client: TestClient, db: Sessi
     assert "token" not in inv_found
     assert "token_hash" not in inv_found
 
-    # 6. Revoke beta code and invitation via Admin API
+    # 5. Revoke beta code and invitation via Admin API
     resp = client.post(
         f"/api/v1/admin/beta-codes/{code_id}/revoke", headers=admin_headers
     )

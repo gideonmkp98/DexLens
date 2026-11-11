@@ -38,9 +38,11 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.get("/registration-status", response_model=RegistrationStatusResponse)
-def get_registration_status() -> RegistrationStatusResponse:
+def get_registration_status(
+    auth_service: AuthService = Depends(get_auth_service),
+) -> RegistrationStatusResponse:
     """Return active registration mode and requirements for client guidance."""
-    mode = BetaAccessService.get_registration_mode()
+    mode = BetaAccessService.get_mode(auth_service.db)
     return RegistrationStatusResponse(
         registration_mode=mode.value,
         allows_open_registration=(mode == RegistrationMode.OPEN),
@@ -89,16 +91,35 @@ def register(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    """Register a new collector account with server-enforced beta access controls."""
-    beta_service = BetaAccessService(auth_service.db)
+    """Register a new account with atomic beta access controls."""
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
 
-    # 1. Enforce active server registration mode before checking user database
+    old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    old_anon_session_id = None
+    if old_cookie:
+        old_session = auth_service.get_session(old_cookie)
+        if old_session and old_session.session_type == "anonymous":
+            old_anon_session_id = old_session.id
+
     try:
-        matched_code, matched_invite = beta_service.verify_registration_requirements(
+        user, raw_token = auth_service.register_with_beta_access(
             email=data.email,
+            password=data.password,
             beta_code=data.beta_code,
             invite_token=data.invite_token,
+            ip=client_ip,
+            user_agent=user_agent,
+            anonymous_session_id=old_anon_session_id,
         )
+    except EmailAlreadyExistsError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "EMAIL_ALREADY_EXISTS",
+                "message": "E-mailadres is al in gebruik",
+            },
+        ) from None
     except BetaAccessError as exc:
         status_code = (
             status.HTTP_403_FORBIDDEN
@@ -109,96 +130,6 @@ def register(
             status_code=status_code,
             detail={"code": exc.code, "message": exc.message},
         ) from None
-
-    # 2. Check for duplicate account
-    existing = auth_service.get_user_by_email(data.email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "EMAIL_ALREADY_EXISTS",
-                "message": "E-mailadres is al in gebruik",
-            },
-        )
-
-    # 3. Determine beta entitlements and scan quota allocation
-    active_mode = beta_service.get_registration_mode()
-    has_beta = active_mode == RegistrationMode.OPEN or bool(
-        matched_code or matched_invite
-    )
-    entitlement = None
-    quota = None
-
-    if matched_invite:
-        has_beta = True
-        entitlement = matched_invite.beta_entitlement or "beta"
-        quota = matched_invite.scan_quota_allocated
-    elif matched_code:
-        has_beta = True
-        entitlement = matched_code.beta_entitlement or "beta"
-        quota = matched_code.scan_quota_allocated
-
-    # 4. Create user account
-    # (quota will be credited atomically during redemption if applicable)
-    initial_quota = quota if not (matched_code or matched_invite) else None
-    try:
-        user = auth_service.register_user(
-            email=data.email,
-            password=data.password,
-            role="user",
-            has_beta_access=has_beta,
-            beta_entitlement=entitlement,
-            scan_quota=initial_quota,
-            registration_mode_used=active_mode.value,
-        )
-    except EmailAlreadyExistsError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "EMAIL_ALREADY_EXISTS",
-                "message": "E-mailadres is al in gebruik",
-            },
-        ) from None
-
-    # 5. Atomically redeem credentials if provided
-    client_ip = request.client.host if request.client else None
-    user_agent = request.headers.get("user-agent")
-
-    if matched_invite and data.invite_token:
-        try:
-            beta_service.redeem_invitation(data.invite_token, user)
-        except BetaAccessError as exc:
-            logger.warning("Redeem invitation post-registration failed: %s", exc.code)
-    elif matched_code and data.beta_code:
-        try:
-            beta_service.redeem_beta_code(
-                data.beta_code, user, ip=client_ip, user_agent=user_agent
-            )
-        except BetaAccessError as exc:
-            logger.warning("Redeem beta code post-registration failed: %s", exc.code)
-
-    auth_service.db.refresh(user)
-
-    # 6. Automatically log the user in with a new session
-    old_cookie = request.cookies.get(SESSION_COOKIE_NAME)
-    old_anon_session_id = None
-    if old_cookie:
-        old_session = auth_service.get_session(old_cookie)
-        if old_session and old_session.session_type == "anonymous":
-            old_anon_session_id = old_session.id
-
-    _, raw_token = auth_service.create_session(
-        user_id=user.id,
-        session_type="authenticated",
-        ip=client_ip,
-        user_agent=user_agent,
-    )
-
-    if old_anon_session_id:
-        try:
-            auth_service.claim_anonymous_session(user, old_anon_session_id)
-        except Exception as exc:
-            logger.warning("Auto-claim during registration failed: %s", exc)
 
     response.set_cookie(
         key=SESSION_COOKIE_NAME,

@@ -239,12 +239,28 @@ def upgrade() -> None:
             "ix_invitations_expires_at", "invitations", ["expires_at"], unique=False
         )
 
+    # 5. Create app_settings table
+    if "app_settings" not in existing_tables:
+        op.create_table(
+            "app_settings",
+            sa.Column("key", sa.String(length=64), primary_key=True, nullable=False),
+            sa.Column("value", sa.String(length=255), nullable=False),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                nullable=False,
+                server_default=sa.func.now(),
+            ),
+        )
+
 
 def downgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
     existing_tables = set(inspector.get_table_names())
 
+    if "app_settings" in existing_tables:
+        op.drop_table("app_settings")
     if "invitations" in existing_tables:
         op.drop_table("invitations")
     if "beta_code_redemptions" in existing_tables:

@@ -8,15 +8,25 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def mask_token_for_log(token: str) -> str:
-    """Mask sensitive tokens before emitting to general logs."""
-    if not token or len(token) < 8:
-        return "[REDACTED]"
-    return f"{token[:4]}...[REDACTED]...{token[-4:]}"
+class EmailProviderError(Exception):
+    """Base exception for email provider errors."""
+
+
+class ProductionEmailProviderNotConfiguredError(EmailProviderError):
+    """Raised when an email is sent in production without a configured provider."""
 
 
 class BaseEmailProvider(ABC):
-    """Abstract interface for dispatching system and invitation emails."""
+    """Abstract interface for dispatching system and invitation emails.
+
+    Integration Agent Note:
+    To connect a real transactional email provider (e.g. Resend, SendGrid, SES):
+    1. Subclass BaseEmailProvider.
+    2. Implement `send_invitation` using the provider's SDK or REST API.
+    3. Register the provider in `get_email_provider()` keyed to
+       `settings.EMAIL_PROVIDER` (e.g. 'resend', 'ses').
+    4. Provide the required provider API key / SMTP configuration via env vars.
+    """
 
     @abstractmethod
     def send_invitation(
@@ -49,6 +59,10 @@ class InMemoryEmailProvider(BaseEmailProvider):
         invitation_id: str,
         beta_entitlement: str | None = None,
     ) -> bool:
+        if settings.ENVIRONMENT.lower() in {"production", "prod"}:
+            raise ProductionEmailProviderNotConfiguredError(
+                "InMemoryEmailProvider cannot be used in production environments."
+            )
         norm_email = to_email.strip().lower()
         invite_url = f"/invite#token={invite_token}"
         message = {
@@ -62,10 +76,9 @@ class InMemoryEmailProvider(BaseEmailProvider):
         }
         self.sent_messages.append(message)
         logger.info(
-            "InMemoryEmailProvider: queued invitation for %s (id=%s, token=%s)",
+            "InMemoryEmailProvider: queued invitation for %s (id=%s)",
             norm_email,
             invitation_id,
-            mask_token_for_log(invite_token),
         )
         return True
 
@@ -83,7 +96,7 @@ class InMemoryEmailProvider(BaseEmailProvider):
 class ConsoleEmailProvider(BaseEmailProvider):
     """Console provider for local development without external SMTP setup.
 
-    Safe: Masks the raw token in log output to prevent leakage into log aggregators.
+    Safe: Never logs raw or masked tokens. Only logs recipient and invitation ID.
     """
 
     def send_invitation(
@@ -94,16 +107,35 @@ class ConsoleEmailProvider(BaseEmailProvider):
         invitation_id: str,
         beta_entitlement: str | None = None,
     ) -> bool:
+        if settings.ENVIRONMENT.lower() in {"production", "prod"}:
+            raise ProductionEmailProviderNotConfiguredError(
+                "ConsoleEmailProvider cannot be used in production environments."
+            )
         norm_email = to_email.strip().lower()
         logger.info(
-            "ConsoleEmailProvider: [INVITATION] to=%s, id=%s, "
-            "token_preview=%s, expires=%s",
+            "ConsoleEmailProvider: [INVITATION] to=%s, id=%s, expires=%s",
             norm_email,
             invitation_id,
-            mask_token_for_log(invite_token),
             expires_at.isoformat(),
         )
         return True
+
+
+class UnavailableEmailProvider(BaseEmailProvider):
+    """Fallback provider when no valid provider is configured for the environment."""
+
+    def send_invitation(
+        self,
+        to_email: str,
+        invite_token: str,
+        expires_at: datetime,
+        invitation_id: str,
+        beta_entitlement: str | None = None,
+    ) -> bool:
+        raise ProductionEmailProviderNotConfiguredError(
+            "No production email provider has been configured. "
+            "Please configure a valid email delivery service."
+        )
 
 
 # Global default email provider instance
@@ -117,10 +149,16 @@ def get_email_provider() -> BaseEmailProvider:
         return _default_email_provider
 
     provider_name = settings.EMAIL_PROVIDER.lower().strip()
-    if provider_name == "console":
+    is_prod = settings.ENVIRONMENT.lower() in {"production", "prod"}
+
+    if is_prod and provider_name in {"memory", "console"}:
+        _default_email_provider = UnavailableEmailProvider()
+    elif provider_name == "console":
         _default_email_provider = ConsoleEmailProvider()
-    else:
+    elif provider_name == "memory":
         _default_email_provider = InMemoryEmailProvider()
+    else:
+        _default_email_provider = UnavailableEmailProvider()
 
     return _default_email_provider
 
