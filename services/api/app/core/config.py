@@ -118,10 +118,17 @@ class Settings(BaseSettings):
                     "PILOT_ADMIN_SECRET must be a non-default 32+ character secret "
                     "in production"
                 )
-            if self.EMAIL_PROVIDER in {"memory", "console"}:
+            provider_norm = self.EMAIL_PROVIDER.lower().strip()
+            if provider_norm in {"memory", "console"}:
                 raise ValueError(
                     "In-memory and console email providers are not permitted in "
                     "production. A production email provider must be configured."
+                )
+            valid_providers = {"resend", "sendgrid", "ses", "smtp", "postmark"}
+            if provider_norm not in valid_providers:
+                raise ValueError(
+                    f"Invalid EMAIL_PROVIDER '{self.EMAIL_PROVIDER}' for production. "
+                    f"Must be one of: {', '.join(sorted(valid_providers))}."
                 )
             if self.TURNSTILE_TEST_MODE:
                 raise ValueError("TURNSTILE_TEST_MODE cannot be enabled in production")

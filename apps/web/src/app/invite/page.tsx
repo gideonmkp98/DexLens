@@ -138,7 +138,9 @@ function InviteContent() {
     const currentToken = tokenRef.current;
     if (!currentToken) {
       setState("invalid");
-      setErrorMessage("Uitnodigingstoken ontbreekt. Herlaad de uitnodigingslink.");
+      setErrorMessage(
+        "Uitnodigingstoken ontbreekt. Herlaad de uitnodigingslink."
+      );
       return;
     }
 
@@ -150,7 +152,11 @@ function InviteContent() {
     } = {};
 
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !trimmedEmail.includes("@") || !trimmedEmail.includes(".")) {
+    if (
+      !trimmedEmail ||
+      !trimmedEmail.includes("@") ||
+      !trimmedEmail.includes(".")
+    ) {
       errors.email = "Vul een geldig e-mailadres in.";
     }
 
@@ -251,7 +257,8 @@ function InviteContent() {
           <div className="mt-5 rounded-[4px] border border-[#f1ca53]/30 bg-[#171c16] p-3 text-[13px] text-[#f3efdf]">
             <p>
               Je bent momenteel ingelogd als{" "}
-              <strong className="font-mono text-[#f1ca53]">{user.email}</strong>.
+              <strong className="font-mono text-[#f1ca53]">{user.email}</strong>
+              .
             </p>
             <p className="mt-1 text-[11px] text-[#b6bbaa]">
               Wil je deze uitnodiging koppelen aan een ander account?{" "}
@@ -283,7 +290,8 @@ function InviteContent() {
               Bezig met controleren…
             </p>
             <p className="mt-2 text-[13px] text-[#b6bbaa]">
-              Een ogenblik geduld terwijl we je persoonlijke uitnodigingstoken verifiëren.
+              Een ogenblik geduld terwijl we je persoonlijke uitnodigingstoken
+              verifiëren.
             </p>
           </div>
         )}
@@ -292,9 +300,9 @@ function InviteContent() {
         {(state === "valid" || state === "email_mismatch") && (
           <div className="mt-6">
             <p className="text-[13px] leading-relaxed text-[#b6bbaa]">
-              Gefeliciteerd! Je hebt een persoonlijke uitnodiging ontvangen voor de
-              exclusieve DexLens bèta. Maak hieronder je account aan om direct te
-              starten met scannen.
+              Gefeliciteerd! Je hebt een persoonlijke uitnodiging ontvangen voor
+              de exclusieve DexLens bèta. Maak hieronder je account aan om
+              direct te starten met scannen.
             </p>
 
             {/* Masked Email Badge */}
@@ -307,7 +315,8 @@ function InviteContent() {
                   {maskedEmail}
                 </p>
                 <p className="mt-1 text-[11px] text-[#8f9587]">
-                  Om veiligheidsredenen moet je registratie overeenkomen met dit e-mailadres.
+                  Om veiligheidsredenen moet je registratie overeenkomen met dit
+                  e-mailadres.
                 </p>
               </div>
             )}
@@ -362,7 +371,9 @@ function InviteContent() {
                   required
                   autoComplete="email"
                   placeholder="verzamelaar@voorbeeld.nl"
-                  aria-invalid={Boolean(fieldErrors.email || state === "email_mismatch")}
+                  aria-invalid={Boolean(
+                    fieldErrors.email || state === "email_mismatch"
+                  )}
                   aria-describedby={
                     fieldErrors.email ? "invite-email-error" : undefined
                   }
@@ -506,8 +517,8 @@ function InviteContent() {
               </p>
             </div>
             <p className="text-[13px] leading-relaxed text-[#b6bbaa]">
-              Uitnodigingen zijn eenmalig en hoofdlettergevoelig. Vraag een nieuwe
-              uitnodiging aan bij de beheerder als je link beschadigd is.
+              Uitnodigingen zijn eenmalig en hoofdlettergevoelig. Vraag een
+              nieuwe uitnodiging aan bij de beheerder als je link beschadigd is.
             </p>
             <div className="mt-6 flex flex-col gap-3 pt-2 sm:flex-row">
               <Link
@@ -533,13 +544,14 @@ function InviteContent() {
             <div className="rounded-[4px] border border-amber-500/40 bg-amber-950/30 px-4 py-3.5 text-[13px] leading-relaxed text-amber-200">
               <p className="font-bold">Uitnodiging is verlopen</p>
               <p className="mt-1">
-                De geldigheidsduur van deze persoonlijke uitnodiging is verstreken.
+                De geldigheidsduur van deze persoonlijke uitnodiging is
+                verstreken.
               </p>
             </div>
             <p className="text-[13px] leading-relaxed text-[#b6bbaa]">
-              Om veiligheidsredenen verlopen bètatoegangscodes na een bepaalde periode.
-              Neem contact op met de beheerder of degene die je heeft uitgenodigd om een
-              nieuwe uitnodiging te ontvangen.
+              Om veiligheidsredenen verlopen bètatoegangscodes na een bepaalde
+              periode. Neem contact op met de beheerder of degene die je heeft
+              uitgenodigd om een nieuwe uitnodiging te ontvangen.
             </p>
             <div className="mt-6 flex flex-col gap-3 pt-2 sm:flex-row">
               <Link
@@ -569,8 +581,9 @@ function InviteContent() {
               </p>
             </div>
             <p className="text-[13px] leading-relaxed text-[#b6bbaa]">
-              Deze link kan niet meer worden gebruikt voor registratie. Neem contact op
-              met ondersteuning als je denkt dat dit een vergissing is.
+              Deze link kan niet meer worden gebruikt voor registratie. Neem
+              contact op met ondersteuning als je denkt dat dit een vergissing
+              is.
             </p>
             <div className="mt-6 pt-2">
               <Link
@@ -589,7 +602,8 @@ function InviteContent() {
             <div className="rounded-[4px] border border-blue-500/40 bg-blue-950/30 px-4 py-3.5 text-[13px] leading-relaxed text-blue-200">
               <p className="font-bold">Deze uitnodiging is al geaccepteerd</p>
               <p className="mt-1">
-                Er is al een verzamelaarsaccount geactiveerd met deze uitnodiging.
+                Er is al een verzamelaarsaccount geactiveerd met deze
+                uitnodiging.
               </p>
             </div>
             <p className="text-[13px] leading-relaxed text-[#b6bbaa]">
@@ -618,7 +632,10 @@ function InviteContent() {
         {state === "success" && (
           <div className="mt-6 space-y-5 text-center">
             <div className="rounded-[4px] border border-emerald-500/40 bg-emerald-950/40 p-5 text-emerald-300">
-              <span className="pokeball mx-auto mb-3 !h-10 !w-10" aria-hidden="true" />
+              <span
+                className="pokeball mx-auto mb-3 !h-10 !w-10"
+                aria-hidden="true"
+              />
               <p className="font-serif text-[20px] font-bold text-[#f3efdf]">
                 Uitnodiging Succesvol Geactiveerd!
               </p>
@@ -630,8 +647,8 @@ function InviteContent() {
 
             <p className="text-[12px] text-[#8f9587]">
               Je wordt over{" "}
-              <strong className="text-[#f1ca53]">{redirectCountdown}</strong> seconden
-              automatisch doorgestuurd naar de scanner…
+              <strong className="text-[#f1ca53]">{redirectCountdown}</strong>{" "}
+              seconden automatisch doorgestuurd naar de scanner…
             </p>
 
             <div className="pt-2">
@@ -668,7 +685,10 @@ function InviteLoadingFallback() {
     >
       <div className="w-full rounded-[7px] border border-[#f3efdf]/30 bg-[#20251f] p-8 text-[#f3efdf] shadow-[7px_7px_0_#10150f]">
         <div className="flex items-center gap-3">
-          <span className="pokeball brand-ball !h-8 !w-8 shrink-0" aria-hidden="true" />
+          <span
+            className="pokeball brand-ball !h-8 !w-8 shrink-0"
+            aria-hidden="true"
+          />
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#f1ca53]">
               DexLens Bèta

@@ -14,10 +14,7 @@ export interface ValidateInvitationResponse {
 }
 
 export type InvitationInvalidReason =
-  | "expired"
-  | "revoked"
-  | "already_used"
-  | "invalid";
+  "expired" | "revoked" | "already_used" | "invalid";
 
 /**
  * Extract the invitation token safely from URL fragment (#token=... or #invite=...)

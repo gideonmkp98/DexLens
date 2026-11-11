@@ -5,6 +5,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, update
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -45,6 +46,17 @@ class BetaAccessError(Exception):
         super().__init__(message)
         self.message = message
         self.code = code
+
+
+class DatabaseConfigurationError(BetaAccessError):
+    """Raised when critical configuration tables or settings are missing."""
+
+    def __init__(
+        self,
+        message: str = "Database configuration is missing or invalid",
+        code: str = "DATABASE_CONFIGURATION_ERROR",
+    ) -> None:
+        super().__init__(message, code=code)
 
 
 class RegistrationModeBlockedError(BetaAccessError):
@@ -177,7 +189,7 @@ class BetaAccessService:
 
     @staticmethod
     def _fetch_registration_mode(db: Session | None) -> RegistrationMode:
-        """Fetch registration mode from database, fallback to env setting."""
+        """Fetch registration mode from DB; fallback to env when no row."""
         if db is not None:
             try:
                 setting = (
@@ -187,12 +199,23 @@ class BetaAccessService:
                 )
                 if setting and setting.value:
                     return RegistrationMode(setting.value.strip().lower())
-            except Exception as exc:
-                logger.warning(
-                    "Could not read registration_mode from database, falling back: %s",
-                    exc,
-                )
+                # Table exists, but no row yet: return safe default from settings
+                return RegistrationMode(settings.REGISTRATION_MODE.strip().lower())
+            except (OperationalError, ProgrammingError) as exc:
+                err_msg = str(exc).lower()
+                if (
+                    "no such table" in err_msg
+                    or "doesn't exist" in err_msg
+                    or "does not exist" in err_msg
+                ):
+                    raise DatabaseConfigurationError(
+                        "Required table 'app_settings' does not exist in the database. "
+                        "Database migration is required.",
+                        code="DATABASE_SCHEMA_MISSING",
+                    ) from exc
+                raise
 
+        # When no database session is provided (e.g. offline configuration check)
         try:
             return RegistrationMode(settings.REGISTRATION_MODE.strip().lower())
         except ValueError:

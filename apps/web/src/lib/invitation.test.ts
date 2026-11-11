@@ -73,7 +73,10 @@ describe("Invitation Utilities", () => {
         classifyInvitationError("Deze uitnodiging is verlopen"),
         "expired"
       );
-      assert.equal(classifyInvitationError("Invitation has expired"), "expired");
+      assert.equal(
+        classifyInvitationError("Invitation has expired"),
+        "expired"
+      );
     });
 
     test("classifies revoked invitation messages", () => {
@@ -99,7 +102,9 @@ describe("Invitation Utilities", () => {
       assert.equal(classifyInvitationError(null), "invalid");
       assert.equal(classifyInvitationError(""), "invalid");
       assert.equal(
-        classifyInvitationError("Uitnodigingstoken is ongeldig of niet gevonden"),
+        classifyInvitationError(
+          "Uitnodigingstoken is ongeldig of niet gevonden"
+        ),
         "invalid"
       );
     });

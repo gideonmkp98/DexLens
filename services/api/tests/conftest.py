@@ -5,11 +5,6 @@ import sys
 from collections.abc import Generator
 from typing import Any
 
-# Ensure tests.conftest and conftest are aliased to the same module instance
-# so that module-level test_engine and TestingSessionLocal are never duplicated.
-sys.modules.setdefault("tests.conftest", sys.modules[__name__])
-sys.modules.setdefault("conftest", sys.modules[__name__])
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
@@ -21,6 +16,11 @@ import app.models  # noqa: F401
 import app.services.importer as importer_module
 from app.core.database import Base, get_db
 from app.main import app
+
+# Ensure tests.conftest and conftest are aliased to the same module instance
+# so that module-level test_engine and TestingSessionLocal are never duplicated.
+sys.modules.setdefault("tests.conftest", sys.modules[__name__])
+sys.modules.setdefault("conftest", sys.modules[__name__])
 
 # Test database connection string (separate from normal development DB)
 DEFAULT_TEST_DB = "mysql+pymysql://tcg_user:tcg_password@db:3306/tcg_test"
