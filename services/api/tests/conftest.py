@@ -10,7 +10,7 @@ sys.modules.setdefault("conftest", sys.modules[__name__])
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -80,9 +80,17 @@ def setup_test_database():
     with test_engine.connect() as conn:
         if test_engine.url.get_backend_name() in ("mysql", "mariadb"):
             conn.exec_driver_sql("SET FOREIGN_KEY_CHECKS=0")
+            try:
+                conn.commit()
+            except Exception:
+                pass
             Base.metadata.drop_all(bind=conn)
             Base.metadata.create_all(bind=conn)
             conn.exec_driver_sql("SET FOREIGN_KEY_CHECKS=1")
+            try:
+                conn.commit()
+            except Exception:
+                pass
         else:
             Base.metadata.drop_all(bind=conn)
             Base.metadata.create_all(bind=conn)

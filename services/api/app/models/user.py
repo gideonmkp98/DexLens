@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.beta_access import BetaCodeRedemption, Invitation
     from app.models.collection import CollectionItem
     from app.models.scan import Scan
+    from app.models.scan_quota import UserScanQuota
 
 
 def _utcnow() -> datetime:
@@ -81,10 +82,6 @@ class User(Base):
         String(64),
         nullable=True,
     )
-    scan_quota: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-    )
     registration_mode_used: Mapped[str | None] = mapped_column(
         String(32),
         nullable=True,
@@ -117,6 +114,12 @@ class User(Base):
     collection_items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem",
         back_populates="user",
+    )
+    scan_quota: Mapped["UserScanQuota | None"] = relationship(
+        "UserScanQuota",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     scans: Mapped[list["Scan"]] = relationship(
         "Scan",

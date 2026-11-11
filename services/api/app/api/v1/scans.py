@@ -7,6 +7,7 @@ from fastapi import (
     APIRouter,
     Depends,
     File,
+    Header,
     HTTPException,
     Request,
     Response,
@@ -42,6 +43,7 @@ from app.schemas.scan import (
     ResetCardConfirmationRequest,
     ScanResponse,
     SearchCandidatesRequest,
+    ScanQuotaInfo,
     SearchCandidatesResponse,
 )
 from app.services.card_catalog import (
@@ -77,6 +79,7 @@ from app.services.ocr import (
     get_ocr_engine,
 )
 from app.services.ocr.pipeline import recognize_card_image
+from app.services.scan_quota import QuotaExhaustedError, ScanQuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,18 @@ def _get_storage_dir() -> Path:
     storage_dir = Path(settings.UPLOAD_DIRECTORY).resolve()
     storage_dir.mkdir(parents=True, exist_ok=True)
     return storage_dir
+
+
+def set_quota_headers(response: Response, quota: ScanQuotaInfo) -> None:
+    response.headers["X-Quota-Limit"] = str(quota.limit) if quota.limit is not None else "unlimited"
+    response.headers["X-Quota-Used"] = str(quota.used)
+    response.headers["X-Quota-Remaining"] = str(quota.remaining) if quota.remaining is not None else "unlimited"
+    response.headers["X-Quota-Reset"] = quota.reset_at.isoformat()
+    response.headers["X-Quota-Source"] = quota.effective_source
+
+
+def raise_quota_error(quota_err: QuotaExhaustedError) -> None:
+    raise quota_err
 
 
 def serialize_candidate(c: object) -> CandidateMatchItem:
@@ -125,7 +140,7 @@ def serialize_candidate(c: object) -> CandidateMatchItem:
 _serialize_candidate = serialize_candidate
 
 
-def build_scan_response(scan: Scan) -> ScanResponse:
+def build_scan_response(scan: Scan, quota: ScanQuotaInfo | None = None) -> ScanResponse:
     crop_image_url = None
     if scan.crop_path:
         crop_image_url = f"/api/v1/scans/{scan.id}/crop/image?v={scan.crop_version}"
@@ -303,6 +318,7 @@ def build_scan_response(scan: Scan) -> ScanResponse:
         user_search_provider_set_id=scan.user_search_provider_set_id,
         candidates=candidates,
         confirmed_card=confirmed_card,
+        quota=quota,
     )
 
 
@@ -367,71 +383,21 @@ def _get_active_scan(
     return scan, file_path
 
 
-@router.post("", response_model=ScanResponse, status_code=status.HTTP_201_CREATED)
-async def upload_scan(
-    request: Request,
-    file: UploadFile = File(..., description="Card image to upload and normalize"),
+@router.get("/quota", response_model=ScanQuotaInfo)
+def get_current_scan_quota(
+    response: Response,
     db: Session = Depends(get_db),
     session_ctx: SessionContext = Depends(get_session_context),
-) -> ScanResponse:
-    """Upload a single image, validate and normalize it, and store metadata."""
-    form = await request.form()
-    if (
-        sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
-        != 1
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "MULTIPLE_FILES",
-                "message": "Please upload exactly one image.",
-            },
-        )
-    scan_id = str(uuid.uuid4())
-    temp_path = None
-    try:
-        storage_dir = await run_in_threadpool(_get_storage_dir)
-        temp_dir = storage_dir / ".tmp"
-        target_path = storage_dir / f"{scan_id}.jpg"
-        temp_path, _ = await stream_upload_to_temp_file(
-            upload_file=file,
-            temp_dir=temp_dir,
-            max_bytes=settings.UPLOAD_MAX_BYTES,
-        )
-
-        width, height, file_size = await run_in_threadpool(
-            process_and_normalize_image,
-            source_path=temp_path,
-            target_path=target_path,
-            max_pixels=settings.UPLOAD_MAX_PIXELS,
-            max_dimension=settings.UPLOAD_MAX_DIMENSION,
-            jpeg_quality=settings.UPLOAD_JPEG_QUALITY,
-        )
-    except OSError as exc:
-        logger.exception("Failed to store scan %s", scan_id)
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "code": "STORAGE_ERROR",
-                "message": "Unable to store image. Please try again.",
-            },
-        ) from exc
-    finally:
-        await file.close()
-        if temp_path is not None:
-            await run_in_threadpool(temp_path.unlink, missing_ok=True)
-
-    return await run_in_threadpool(
-        _persist_scan,
-        db,
-        scan_id,
-        target_path,
-        width,
-        height,
-        file_size,
-        session_ctx.user_id,
-        session_ctx.anonymous_session_id,
+) -> ScanQuotaInfo:
+    """Retrieve current daily scan quota status and remaining scans for the active session."""
+    response.headers["Cache-Control"] = "no-store"
+    service = ScanQuotaService(db)
+    status_info = service.get_quota_status(
+        user_id=session_ctx.user_id,
+        anonymous_session_id=session_ctx.anonymous_session_id,
     )
+    set_quota_headers(response, status_info)
+    return status_info
 
 
 def _persist_scan(
@@ -443,6 +409,8 @@ def _persist_scan(
     file_size: int,
     user_id: str | None = None,
     anonymous_session_id: str | None = None,
+    quota: ScanQuotaInfo | None = None,
+    upload_idempotency_key: str | None = None,
 ) -> ScanResponse:
     now_utc = datetime.now(UTC)
     expires_at_utc = now_utc + timedelta(hours=settings.UPLOAD_RETENTION_HOURS)
@@ -462,6 +430,7 @@ def _persist_scan(
         crop_status="none",
         crop_version=0,
         rotation=0,
+        upload_idempotency_key=upload_idempotency_key,
     )
 
     response = ScanResponse(
@@ -497,6 +466,7 @@ def _persist_scan(
         user_search_provider_set_id=None,
         candidates=None,
         confirmed_card=None,
+        quota=quota,
     )
     try:
         db.add(scan)
@@ -518,6 +488,153 @@ def _persist_scan(
 
     return response
 
+
+@router.post("", response_model=ScanResponse, status_code=status.HTTP_201_CREATED)
+async def upload_scan(
+    request: Request,
+    response: Response,
+    file: UploadFile = File(..., description="Card image to upload and normalize"),
+    idempotency_key: str | None = Header(
+        default=None,
+        alias="Idempotency-Key",
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    ),
+    db: Session = Depends(get_db),
+    session_ctx: SessionContext = Depends(get_session_context),
+) -> ScanResponse:
+    """Upload a single image, validate and normalize it, meter quota, and store metadata."""
+    response.headers["Cache-Control"] = "no-store"
+    form = await request.form()
+    if (
+        sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
+        != 1
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "MULTIPLE_FILES",
+                "message": "Please upload exactly one image.",
+            },
+        )
+
+    quota_service = ScanQuotaService(db)
+    owner_key = quota_service.get_owner_key(session_ctx.user_id, session_ctx.anonymous_session_id)
+
+    # 1. Check for durable idempotent replay before doing any work
+    if idempotency_key:
+        existing_scan = quota_service.find_idempotent_scan(owner_key, idempotency_key)
+        if existing_scan is not None:
+            await file.close()
+            quota_status = quota_service.get_quota_status(
+                session_ctx.user_id, session_ctx.anonymous_session_id
+            )
+            set_quota_headers(response, quota_status)
+            return build_scan_response(existing_scan, quota=quota_status)
+
+    # 2. Fast-path quota check: prevent upload processing if already exhausted
+    current_status = quota_service.get_quota_status(
+        session_ctx.user_id, session_ctx.anonymous_session_id
+    )
+    if current_status.limit is not None and current_status.remaining == 0:
+        await file.close()
+        try:
+            quota_service.reserve_and_consume_quota(
+                session_ctx.user_id,
+                session_ctx.anonymous_session_id,
+                idempotency_key=idempotency_key,
+            )
+        except QuotaExhaustedError as err:
+            raise_quota_error(err)
+
+    scan_id = str(uuid.uuid4())
+    temp_path = None
+    try:
+        storage_dir = await run_in_threadpool(_get_storage_dir)
+        temp_dir = storage_dir / ".tmp"
+        target_path = storage_dir / f"{scan_id}.jpg"
+        temp_path, _ = await stream_upload_to_temp_file(
+            upload_file=file,
+            temp_dir=temp_dir,
+            max_bytes=settings.UPLOAD_MAX_BYTES,
+        )
+
+        width, height, file_size = await run_in_threadpool(
+            process_and_normalize_image,
+            source_path=temp_path,
+            target_path=target_path,
+            max_pixels=settings.UPLOAD_MAX_PIXELS,
+            max_dimension=settings.UPLOAD_MAX_DIMENSION,
+            jpeg_quality=settings.UPLOAD_JPEG_QUALITY,
+        )
+    except OSError as exc:
+        logger.exception("Failed to store scan %s", scan_id)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "STORAGE_ERROR",
+                "message": "Unable to store image. Please try again.",
+            },
+        ) from exc
+    finally:
+        await file.close()
+        if temp_path is not None:
+            await run_in_threadpool(temp_path.unlink, missing_ok=True)
+
+    # 3. Image is normalized and accepted: atomically consume quota now
+    try:
+        is_replay, quota_info, existing_scan_id = quota_service.reserve_and_consume_quota(
+            session_ctx.user_id,
+            session_ctx.anonymous_session_id,
+            idempotency_key=idempotency_key,
+        )
+    except QuotaExhaustedError as err:
+        await run_in_threadpool(target_path.unlink, missing_ok=True)
+        raise_quota_error(err)
+    except Exception as exc:
+        await run_in_threadpool(target_path.unlink, missing_ok=True)
+        logger.exception('Failed to reserve quota for scan %s: %s', scan_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                'code': 'DATABASE_ERROR',
+                'message': 'Failed to persist scan record.',
+            },
+        ) from exc
+
+    if is_replay and existing_scan_id:
+        await run_in_threadpool(target_path.unlink, missing_ok=True)
+        existing = db.query(Scan).filter(Scan.id == existing_scan_id).first()
+        if existing:
+            set_quota_headers(response, quota_info)
+            return build_scan_response(existing, quota=quota_info)
+
+    # 4. Persist scan
+    try:
+        persisted = await run_in_threadpool(
+            _persist_scan,
+            db,
+            scan_id,
+            target_path,
+            width,
+            height,
+            file_size,
+            session_ctx.user_id,
+            session_ctx.anonymous_session_id,
+            quota_info,
+            idempotency_key,
+        )
+        quota_service.commit_scan_idempotency(owner_key, idempotency_key, scan_id)
+        set_quota_headers(response, quota_info)
+        return persisted
+    except Exception:
+        quota_service.rollback_consumption(
+            owner_key,
+            quota_service.get_utc_date(),
+            idempotency_key=idempotency_key,
+        )
+        raise
 
 @router.get("/{id}", response_model=ScanResponse)
 def get_scan(

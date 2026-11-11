@@ -15,6 +15,14 @@ from app.schemas.collection import (
     CollectionUpdateRequest,
 )
 from app.schemas.health import HealthResponse
+from app.schemas.scan_quota import (
+    ScanQuotaExceededDetail,
+    ScanQuotaInfo,
+    ScanQuotaSettingsResponse,
+    ScanQuotaSettingsUpdateRequest,
+    UserScanQuotaOverrideRequest,
+    UserScanQuotaResponse,
+)
 from app.schemas.scan import ErrorDetail, ErrorResponse, ScanResponse
 from app.schemas.set import (
     PaginatedSetsResponse,
@@ -39,6 +47,15 @@ __all__ = [
     "HealthResponse",
     "PaginatedCardsResponse",
     "PaginatedSetsResponse",
+    "ScanQuotaExceededDetail",
+    "ScanQuotaInfo",
+    "ScanQuotaSettingsResponse",
+    "ScanQuotaSettingsUpdateRequest",
+    "ScanResponse",
+    "SetDetailResponse",
+    "SetSummaryResponse",
+    "UserScanQuotaOverrideRequest",
+    "UserScanQuotaResponse",
     "ScanResponse",
     "SetDetailResponse",
     "SetSummaryResponse",

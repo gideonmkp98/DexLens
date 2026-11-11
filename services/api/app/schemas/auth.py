@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from typing import Any
 
 from pydantic import (
     AliasChoices,
@@ -178,6 +179,17 @@ class UserResponse(BaseModel):
     beta_entitlement: str | None = None
     scan_quota: int | None = None
     created_at: datetime
+
+    @field_validator("scan_quota", mode="before")
+    @classmethod
+    def extract_scan_quota(cls, v: Any) -> int | None:
+        if v is None:
+            return None
+        if isinstance(v, int):
+            return v
+        if hasattr(v, "custom_limit"):
+            return v.custom_limit
+        return None
 
 
 class MeResponse(BaseModel):

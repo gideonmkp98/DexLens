@@ -95,6 +95,11 @@ class Scan(Base):
         index=True,
         default=None,
     )
+    upload_idempotency_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+    )
     capture_idempotency_key: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,

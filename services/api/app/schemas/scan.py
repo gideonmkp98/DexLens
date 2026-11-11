@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.scan_quota import ScanQuotaInfo
 from app.services.card_detector import CropCorners, Point
 
 
@@ -204,6 +205,10 @@ class ScanResponse(BaseModel):
     candidates: list["CandidateMatchItem"] | None = Field(
         default=None,
         description="Top catalog candidate matches",
+    )
+    quota: ScanQuotaInfo | None = Field(
+        default=None,
+        description="Daily scan quota metadata at the time of scan creation",
     )
     confirmed_card: "ConfirmedCardInfo | None" = Field(
         default=None,

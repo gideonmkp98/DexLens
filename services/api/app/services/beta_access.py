@@ -430,7 +430,21 @@ class BetaAccessService:
             user.beta_entitlement = "beta"
 
         if code.scan_quota_allocated is not None:
-            user.scan_quota = (user.scan_quota or 0) + code.scan_quota_allocated
+            from app.services.scan_quota import ScanQuotaService
+            quota_service = ScanQuotaService(self.db)
+            override = quota_service.get_user_override(user.id)
+            current_limit = (
+                override.custom_limit
+                if (override and override.custom_limit is not None)
+                else quota_service.get_global_default_limit()
+            )
+            new_limit = current_limit + code.scan_quota_allocated
+            quota_service.set_user_override(
+                user_id=user.id,
+                override_mode="custom",
+                custom_limit=new_limit,
+                reason=f"Beta code allocation ({code.code_prefix})",
+            )
 
         self.db.commit()
         self.db.refresh(code)
@@ -606,7 +620,21 @@ class BetaAccessService:
             user.beta_entitlement = "beta"
 
         if invitation.scan_quota_allocated is not None:
-            user.scan_quota = (user.scan_quota or 0) + invitation.scan_quota_allocated
+            from app.services.scan_quota import ScanQuotaService
+            quota_service = ScanQuotaService(self.db)
+            override = quota_service.get_user_override(user.id)
+            current_limit = (
+                override.custom_limit
+                if (override and override.custom_limit is not None)
+                else quota_service.get_global_default_limit()
+            )
+            new_limit = current_limit + invitation.scan_quota_allocated
+            quota_service.set_user_override(
+                user_id=user.id,
+                override_mode="custom",
+                custom_limit=new_limit,
+                reason=f"Invitation allocation ({invitation.email})",
+            )
 
         self.db.commit()
         self.db.refresh(invitation)

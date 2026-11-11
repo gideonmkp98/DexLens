@@ -21,6 +21,8 @@ from app.schemas.scan import (
     CandidateMatchItem,
     ConfirmedCardInfo,
 )
+from app.schemas.scan_quota import ScanQuotaInfo
+from app.services.scan_quota import QuotaExhaustedError, ScanQuotaService
 from app.schemas.scan_session import (
     LiveCaptureResponse,
     ScanSessionDetailResponse,
@@ -67,11 +69,13 @@ class ScanSessionError(Exception):
         message: str = "Scan session error",
         code: str = "SESSION_ERROR",
         status_code: int = 400,
+        quota: ScanQuotaInfo | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
         self.code = code
         self.status_code = status_code
+        self.quota = quota
 
 
 class SessionNotFoundError(ScanSessionError):
@@ -134,6 +138,7 @@ class ScanSessionService:
         self,
         scan: Scan,
         session: ScanSession,
+        quota_info: ScanQuotaInfo | None = None,
     ) -> LiveCaptureResponse:
         """Serialize a completed capture, including safe idempotent replays."""
         raw_candidates = (
@@ -152,7 +157,7 @@ class ScanSessionService:
             else []
         )
         return LiveCaptureResponse(
-            scan=build_scan_response(scan),
+            scan=build_scan_response(scan, quota=quota_info),
             detected=scan.crop_status == "confirmed",
             corners=scan.corners,
             candidates=candidates,
@@ -400,6 +405,9 @@ class ScanSessionService:
                 "and cannot accept captures."
             )
 
+        quota_service = ScanQuotaService(self.db)
+        owner_key = quota_service.get_owner_key(self.user_id, self.anonymous_session_id)
+
         if idempotency_key:
             existing = (
                 self.db.query(Scan)
@@ -412,7 +420,31 @@ class ScanSessionService:
             if existing is not None:
                 if isinstance(image_input, UploadFile):
                     await image_input.close()
-                return self._build_live_capture_response(existing, session)
+                quota_status = quota_service.get_quota_status(
+                    self.user_id, self.anonymous_session_id
+                )
+                return self._build_live_capture_response(existing, session, quota_info=quota_status)
+
+        # Fast-path quota check: fail fast before image normalization if quota is exhausted
+        current_status = quota_service.get_quota_status(
+            self.user_id, self.anonymous_session_id
+        )
+        if current_status.limit is not None and current_status.remaining == 0:
+            if isinstance(image_input, UploadFile):
+                await image_input.close()
+            try:
+                quota_service.reserve_and_consume_quota(
+                    self.user_id,
+                    self.anonymous_session_id,
+                    idempotency_key=idempotency_key,
+                )
+            except QuotaExhaustedError as err:
+                raise ScanSessionError(
+                    message=err.message,
+                    code=err.code,
+                    status_code=err.status_code,
+                    quota=err.quota,
+                )
 
         scan_id = str(uuid.uuid4())
         storage_dir = Path(settings.UPLOAD_DIRECTORY).resolve()
@@ -454,6 +486,28 @@ class ScanSessionService:
             if temp_path is not None:
                 await run_in_threadpool(temp_path.unlink, missing_ok=True)
 
+        # Image is normalized: atomically reserve and consume quota now
+        try:
+            is_replay, quota_info, existing_scan_id = quota_service.reserve_and_consume_quota(
+                self.user_id,
+                self.anonymous_session_id,
+                idempotency_key=idempotency_key,
+            )
+        except QuotaExhaustedError as err:
+            target_path.unlink(missing_ok=True)
+            raise ScanSessionError(
+                message=err.message,
+                code=err.code,
+                status_code=err.status_code,
+                quota=err.quota,
+            )
+
+        if is_replay and existing_scan_id:
+            target_path.unlink(missing_ok=True)
+            existing = self.db.query(Scan).filter(Scan.id == existing_scan_id).first()
+            if existing:
+                return self._build_live_capture_response(existing, session, quota_info=quota_info)
+
         now_utc = datetime.now(UTC)
         expires_at_utc = now_utc + timedelta(hours=settings.UPLOAD_RETENTION_HOURS)
 
@@ -480,10 +534,12 @@ class ScanSessionService:
         self.db.add(scan)
         try:
             self.db.commit()
+            quota_service.commit_scan_idempotency(owner_key, idempotency_key, scan_id)
         except IntegrityError:
             self.db.rollback()
             target_path.unlink(missing_ok=True)
             if not idempotency_key:
+                quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
                 raise
             existing = (
                 self.db.query(Scan)
@@ -494,8 +550,15 @@ class ScanSessionService:
                 .first()
             )
             if existing is None:
+                quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
                 raise
-            return self._build_live_capture_response(existing, session)
+            return self._build_live_capture_response(existing, session, quota_info=quota_info)
+        except Exception:
+            self.db.rollback()
+            target_path.unlink(missing_ok=True)
+            quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
+            raise
+
         self.db.refresh(scan)
 
         detected, corners, message, score = await run_in_threadpool(
@@ -626,7 +689,7 @@ class ScanSessionService:
         self.db.commit()
         self.db.refresh(session)
 
-        return self._build_live_capture_response(scan, session)
+        return self._build_live_capture_response(scan, session, quota_info=quota_info)
 
 
 def get_scan_session_service(

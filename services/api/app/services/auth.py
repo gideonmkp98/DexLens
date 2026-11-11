@@ -217,9 +217,17 @@ class AuthService:
             policies_accepted_at=now if accepted_policies else None,
             has_beta_access=has_beta_access,
             beta_entitlement=beta_entitlement,
-            scan_quota=scan_quota,
             registration_mode_used=registration_mode_used,
         )
+        if scan_quota is not None:
+            from app.models.scan_quota import UserScanQuota
+            user_quota = UserScanQuota(
+                user_id=user.id,
+                override_mode="custom",
+                custom_limit=scan_quota,
+                reason="Registration scan quota allocation",
+            )
+            self.db.add(user_quota)
         self.db.add(user)
         try:
             self.db.flush()
@@ -513,9 +521,17 @@ class AuthService:
                 policies_accepted_at=now if accepted_policies else None,
                 has_beta_access=has_beta,
                 beta_entitlement=entitlement,
-                scan_quota=quota,
                 registration_mode_used=active_mode.value,
             )
+            if quota is not None:
+                from app.models.scan_quota import UserScanQuota
+                user_quota = UserScanQuota(
+                    user_id=user.id,
+                    override_mode="custom",
+                    custom_limit=quota,
+                    reason=f"Beta access ({entitlement or 'beta'})",
+                )
+                self.db.add(user_quota)
             self.db.add(user)
             self.db.flush()
 

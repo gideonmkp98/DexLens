@@ -457,17 +457,33 @@ export interface ScanResponse {
   user_search_provider_set_id?: string | null;
   candidates?: CandidateMatchItem[] | null;
   confirmed_card?: ConfirmedCardInfo | null;
+  quota?: ScanQuotaInfo | null;
+}
+
+export interface ScanQuotaInfo {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  reset_at: string;
+  effective_source: "global_default" | "user_override" | string;
 }
 
 export class ApiError extends Error {
   code?: string;
   status: number;
+  quota?: ScanQuotaInfo;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    quota?: ScanQuotaInfo
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.quota = quota;
   }
 }
 
@@ -480,32 +496,46 @@ async function parseApiError(
   }
   let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
   let errorCode: string | undefined;
+  let quotaInfo: ScanQuotaInfo | undefined;
   try {
     const err = await res.json();
     if (err?.detail && typeof err.detail === "object") {
       errorMsg = err.detail.message || errorMsg;
       errorCode = err.detail.code;
+      if (err.detail.quota) {
+        quotaInfo = err.detail.quota as ScanQuotaInfo;
+      }
     } else if (typeof err?.detail === "string") {
       errorMsg = err.detail;
     } else if (err?.message) {
       errorMsg = err.message;
       errorCode = err.code;
+      if (err.quota) {
+        quotaInfo = err.quota as ScanQuotaInfo;
+      }
     }
   } catch {
     // Non-JSON response
   }
-  return new ApiError(errorMsg, res.status, errorCode);
+  return new ApiError(errorMsg, res.status, errorCode, quotaInfo);
 }
 
 /**
  * Upload a single card image file to /api/v1/scans.
  */
-export async function uploadScan(file: File): Promise<ScanResponse> {
+export async function uploadScan(
+  file: File,
+  idempotencyKey?: string
+): Promise<ScanResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
   const res = await fetch(`${API_BASE_URL}/api/v1/scans`, {
     method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+    },
     body: formData,
   });
 
@@ -514,6 +544,24 @@ export async function uploadScan(file: File): Promise<ScanResponse> {
   }
 
   return res.json() as Promise<ScanResponse>;
+}
+
+/**
+ * Retrieve current daily scan quota status from /api/v1/scans/quota.
+ */
+export async function getScanQuota(): Promise<ScanQuotaInfo> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/scans/quota`, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw await parseApiError(res, "Ophalen van scanquotum mislukt");
+  }
+
+  return res.json() as Promise<ScanQuotaInfo>;
 }
 
 /**
