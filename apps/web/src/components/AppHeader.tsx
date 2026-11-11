@@ -53,7 +53,9 @@ export default function AppHeader() {
               ["/collection", "Collectie"],
               ["/cards", "Kaarten"],
               ["/sets", "Sets"],
-              ...(user?.role === "admin" ? [["/admin", "Beheer"] as const] : []),
+              ...(user?.role === "admin"
+                ? [["/admin", "Beheer"] as const]
+                : []),
             ] as const
           ).map(([href, label]) => (
             <Link

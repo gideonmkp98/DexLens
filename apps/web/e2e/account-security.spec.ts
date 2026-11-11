@@ -102,7 +102,9 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
 
     const alert = modal.locator('[role="alert"]');
     await expect(alert).toBeVisible();
-    await expect(alert).toContainText("gebruiksvoorwaarden en het privacybeleid");
+    await expect(alert).toContainText(
+      "gebruiksvoorwaarden en het privacybeleid"
+    );
   });
 
   test("5. Rejects invalid username format", async ({ page }) => {
@@ -155,6 +157,8 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await expect(logoutBtn).toBeVisible({ timeout: 5000 });
-    await expect(page.locator(`[title*="${validEmail}"]`).first()).toBeVisible();
+    await expect(
+      page.locator(`[title*="${validEmail}"]`).first()
+    ).toBeVisible();
   });
 });

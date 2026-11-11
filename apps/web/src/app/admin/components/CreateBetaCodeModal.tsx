@@ -86,9 +86,7 @@ export function CreateBetaCodeModal({
                 type="number"
                 min={1}
                 value={maxUses}
-                onChange={(e) =>
-                  setMaxUses(parseInt(e.target.value, 10) || 1)
-                }
+                onChange={(e) => setMaxUses(parseInt(e.target.value, 10) || 1)}
                 className="mt-1 w-full rounded border border-[#f3efdf]/20 bg-[#171c16] px-3 py-2 text-xs text-[#f3efdf] focus:border-[#f1ca53] focus:outline-none"
               />
             </div>

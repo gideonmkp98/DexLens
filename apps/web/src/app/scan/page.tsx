@@ -36,7 +36,9 @@ export default function ScanPage() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [challengeOpen, setChallengeOpen] = useState<boolean>(false);
-  const [challengeSiteKey, setChallengeSiteKey] = useState<string | undefined>();
+  const [challengeSiteKey, setChallengeSiteKey] = useState<
+    string | undefined
+  >();
 
   // Detect camera API support on client mount
   useEffect(() => {

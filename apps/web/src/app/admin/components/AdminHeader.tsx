@@ -40,9 +40,9 @@ export function AdminHeader({
             Systeem- &amp; Gebruikersbeheer
           </h1>
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#b6bbaa]">
+        <div className="flex items-center gap-2 font-mono text-xs text-[#b6bbaa]">
           <span>Ingelogd als:</span>
-          <span className="rounded bg-[#20251f] px-2 py-1 text-[#f3efdf] border border-[#f3efdf]/15">
+          <span className="rounded border border-[#f3efdf]/15 bg-[#20251f] px-2 py-1 text-[#f3efdf]">
             {currentUserEmail}
           </span>
         </div>
@@ -59,8 +59,8 @@ export function AdminHeader({
             onClick={() => setActiveTab(tab)}
             className={`rounded px-3.5 py-2 text-xs font-bold transition ${
               activeTab === tab
-                ? "bg-[#252923] text-[#f1ca53] shadow-[1px_1px_0_#10150f] border border-[#f3efdf]/20"
-                : "text-[#b6bbaa] hover:text-[#f3efdf] hover:bg-[#1a1f19]"
+                ? "border border-[#f3efdf]/20 bg-[#252923] text-[#f1ca53] shadow-[1px_1px_0_#10150f]"
+                : "text-[#b6bbaa] hover:bg-[#1a1f19] hover:text-[#f3efdf]"
             }`}
           >
             {label}

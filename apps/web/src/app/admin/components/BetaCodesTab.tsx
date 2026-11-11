@@ -118,12 +118,12 @@ export function BetaCodesTab({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded px-2 py-0.5 font-bold text-[10px] ${
+                      className={`rounded px-2 py-0.5 text-[10px] font-bold ${
                         code.status === "active"
-                          ? "bg-emerald-950 text-emerald-300 border border-emerald-500/30"
+                          ? "border border-emerald-500/30 bg-emerald-950 text-emerald-300"
                           : code.status === "revoked"
-                          ? "bg-rose-950 text-rose-300 border border-rose-500/30"
-                          : "bg-[#171c16] text-[#b6bbaa]"
+                            ? "border border-rose-500/30 bg-rose-950 text-rose-300"
+                            : "bg-[#171c16] text-[#b6bbaa]"
                       }`}
                     >
                       {code.status}

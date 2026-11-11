@@ -103,7 +103,7 @@ def test_registration_enforcement_open_mode(client: TestClient, db: Session):
 
     resp = client.post(
         "/api/v1/auth/register",
-        json={"email": "open1@example.com", "password": "Password123!"},
+        json={"email": "open1@example.com", "password": "UniqueOpenPassword2026!"},
     )
     assert resp.status_code == 201
     user_data = resp.json()
@@ -123,7 +123,7 @@ def test_registration_enforcement_beta_code_required_mode(
     # 1. Attempt registration without code -> 403
     resp = client.post(
         "/api/v1/auth/register",
-        json={"email": "blocked@example.com", "password": "Password123!"},
+        json={"email": "blocked@example.com", "password": "UniqueBlockedPassword2026!"},
     )
     assert resp.status_code == 403
     assert resp.json()["detail"]["code"] == "REGISTRATION_BETA_CODE_REQUIRED"
@@ -133,7 +133,7 @@ def test_registration_enforcement_beta_code_required_mode(
         "/api/v1/auth/register",
         json={
             "email": "blocked@example.com",
-            "password": "Password123!",
+            "password": "UniqueBlockedPassword2026!",
             "beta_code": "INVALID-CODE-XYZ",
         },
     )
@@ -152,7 +152,7 @@ def test_registration_enforcement_beta_code_required_mode(
         "/api/v1/auth/register",
         json={
             "email": "allowed@example.com",
-            "password": "Password123!",
+            "password": "UniqueAllowedPassword2026!",
             "beta_code": raw_code,
         },
     )
@@ -179,7 +179,7 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
     # 1. Attempt registration without invite -> 403
     resp = client.post(
         "/api/v1/auth/register",
-        json={"email": "invitee@example.com", "password": "Password123!"},
+        json={"email": "invitee@example.com", "password": "UniqueInvitePassword2026!"},
     )
     assert resp.status_code == 403
     assert resp.json()["detail"]["code"] == "REGISTRATION_INVITE_ONLY"
@@ -190,7 +190,7 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
         "/api/v1/auth/register",
         json={
             "email": "invitee@example.com",
-            "password": "Password123!",
+            "password": "UniqueInvitePassword2026!",
             "beta_code": raw_code,
         },
     )
@@ -209,7 +209,7 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
         "/api/v1/auth/register",
         json={
             "email": "imposter@example.com",
-            "password": "Password123!",
+            "password": "UniqueInvitePassword2026!",
             "invite_token": raw_token,
         },
     )
@@ -221,7 +221,7 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
         "/api/v1/auth/register",
         json={
             "email": "Invitee@example.com",  # mixed case should normalize
-            "password": "Password123!",
+            "password": "UniqueInvitePassword2026!",
             "invite_token": raw_token,
         },
     )
@@ -237,7 +237,7 @@ def test_registration_enforcement_invite_only_mode(client: TestClient, db: Sessi
         "/api/v1/auth/register",
         json={
             "email": "invitee2@example.com",
-            "password": "Password123!",
+            "password": "UniqueInvitePassword2026!",
             "invite_token": raw_token,
         },
     )

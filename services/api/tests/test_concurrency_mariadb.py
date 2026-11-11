@@ -3,7 +3,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,6 +26,7 @@ from app.services.auth import (
     hash_token,
 )
 from app.services.beta_access import BetaAccessError, BetaAccessService
+from app.services.ocr.engine import OcrResult
 from tests.conftest import TestingSessionLocal, test_engine
 from tests.test_card_detection_and_crop import (
     _create_synthetic_card_image,
@@ -375,6 +376,11 @@ def test_mariadb_concurrent_recognition_vs_crop_replacement(
     """
     storage_root = tmp_path / "uploads"
     monkeypatch.setattr(settings, "UPLOAD_DIRECTORY", str(storage_root))
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = OcrResult(
+        raw_text="Pikachu HP 60\n58/102", confidence=95.0
+    )
+    monkeypatch.setattr("app.api.v1.scans.get_ocr_engine", lambda: mock_ocr)
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))
@@ -661,6 +667,11 @@ def test_mariadb_user_search_during_delayed_ocr(tmp_path: Path, monkeypatch) -> 
     """
     storage_root = tmp_path / "uploads"
     monkeypatch.setattr(settings, "UPLOAD_DIRECTORY", str(storage_root))
+    mock_ocr = MagicMock()
+    mock_ocr.recognize.return_value = OcrResult(
+        raw_text="Pikachu HP 60\n58/102", confidence=95.0
+    )
+    monkeypatch.setattr("app.api.v1.scans.get_ocr_engine", lambda: mock_ocr)
 
     setup_db = TestingSessionLocal()
     img, _ = _create_synthetic_card_image(canvas_size=(800, 600))

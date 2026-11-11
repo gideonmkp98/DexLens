@@ -66,7 +66,9 @@ export default function TurnstileWidget({
     }
 
     const scriptId = "cf-turnstile-script";
-    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+    const existingScript = document.getElementById(
+      scriptId
+    ) as HTMLScriptElement | null;
 
     if (existingScript) {
       const handleLoad = () => setIsScriptLoaded(true);
@@ -76,7 +78,8 @@ export default function TurnstileWidget({
 
     const script = document.createElement("script");
     script.id = scriptId;
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.src =
+      "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
     script.async = true;
     script.defer = true;
 
@@ -85,7 +88,9 @@ export default function TurnstileWidget({
     };
 
     script.onerror = () => {
-      setLoadError("Kan beveiligingscontrole niet laden. Schakel je adblocker uit of controleer je verbinding.");
+      setLoadError(
+        "Kan beveiligingscontrole niet laden. Schakel je adblocker uit of controleer je verbinding."
+      );
       if (onError) onError("script_load_failed");
     };
 
@@ -94,7 +99,9 @@ export default function TurnstileWidget({
     // Timeout check in case script is silently blocked by content blocker
     const timer = setTimeout(() => {
       if (!window.turnstile && !loadError) {
-        setLoadError("Beveiligingscontrole reageert niet. Mogelijk blokkeert een adblocker Cloudflare Turnstile.");
+        setLoadError(
+          "Beveiligingscontrole reageert niet. Mogelijk blokkeert een adblocker Cloudflare Turnstile."
+        );
       }
     }, 6000);
 
@@ -136,7 +143,8 @@ export default function TurnstileWidget({
 
       widgetIdRef.current = id;
     } catch (renderErr) {
-      const msg = renderErr instanceof Error ? renderErr.message : "Fout bij renderen";
+      const msg =
+        renderErr instanceof Error ? renderErr.message : "Fout bij renderen";
       setLoadError(`Kan widget niet weergeven: ${msg}`);
       if (onError) onError(msg);
     }
@@ -175,7 +183,7 @@ export default function TurnstileWidget({
     <div
       role="region"
       aria-label="Beveiligingsverificatie"
-      className={`turnstile-wrapper my-2 flex flex-col items-center justify-center min-h-[65px] ${className}`}
+      className={`turnstile-wrapper my-2 flex min-h-[65px] flex-col items-center justify-center ${className}`}
     >
       <div ref={containerRef} className="cf-turnstile" />
 
@@ -189,7 +197,7 @@ export default function TurnstileWidget({
             <button
               type="button"
               onClick={handleRetry}
-              className="rounded bg-[#20251f] px-2.5 py-1 text-xs font-semibold text-[#f3efdf] hover:border-[#f1ca53] border border-[#f3efdf]/20"
+              className="rounded border border-[#f3efdf]/20 bg-[#20251f] px-2.5 py-1 text-xs font-semibold text-[#f3efdf] hover:border-[#f1ca53]"
             >
               Opnieuw proberen
             </button>
@@ -197,7 +205,7 @@ export default function TurnstileWidget({
               <button
                 type="button"
                 onClick={handleSimulateLocal}
-                className="rounded bg-emerald-900/60 px-2.5 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30 hover:bg-emerald-900"
+                className="rounded border border-emerald-500/30 bg-emerald-900/60 px-2.5 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-900"
               >
                 Simuleer verificatie (Lokale modus)
               </button>
@@ -207,7 +215,7 @@ export default function TurnstileWidget({
       )}
 
       {hasSimulated && !loadError && (
-        <div className="mt-1 text-[11px] font-mono text-emerald-400">
+        <div className="mt-1 font-mono text-[11px] text-emerald-400">
           ✓ Lokale testverificatie actief
         </div>
       )}

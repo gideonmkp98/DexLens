@@ -55,7 +55,9 @@ export function UserStatusModal({
             <select
               value={newStatus}
               onChange={(e) =>
-                setNewStatus(e.target.value as "active" | "suspended" | "blocked")
+                setNewStatus(
+                  e.target.value as "active" | "suspended" | "blocked"
+                )
               }
               className="mt-1 w-full rounded border border-[#f3efdf]/20 bg-[#171c16] px-3 py-2 text-xs text-[#f3efdf] focus:border-[#f1ca53] focus:outline-none"
             >

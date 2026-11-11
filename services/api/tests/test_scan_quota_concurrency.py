@@ -3,6 +3,7 @@ import io
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -13,7 +14,12 @@ from app.models.scan import Scan
 from app.models.user import User, UserSession
 from app.services.auth import SESSION_COOKIE_NAME, hash_token
 from app.services.scan_quota import QuotaExhaustedError, ScanQuotaService
-from tests.conftest import TestingSessionLocal
+from tests.conftest import TestingSessionLocal, test_engine
+
+pytestmark = pytest.mark.skipif(
+    test_engine.url.get_backend_name() == "sqlite",
+    reason="Quota concurrency semantics require the MariaDB test database",
+)
 
 
 def _make_jpeg_bytes(width: int = 120, height: int = 160) -> bytes:

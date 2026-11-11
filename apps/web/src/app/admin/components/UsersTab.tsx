@@ -46,7 +46,7 @@ export function UsersTab({
     <section className="mt-6 space-y-6" aria-label="Gebruikersbeheer">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 rounded-[6px] border border-[#f3efdf]/15 bg-[#20251f] p-4 text-xs">
-        <div className="flex-1 min-w-[200px]">
+        <div className="min-w-[200px] flex-1">
           <input
             type="text"
             value={userQuery}
@@ -160,7 +160,7 @@ export function UsersTab({
                     <span
                       className={`rounded px-1.5 py-0.5 font-mono text-[10px] uppercase ${
                         u.role === "admin"
-                          ? "bg-[#f1ca53]/20 text-[#f1ca53] border border-[#f1ca53]/40"
+                          ? "border border-[#f1ca53]/40 bg-[#f1ca53]/20 text-[#f1ca53]"
                           : "bg-[#171c16] text-[#b6bbaa]"
                       }`}
                     >
@@ -169,19 +169,19 @@ export function UsersTab({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded px-2 py-0.5 font-bold text-[10px] ${
+                      className={`rounded px-2 py-0.5 text-[10px] font-bold ${
                         u.status === "active"
-                          ? "bg-emerald-950 text-emerald-300 border border-emerald-500/30"
+                          ? "border border-emerald-500/30 bg-emerald-950 text-emerald-300"
                           : u.status === "suspended"
-                          ? "bg-amber-950 text-amber-300 border border-amber-500/30"
-                          : "bg-rose-950 text-rose-300 border border-rose-500/30"
+                            ? "border border-amber-500/30 bg-amber-950 text-amber-300"
+                            : "border border-rose-500/30 bg-rose-950 text-rose-300"
                       }`}
                     >
                       {u.status === "active"
                         ? "Actief"
                         : u.status === "suspended"
-                        ? "Geschorst"
-                        : "Geblokkeerd"}
+                          ? "Geschorst"
+                          : "Geblokkeerd"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[#b6bbaa]">
@@ -204,7 +204,7 @@ export function UsersTab({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[#b6bbaa] font-mono text-[10px]">
+                  <td className="px-4 py-3 font-mono text-[10px] text-[#b6bbaa]">
                     {new Date(u.created_at).toLocaleDateString("nl-NL")}
                   </td>
                   <td className="px-4 py-3 text-right">

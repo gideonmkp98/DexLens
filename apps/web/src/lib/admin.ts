@@ -119,7 +119,10 @@ export class AdminApiError extends Error {
   }
 }
 
-async function handleAdminResponse<T>(res: Response, defaultMessage: string): Promise<T> {
+async function handleAdminResponse<T>(
+  res: Response,
+  defaultMessage: string
+): Promise<T> {
   if (res.ok) {
     return (await res.json()) as T;
   }
@@ -132,7 +135,10 @@ async function handleAdminResponse<T>(res: Response, defaultMessage: string): Pr
     if (errorJson?.detail) {
       if (typeof errorJson.detail === "string") {
         errorMessage = errorJson.detail;
-      } else if (typeof errorJson.detail === "object" && errorJson.detail.message) {
+      } else if (
+        typeof errorJson.detail === "object" &&
+        errorJson.detail.message
+      ) {
         errorMessage = errorJson.detail.message;
         errorCode = errorJson.detail.code;
       }
@@ -164,9 +170,12 @@ export async function listAdminUsers(params?: {
   if (params?.q) searchParams.set("q", params.q);
   if (params?.status) searchParams.set("status", params.status);
   if (params?.role) searchParams.set("role", params.role);
-  if (params?.verification_status) searchParams.set("verification_status", params.verification_status);
-  if (params?.limit !== undefined) searchParams.set("limit", params.limit.toString());
-  if (params?.offset !== undefined) searchParams.set("offset", params.offset.toString());
+  if (params?.verification_status)
+    searchParams.set("verification_status", params.verification_status);
+  if (params?.limit !== undefined)
+    searchParams.set("limit", params.limit.toString());
+  if (params?.offset !== undefined)
+    searchParams.set("offset", params.offset.toString());
 
   const query = searchParams.toString();
   const url = `${ADMIN_API_BASE}/users${query ? `?${query}` : ""}`;
@@ -178,13 +187,18 @@ export async function listAdminUsers(params?: {
     cache: "no-store",
   });
 
-  return handleAdminResponse<AdminUserListResponse>(res, "Ophalen van gebruikers mislukt");
+  return handleAdminResponse<AdminUserListResponse>(
+    res,
+    "Ophalen van gebruikers mislukt"
+  );
 }
 
 /**
  * Fetch detailed user record including scan counts, active sessions, and recent audit logs.
  */
-export async function getAdminUserDetails(userId: string): Promise<AdminUserDetailsResponse> {
+export async function getAdminUserDetails(
+  userId: string
+): Promise<AdminUserDetailsResponse> {
   const url = `${ADMIN_API_BASE}/users/${encodeURIComponent(userId)}`;
   const res = await fetch(url, {
     method: "GET",
@@ -193,7 +207,10 @@ export async function getAdminUserDetails(userId: string): Promise<AdminUserDeta
     cache: "no-store",
   });
 
-  return handleAdminResponse<AdminUserDetailsResponse>(res, "Ophalen van gebruikersdetails mislukt");
+  return handleAdminResponse<AdminUserDetailsResponse>(
+    res,
+    "Ophalen van gebruikersdetails mislukt"
+  );
 }
 
 /**
@@ -216,7 +233,10 @@ export async function updateAdminUserStatus(
     body: JSON.stringify({ status, reason }),
   });
 
-  return handleAdminResponse<AdminUserItem>(res, "Bijwerken van gebruikersstatus mislukt");
+  return handleAdminResponse<AdminUserItem>(
+    res,
+    "Bijwerken van gebruikersstatus mislukt"
+  );
 }
 
 /**
@@ -238,7 +258,10 @@ export async function updateAdminUserQuota(
     body: JSON.stringify({ scan_quota_override, reason }),
   });
 
-  return handleAdminResponse<AdminUserItem>(res, "Bijwerken van gebruikersquota mislukt");
+  return handleAdminResponse<AdminUserItem>(
+    res,
+    "Bijwerken van gebruikersquota mislukt"
+  );
 }
 
 /**
@@ -253,7 +276,10 @@ export async function getGlobalQuota(): Promise<GlobalQuotaResponse> {
     cache: "no-store",
   });
 
-  return handleAdminResponse<GlobalQuotaResponse>(res, "Ophalen van globale quota mislukt");
+  return handleAdminResponse<GlobalQuotaResponse>(
+    res,
+    "Ophalen van globale quota mislukt"
+  );
 }
 
 /**
@@ -275,7 +301,10 @@ export async function updateGlobalQuota(
     body: JSON.stringify({ daily_scan_limit, hourly_scan_limit, reason }),
   });
 
-  return handleAdminResponse<GlobalQuotaResponse>(res, "Bijwerken van globale quota mislukt");
+  return handleAdminResponse<GlobalQuotaResponse>(
+    res,
+    "Bijwerken van globale quota mislukt"
+  );
 }
 
 /**
@@ -290,8 +319,10 @@ export async function listBetaCodes(params?: {
   const searchParams = new URLSearchParams();
   if (params?.status) searchParams.set("status", params.status);
   if (params?.search) searchParams.set("search", params.search);
-  if (params?.limit !== undefined) searchParams.set("limit", params.limit.toString());
-  if (params?.offset !== undefined) searchParams.set("offset", params.offset.toString());
+  if (params?.limit !== undefined)
+    searchParams.set("limit", params.limit.toString());
+  if (params?.offset !== undefined)
+    searchParams.set("offset", params.offset.toString());
 
   const query = searchParams.toString();
   const url = `${ADMIN_API_BASE}/beta/codes${query ? `?${query}` : ""}`;
@@ -303,7 +334,10 @@ export async function listBetaCodes(params?: {
     cache: "no-store",
   });
 
-  return handleAdminResponse<BetaCodeListResponse>(res, "Ophalen van bètacodes mislukt");
+  return handleAdminResponse<BetaCodeListResponse>(
+    res,
+    "Ophalen van bètacodes mislukt"
+  );
 }
 
 /**
@@ -327,13 +361,19 @@ export async function createBetaCode(payload: {
     body: JSON.stringify(payload),
   });
 
-  return handleAdminResponse<BetaCodeResponse>(res, "Aanmaken van bètacode mislukt");
+  return handleAdminResponse<BetaCodeResponse>(
+    res,
+    "Aanmaken van bètacode mislukt"
+  );
 }
 
 /**
  * Revoke an active beta access code.
  */
-export async function revokeBetaCode(codeId: string, reason: string): Promise<BetaCodeResponse> {
+export async function revokeBetaCode(
+  codeId: string,
+  reason: string
+): Promise<BetaCodeResponse> {
   const url = `${ADMIN_API_BASE}/beta/codes/${encodeURIComponent(codeId)}/revoke`;
   const res = await fetch(url, {
     method: "POST",
@@ -345,7 +385,10 @@ export async function revokeBetaCode(codeId: string, reason: string): Promise<Be
     body: JSON.stringify({ reason }),
   });
 
-  return handleAdminResponse<BetaCodeResponse>(res, "Intrekken van bètacode mislukt");
+  return handleAdminResponse<BetaCodeResponse>(
+    res,
+    "Intrekken van bètacode mislukt"
+  );
 }
 
 /**
@@ -364,8 +407,10 @@ export async function listAuditLogs(params?: {
   if (params?.target_type) searchParams.set("target_type", params.target_type);
   if (params?.target_id) searchParams.set("target_id", params.target_id);
   if (params?.actor_id) searchParams.set("actor_id", params.actor_id);
-  if (params?.limit !== undefined) searchParams.set("limit", params.limit.toString());
-  if (params?.offset !== undefined) searchParams.set("offset", params.offset.toString());
+  if (params?.limit !== undefined)
+    searchParams.set("limit", params.limit.toString());
+  if (params?.offset !== undefined)
+    searchParams.set("offset", params.offset.toString());
 
   const query = searchParams.toString();
   const url = `${ADMIN_API_BASE}/audit-logs${query ? `?${query}` : ""}`;
@@ -377,7 +422,10 @@ export async function listAuditLogs(params?: {
     cache: "no-store",
   });
 
-  return handleAdminResponse<AuditLogListResponse>(res, "Ophalen van auditlogboeken mislukt");
+  return handleAdminResponse<AuditLogListResponse>(
+    res,
+    "Ophalen van auditlogboeken mislukt"
+  );
 }
 
 /**
@@ -392,5 +440,8 @@ export async function getAbuseStatus(): Promise<AbuseStatusResponse> {
     cache: "no-store",
   });
 
-  return handleAdminResponse<AbuseStatusResponse>(res, "Ophalen van misbruikpreventiestatus mislukt");
+  return handleAdminResponse<AbuseStatusResponse>(
+    res,
+    "Ophalen van misbruikpreventiestatus mislukt"
+  );
 }

@@ -59,7 +59,10 @@ export default function ScanChallengeModal({
       <div className="relative w-full max-w-md rounded-[7px] border border-[#f3efdf]/30 bg-[#20251f] p-6 text-[#f3efdf] shadow-[7px_7px_0_#10150f] sm:p-8">
         <div className="flex items-start justify-between gap-4 border-b border-[#f3efdf]/15 pb-4">
           <div className="flex items-center gap-3">
-            <span className="pokeball brand-ball !h-7 !w-7" aria-hidden="true" />
+            <span
+              className="pokeball brand-ball !h-7 !w-7"
+              aria-hidden="true"
+            />
             <div>
               <h2
                 id="challenge-modal-title"

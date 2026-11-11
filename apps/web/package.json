@@ -16,7 +16,7 @@
     "test:invitation": "node --experimental-transform-types --test src/lib/invitation.test.ts",
     "test:admin": "node --experimental-transform-types --test src/lib/admin.test.ts",
     "test": "npm run test:session && npm run test:auth && npm run test:camera && npm run test:invitation && npm run test:admin",
-    "test:e2e": "playwright test" 
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "^15.5.28",

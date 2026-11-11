@@ -14,7 +14,9 @@ export default function MobileNavigation() {
           ["/collection", "Collectie", "03"],
           ["/cards", "Kaarten", "04"],
           ["/sets", "Sets", "05"],
-          ...(user?.role === "admin" ? [["/admin", "Beheer", "06"] as const] : []),
+          ...(user?.role === "admin"
+            ? [["/admin", "Beheer", "06"] as const]
+            : []),
         ] as const
       ).map(([href, label, num]) => (
         <Link

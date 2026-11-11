@@ -26,7 +26,10 @@ describe("Admin API Client", () => {
     let capturedUrl = "";
     let capturedHeaders: Record<string, string> = {};
 
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
       capturedUrl = String(url);
       capturedHeaders = (init?.headers || {}) as Record<string, string>;
       return {
@@ -111,7 +114,10 @@ describe("Admin API Client", () => {
 
   it("updateAdminUserStatus submits status and reason payload", async () => {
     let capturedBody = "";
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
       capturedBody = String(init?.body);
       return {
         ok: true,
@@ -130,7 +136,11 @@ describe("Admin API Client", () => {
       } as Response;
     }) as typeof fetch;
 
-    const res = await updateAdminUserStatus("usr_2", "suspended", "Spam activity detected");
+    const res = await updateAdminUserStatus(
+      "usr_2",
+      "suspended",
+      "Spam activity detected"
+    );
     const parsed = JSON.parse(capturedBody);
     assert.equal(parsed.status, "suspended");
     assert.equal(parsed.reason, "Spam activity detected");
@@ -139,7 +149,10 @@ describe("Admin API Client", () => {
 
   it("updateAdminUserQuota submits scan_quota_override", async () => {
     let capturedBody = "";
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
       capturedBody = String(init?.body);
       return {
         ok: true,
@@ -166,7 +179,10 @@ describe("Admin API Client", () => {
   });
 
   it("getGlobalQuota and updateGlobalQuota handle global limits", async () => {
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
       if (init?.method === "PATCH") {
         const body = JSON.parse(String(init.body));
         return {
@@ -193,13 +209,20 @@ describe("Admin API Client", () => {
     const current = await getGlobalQuota();
     assert.equal(current.daily_scan_limit, 100);
 
-    const updated = await updateGlobalQuota(250, 50, "Increased global pilot limit");
+    const updated = await updateGlobalQuota(
+      250,
+      50,
+      "Increased global pilot limit"
+    );
     assert.equal(updated.daily_scan_limit, 250);
     assert.equal(updated.hourly_scan_limit, 50);
   });
 
   it("listBetaCodes, createBetaCode, revokeBetaCode work properly", async () => {
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
       const urlStr = String(url);
       if (urlStr.includes("/revoke")) {
         return {
@@ -289,7 +312,10 @@ describe("Admin API Client", () => {
               action: "user.status_change",
               target_type: "user",
               target_id: "usr_2",
-              metadata_json: JSON.stringify({ old_status: "active", new_status: "suspended" }),
+              metadata_json: JSON.stringify({
+                old_status: "active",
+                new_status: "suspended",
+              }),
               created_at: "2026-11-11T12:00:00Z",
             },
           ],
@@ -331,7 +357,10 @@ describe("Admin API Client", () => {
         assert.ok(err instanceof AdminApiError);
         assert.equal(err.status, 403);
         assert.equal(err.code, "FORBIDDEN");
-        assert.equal(err.message, "Administrator role required for this action.");
+        assert.equal(
+          err.message,
+          "Administrator role required for this action."
+        );
         return true;
       }
     );
