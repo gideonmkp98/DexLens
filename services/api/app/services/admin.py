@@ -5,27 +5,29 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.collection import CollectionItem
 from app.models.scan import Scan
 from app.models.user import User, UserSession
 from app.services.audit import AuditService
-from app.services.quota_service import DefaultQuotaService, QuotaServiceInterface
+from app.services.quota_service import QuotaServiceInterface
 
 logger = logging.getLogger(__name__)
 
 
 class AdminService:
-    """Core administrative service managing user state, security controls, and audit trails."""
+    """Administrative service managing users, security, and audit trails."""
 
     def __init__(
         self,
         db: Session,
         audit_service: AuditService | None = None,
         quota_service: QuotaServiceInterface | None = None,
+        quota: QuotaServiceInterface | None = None,
     ) -> None:
         self.db = db
         self.audit = audit_service or AuditService(db)
-        self.quota = quota_service or DefaultQuotaService(db)
+        self.quota = quota or quota_service
 
     def list_users(
         self,
@@ -42,23 +44,20 @@ class AdminService:
         if q:
             clean_q = q.strip().lower()
             query = query.filter(
-                (func.lower(User.email).like(f"%{clean_q}%"))
-                | (User.id == clean_q)
+                (func.lower(User.email).like(f"%{clean_q}%")) | (User.id == clean_q)
             )
         if status_filter and status_filter != "all":
             query = query.filter(User.status == status_filter)
         if role_filter and role_filter != "all":
             query = query.filter(User.role == role_filter)
         if verification_filter and verification_filter != "all":
-            query = query.filter(User.verification_status == verification_filter)
+            if verification_filter == "verified":
+                query = query.filter(User.is_active == True)  # noqa: E712
+            elif verification_filter in ("unverified", "pending"):
+                query = query.filter(User.is_active == False)  # noqa: E712
 
         total = query.with_entities(func.count(User.id)).scalar() or 0
-        users = (
-            query.order_by(User.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
+        users = query.order_by(User.created_at.desc()).offset(offset).limit(limit).all()
         return users, total
 
     def get_user_details(self, user_id: str) -> dict[str, Any]:
@@ -72,16 +71,37 @@ class AdminService:
 
         scans_count = self.db.query(Scan).filter(Scan.user_id == user.id).count()
         sessions_count = (
-            self.db.query(UserSession)
-            .filter(UserSession.user_id == user.id)
-            .count()
+            self.db.query(UserSession).filter(UserSession.user_id == user.id).count()
         )
         items_count = (
             self.db.query(CollectionItem)
             .filter(CollectionItem.user_id == user.id)
             .count()
         )
-        quota_info = self.quota.get_user_quota(user.id)
+
+        quota_info = None
+        if self.quota:
+            try:
+                quota_info = self.quota.get_user_quota(user.id)
+            except Exception:
+                quota_info = None
+
+        quota_dict = {
+            "effective_daily_limit": (
+                quota_info.effective_daily_limit
+                if quota_info
+                else settings.GLOBAL_DEFAULT_DAILY_SCAN_QUOTA
+            ),
+            "custom_override": quota_info.custom_override if quota_info else None,
+            "scans_used_today": quota_info.scans_used_today if quota_info else 0,
+            "remaining_today": (
+                quota_info.remaining_today
+                if quota_info
+                else settings.GLOBAL_DEFAULT_DAILY_SCAN_QUOTA
+            ),
+            "reason": quota_info.reason if quota_info else None,
+        }
+
         recent_logs, _ = self.audit.list_logs(
             target_type="user",
             target_id=user.id,
@@ -95,19 +115,13 @@ class AdminService:
             "status": user.status,
             "is_active": user.is_active,
             "verification_status": user.verification_status,
-            "scan_quota_override": user.scan_quota_override,
+            "scan_quota_override": quota_dict["custom_override"],
             "created_at": user.created_at,
             "updated_at": user.updated_at,
             "scans_count": scans_count,
             "active_sessions_count": sessions_count,
             "collection_items_count": items_count,
-            "quota": {
-                "effective_daily_limit": quota_info.effective_daily_limit,
-                "custom_override": quota_info.custom_override,
-                "scans_used_today": quota_info.scans_used_today,
-                "remaining_today": quota_info.remaining_today,
-                "reason": quota_info.reason,
-            },
+            "quota": quota_dict,
             "recent_audit_events": [
                 {
                     "id": log.id,
@@ -128,14 +142,16 @@ class AdminService:
         actor: User,
         request: Request | None = None,
     ) -> User:
-        """Activate, suspend, or block user with confirmation metadata and session termination."""
+        """Change user status with confirmation and session termination."""
         valid_statuses = {"active", "suspended", "blocked"}
         if new_status not in valid_statuses:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "code": "INVALID_STATUS",
-                    "message": f"Ongeldige status. Kies uit: {', '.join(valid_statuses)}",
+                    "message": (
+                        f"Ongeldige status. Kies uit: {', '.join(valid_statuses)}"
+                    ),
                 },
             )
 
@@ -144,7 +160,10 @@ class AdminService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "code": "REASON_REQUIRED",
-                    "message": "Een toelichting van minimaal 3 tekens is verplicht voor deze actie.",
+                    "message": (
+                        "Een toelichting van minimaal 3 tekens is "
+                        "verplicht voor deze actie."
+                    ),
                 },
             )
 
@@ -161,13 +180,40 @@ class AdminService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "code": "CANNOT_MODIFY_SELF",
-                    "message": "Het is niet toegestaan om je eigen beheerdersaccount te deactiveren of blokkeren.",
+                    "message": (
+                        "Het is niet toegestaan om je eigen beheerdersaccount te "
+                        "deactiveren of blokkeren."
+                    ),
                 },
             )
 
+        # Prevent blocking or demoting the final active administrator
+        if user.role == "admin" and new_status in ("suspended", "blocked"):
+            active_admins = (
+                self.db.query(func.count(User.id))
+                .filter(
+                    User.role == "admin",
+                    User.status == "active",
+                    User.is_active == True,  # noqa: E712
+                )
+                .scalar()
+                or 0
+            )
+            if active_admins <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "code": "CANNOT_BLOCK_FINAL_ADMIN",
+                        "message": (
+                            "Het is niet mogelijk de laatste actieve beheerder te "
+                            "blokkeren of te schorsen."
+                        ),
+                    },
+                )
+
         old_status = user.status
         user.status = new_status
-        user.is_active = (new_status == "active")
+        user.is_active = new_status == "active"
 
         # Invalidate all active sessions if user is suspended or blocked
         terminated_sessions = 0
@@ -206,7 +252,19 @@ class AdminService:
         actor: User,
         request: Request | None = None,
     ) -> User:
-        """View and change per-user scan quota overrides."""
+        """View and change per-user scan quota overrides via QuotaServiceInterface."""
+        if not self.quota:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "FEATURE_NOT_CONFIGURED",
+                    "message": (
+                        "Quota management service is not configured or unavailable "
+                        "before integration."
+                    ),
+                },
+            )
+
         if custom_limit is not None and custom_limit < 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -223,17 +281,19 @@ class AdminService:
                 detail={"code": "USER_NOT_FOUND", "message": "Gebruiker niet gevonden"},
             )
 
-        old_override = user.scan_quota_override
+        old_override = None
+        try:
+            current_quota = self.quota.get_user_quota(user.id)
+            old_override = current_quota.custom_override
+        except Exception:
+            pass
+
         self.quota.set_user_quota_override(
             user_id=user.id,
             custom_limit=custom_limit,
             actor_id=actor.id,
             reason=reason,
         )
-
-        user.scan_quota_override = custom_limit
-        self.db.commit()
-        self.db.refresh(user)
 
         self.audit.log_action(
             action="user.quota_override",

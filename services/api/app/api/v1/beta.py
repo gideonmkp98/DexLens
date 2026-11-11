@@ -2,7 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy.orm import Session
 
 from app.api.deps import SessionContext, get_beta_service, get_session_context
 from app.services.auth import hash_ip
@@ -52,7 +51,8 @@ def claim_beta_code(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": turnstile_result.error_code or "TURNSTILE_FAILED",
-                "message": turnstile_result.error_message or "Veiligheidscontrole mislukt.",
+                "message": turnstile_result.error_message
+                or "Veiligheidscontrole mislukt.",
             },
         )
 

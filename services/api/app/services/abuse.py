@@ -1,12 +1,12 @@
 import logging
 import threading
 import time
-from typing import Any
+from typing import Protocol
 
 from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
-from app.services.turnstile import TurnstileService, TurnstileVerificationResult
+from app.services.turnstile import TurnstileService
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,9 @@ class ScanChallengeRequiredError(HTTPException):
     def __init__(
         self,
         site_key: str,
-        message: str = "Veiligheidscontrole vereist. Los de verificatie op om door te gaan.",
+        message: str = (
+            "Veiligheidscontrole vereist. Los de verificatie op om door te gaan."
+        ),
         error_code: str = "CHALLENGE_REQUIRED",
     ) -> None:
         super().__init__(
@@ -50,104 +52,152 @@ class ScanRateLimitExceededError(HTTPException):
         )
 
 
-class ScanAbuseService:
-    """Adaptive protection engine for image uploads and live scan sessions."""
+class LimiterStorage(Protocol):
+    """Storage backend protocol for rate limiter and burst tracking."""
 
-    _burst_windows: dict[str, list[float]] = {}
-    _rate_windows: dict[str, list[float]] = {}
-    _lock = threading.Lock()
+    def get_count(self, key: str, window_seconds: float, now: float) -> int: ...
+
+    def record_hit(self, key: str, now: float) -> None: ...
+
+    def clear_key(self, key: str) -> None: ...
+
+    def reset_all(self) -> None: ...
+
+
+class InMemoryLimiterStorage:
+    """Thread-safe in-memory sliding-window limiter storage.
+
+    Architecture Note:
+    InMemoryLimiterStorage provides process-local rate limiting within a single
+    worker process. In a multi-worker production deployment, an injectable
+    shared storage (e.g. RedisLimiterStorage) should be passed to enforce
+    cross-worker rate limits.
+    """
+
+    def __init__(self) -> None:
+        self._windows: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def _clean(self, key: str, cutoff: float) -> list[float]:
+        window = [ts for ts in self._windows.get(key, []) if ts > cutoff]
+        self._windows[key] = window
+        return window
+
+    def get_count(self, key: str, window_seconds: float, now: float) -> int:
+        with self._lock:
+            return len(self._clean(key, now - window_seconds))
+
+    def record_hit(self, key: str, now: float) -> None:
+        with self._lock:
+            if key not in self._windows:
+                self._windows[key] = []
+            self._windows[key].append(now)
+
+    def clear_key(self, key: str) -> None:
+        with self._lock:
+            self._windows.pop(key, None)
+
+    def reset_all(self) -> None:
+        with self._lock:
+            self._windows.clear()
+
+
+class ScanAbuseService:
+    """Adaptive protection engine for image uploads and live scan sessions.
+
+    Separates permission checking from activity recording so invalid
+    uploads or failed requests do not consume rate limit quotas.
+    """
+
+    storage: LimiterStorage = InMemoryLimiterStorage()
+
+    @classmethod
+    def set_storage(cls, storage: LimiterStorage) -> None:
+        """Inject custom limiter storage backend (e.g. Redis or test fake)."""
+        cls.storage = storage
 
     @classmethod
     def reset(cls) -> None:
-        """Reset internal windows (used in test suites)."""
-        with cls._lock:
-            cls._burst_windows.clear()
-            cls._rate_windows.clear()
-
-    @classmethod
-    def _clean_window(cls, window: list[float], cutoff: float) -> list[float]:
-        return [ts for ts in window if ts > cutoff]
+        """Reset internal windows (used between tests)."""
+        cls.storage.reset_all()
 
     @classmethod
     def get_client_identifier(cls, request: Request, user_id: str | None = None) -> str:
-        """Derive client identifier, prioritizing authenticated user ID over trusted IP."""
+        """Derive client identifier, prioritizing user ID over trusted IP."""
         if user_id:
             return f"user:{user_id}"
         ip = TurnstileService.get_trusted_client_ip(request)
         return f"ip:{ip}"
 
     @classmethod
-    def check_and_record_scan(
+    def check_scan_permission(
         cls,
         request: Request,
         user_id: str | None = None,
         turnstile_token: str | None = None,
     ) -> None:
-        """Evaluate adaptive abuse protection on incoming scan request.
+        """Check whether incoming scan request is permitted before processing image.
 
-        1. Enforces hard independent rate limit ceiling.
-        2. Authenticated users scan with low friction.
-        3. Anonymous or bursty traffic triggers Cloudflare Turnstile challenge.
+        Does NOT increment scan counts yet, ensuring invalid uploads
+        do not corrupt limiter state.
         """
         now = time.time()
         client_ip = TurnstileService.get_trusted_client_ip(request)
         rate_key = f"rate:{client_ip}"
-        burst_key = cls.get_client_identifier(request, user_id)
+        burst_key = f"burst:{cls.get_client_identifier(request, user_id)}"
 
-        with cls._lock:
-            # 1. Independent hard rate limit check (per IP, 60s sliding window)
-            rate_window = cls._clean_window(
-                cls._rate_windows.get(rate_key, []),
-                cutoff=now - 60.0,
+        # 1. Check independent hard rate limit ceiling (60s sliding window)
+        rate_count = cls.storage.get_count(rate_key, 60.0, now)
+        if rate_count >= settings.SCAN_HARD_RATE_LIMIT_PER_MINUTE:
+            logger.warning(
+                "Hard scan rate limit exceeded for %s (%d requests)",
+                rate_key,
+                rate_count,
             )
-            if len(rate_window) >= settings.SCAN_HARD_RATE_LIMIT_PER_MINUTE:
-                cls._rate_windows[rate_key] = rate_window
-                logger.warning(
-                    "Hard scan rate limit exceeded for %s (%d requests)",
-                    rate_key,
-                    len(rate_window),
-                )
-                raise ScanRateLimitExceededError(retry_after=60)
+            raise ScanRateLimitExceededError(retry_after=60)
 
-            # 2. Burst analysis for adaptive challenge
-            burst_window = cls._clean_window(
-                cls._burst_windows.get(burst_key, []),
-                cutoff=now - settings.SCAN_BURST_WINDOW_SECONDS,
+        # 2. Check burst window for adaptive challenge
+        burst_count = cls.storage.get_count(
+            burst_key, float(settings.SCAN_BURST_WINDOW_SECONDS), now
+        )
+        is_authenticated = user_id is not None
+        threshold = (
+            settings.SCAN_BURST_THRESHOLD * 4
+            if is_authenticated
+            else settings.SCAN_BURST_THRESHOLD
+        )
+
+        is_bursting = burst_count >= threshold
+
+        # Within low friction threshold: allowed
+        if not is_bursting:
+            return
+
+        # Burst threshold exceeded: challenge required if Turnstile is enabled
+        if not settings.TURNSTILE_ENABLED and not settings.TURNSTILE_TEST_MODE:
+            # Turnstile is disabled; permit scan with warning in dev/test
+            logger.debug(
+                "Burst threshold exceeded for %s but Turnstile is disabled",
+                burst_key,
             )
+            return
 
-            is_authenticated = user_id is not None
-            threshold = (
-                settings.SCAN_BURST_THRESHOLD * 4
-                if is_authenticated
-                else settings.SCAN_BURST_THRESHOLD
-            )
-            is_bursting = len(burst_window) >= threshold
-
-            # Normal authenticated traffic without extreme burst bypasses Turnstile challenge
-            if is_authenticated and not is_bursting:
-                burst_window.append(now)
-                rate_window.append(now)
-                cls._burst_windows[burst_key] = burst_window
-                cls._rate_windows[rate_key] = rate_window
-                return
-
-            # Normal anonymous traffic within low friction threshold bypasses challenge
-            if not is_authenticated and not is_bursting:
-                burst_window.append(now)
-                rate_window.append(now)
-                cls._burst_windows[burst_key] = burst_window
-                cls._rate_windows[rate_key] = rate_window
-                return
-
-        # If here, challenge is required
+        site_key = settings.TURNSTILE_SITE_KEY or "1x0000000000000000000000000000000AA"
         if not turnstile_token or not turnstile_token.strip():
-            logger.info("Adaptive scan challenge triggered for %s (burst=%d)", burst_key, len(burst_window))
+            logger.info(
+                "Adaptive scan challenge triggered for %s (burst=%d)",
+                burst_key,
+                burst_count,
+            )
             raise ScanChallengeRequiredError(
-                site_key=settings.TURNSTILE_SITE_KEY,
-                message="Verdachte scanfrequentie gedetecteerd. Los de veiligheidscontrole op.",
+                site_key=site_key,
+                message=(
+                    "Verdachte scanfrequentie gedetecteerd. "
+                    "Los de veiligheidscontrole op."
+                ),
             )
 
-        # Validate provided token
+        # Verify provided token
         result = TurnstileService.verify(
             token=turnstile_token,
             expected_action="scan",
@@ -165,14 +215,44 @@ class ScanAbuseService:
                 detail={
                     "code": result.error_code or "CHALLENGE_FAILED",
                     "message": result.error_message or "Veiligheidscontrole mislukt.",
-                    "site_key": settings.TURNSTILE_SITE_KEY,
+                    "site_key": site_key,
                 },
                 headers={"X-Challenge-Required": "turnstile"},
             )
 
-        # Challenge passed! Reset the burst counter to allow smooth continuing scans
-        with cls._lock:
-            cls._burst_windows[burst_key] = []
-            rate_window.append(now)
-            cls._rate_windows[rate_key] = rate_window
+        # Challenge passed! Clear burst window to restore smooth scanning
+        cls.storage.clear_key(burst_key)
         logger.info("Adaptive challenge successfully solved for %s", burst_key)
+
+    @classmethod
+    def record_scan_activity(
+        cls,
+        request: Request,
+        user_id: str | None = None,
+    ) -> None:
+        """Record successful scan hit in sliding-window rate and burst trackers.
+
+        Must only be called after upload validation and image storage succeed.
+        """
+        now = time.time()
+        client_ip = TurnstileService.get_trusted_client_ip(request)
+        rate_key = f"rate:{client_ip}"
+        burst_key = f"burst:{cls.get_client_identifier(request, user_id)}"
+
+        cls.storage.record_hit(rate_key, now)
+        cls.storage.record_hit(burst_key, now)
+
+    @classmethod
+    def check_and_record_scan(
+        cls,
+        request: Request,
+        user_id: str | None = None,
+        turnstile_token: str | None = None,
+    ) -> None:
+        """Convenience method checking permission and recording scan hit."""
+        cls.check_scan_permission(
+            request=request,
+            user_id=user_id,
+            turnstile_token=turnstile_token,
+        )
+        cls.record_scan_activity(request=request, user_id=user_id)

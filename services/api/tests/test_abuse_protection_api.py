@@ -4,12 +4,13 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-from sqlalchemy.orm import Session
 
+from app.api.deps import get_beta_service
 from app.core.config import settings
+from app.main import app
 from app.services.abuse import ScanAbuseService
-from app.services.beta_service import DefaultBetaService
 from app.services.turnstile import TurnstileService
+from tests.fakes import FakeBetaService
 
 
 def create_test_image_bytes() -> bytes:
@@ -20,7 +21,8 @@ def create_test_image_bytes() -> bytes:
 
 
 @pytest.fixture(autouse=True)
-def reset_abuse_service():
+def reset_abuse_service(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "TURNSTILE_TEST_MODE", True)
     TurnstileService.reset_replay_cache()
     ScanAbuseService.reset()
     yield
@@ -71,7 +73,7 @@ def test_register_turnstile_expired_token(client: TestClient):
 
 
 def test_register_turnstile_action_mismatch(client: TestClient):
-    email = f"turnstile_action_{uuid.uuid4().hex[:6]}@example.com"
+    email = f"turnstile_act_{uuid.uuid4().hex[:6]}@example.com"
     res = client.post(
         "/api/v1/auth/register",
         json={
@@ -84,25 +86,27 @@ def test_register_turnstile_action_mismatch(client: TestClient):
     assert res.json()["detail"]["code"] == "ACTION_MISMATCH"
 
 
-def test_register_turnstile_replayed_token(client: TestClient):
-    token = f"test-single-use-{uuid.uuid4().hex[:8]}"
+def test_register_turnstile_token_replay_rejected(client: TestClient):
+    token = f"test-unique-register-{uuid.uuid4().hex[:8]}"
+    email1 = f"reg1_{uuid.uuid4().hex[:6]}@example.com"
+    email2 = f"reg2_{uuid.uuid4().hex[:6]}@example.com"
 
-    # First registration with token succeeds
+    # First registration consumes token
     res1 = client.post(
         "/api/v1/auth/register",
         json={
-            "email": f"first_{uuid.uuid4().hex[:6]}@example.com",
+            "email": email1,
             "password": "ValidPassword123!",
             "turnstile_token": token,
         },
     )
     assert res1.status_code == 201
 
-    # Second registration with replayed token fails
+    # Second registration using exact same token must fail
     res2 = client.post(
         "/api/v1/auth/register",
         json={
-            "email": f"second_{uuid.uuid4().hex[:6]}@example.com",
+            "email": email2,
             "password": "ValidPassword123!",
             "turnstile_token": token,
         },
@@ -111,12 +115,16 @@ def test_register_turnstile_replayed_token(client: TestClient):
     assert res2.json()["detail"]["code"] == "TOKEN_REPLAYED"
 
 
-def test_register_turnstile_missing_when_enforced(client: TestClient):
+def test_register_turnstile_missing_when_enabled(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(settings, "TURNSTILE_ENABLED", True)
+    email = f"turnstile_missing_{uuid.uuid4().hex[:6]}@example.com"
+    # When TURNSTILE_ENABLED is True, omitting token fails
     res = client.post(
         "/api/v1/auth/register",
-        headers={"X-Enforce-Turnstile": "1"},
         json={
-            "email": f"missing_{uuid.uuid4().hex[:6]}@example.com",
+            "email": email,
             "password": "ValidPassword123!",
         },
     )
@@ -124,7 +132,7 @@ def test_register_turnstile_missing_when_enforced(client: TestClient):
     assert res.json()["detail"]["code"] == "MISSING_TOKEN"
 
 
-def test_beta_claim_turnstile_protection(client: TestClient, db: Session):
+def test_beta_claim_turnstile_protection(client: TestClient):
     # Register/authenticate user first so valid user_id exists for redemption record
     email = f"beta_claimer_{uuid.uuid4().hex[:6]}@example.com"
     reg_res = client.post(
@@ -133,32 +141,42 @@ def test_beta_claim_turnstile_protection(client: TestClient, db: Session):
     )
     assert reg_res.status_code == 201
 
-    beta_svc = DefaultBetaService(db)
-    code_item = beta_svc.create_code(label="Invite Test", max_uses=5)
+    fake_beta = FakeBetaService()
+    app.dependency_overrides[get_beta_service] = lambda: fake_beta
+    try:
+        code_item = fake_beta.create_code(label="Invite Test", max_uses=5)
 
-    # Missing token fails
-    res_no_tok = client.post(
-        "/api/v1/beta/claim",
-        json={"code": code_item.code},
-    )
-    assert res_no_tok.status_code == 403
-    assert res_no_tok.json()["detail"]["code"] == "MISSING_TOKEN"
+        # Missing token fails
+        res_no_tok = client.post(
+            "/api/v1/beta/claim",
+            json={"code": code_item.code},
+        )
+        assert res_no_tok.status_code == 403
+        assert res_no_tok.json()["detail"]["code"] == "MISSING_TOKEN"
 
-    # Action mismatch fails (token intended for register used on beta)
-    res_bad_action = client.post(
-        "/api/v1/beta/claim",
-        json={"code": code_item.code, "turnstile_token": "test-action-register"},
-    )
-    assert res_bad_action.status_code == 403
-    assert res_bad_action.json()["detail"]["code"] == "ACTION_MISMATCH"
+        # Action mismatch fails (token intended for register used on beta)
+        res_bad_action = client.post(
+            "/api/v1/beta/claim",
+            json={
+                "code": code_item.code,
+                "turnstile_token": "test-action-register",
+            },
+        )
+        assert res_bad_action.status_code == 403
+        assert res_bad_action.json()["detail"]["code"] == "ACTION_MISMATCH"
 
-    # Valid token succeeds
-    res_valid = client.post(
-        "/api/v1/beta/claim",
-        json={"code": code_item.code, "turnstile_token": "test-pass-token"},
-    )
-    assert res_valid.status_code == 200
-    assert res_valid.json()["success"] is True
+        # Valid token succeeds
+        res_valid = client.post(
+            "/api/v1/beta/claim",
+            json={
+                "code": code_item.code,
+                "turnstile_token": "test-pass-token",
+            },
+        )
+        assert res_valid.status_code == 200
+        assert res_valid.json()["success"] is True
+    finally:
+        app.dependency_overrides.pop(get_beta_service, None)
 
 
 def test_scan_adaptive_abuse_challenge_flow(client: TestClient):

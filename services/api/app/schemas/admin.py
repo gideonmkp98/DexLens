@@ -180,7 +180,7 @@ class AuditLogListResponse(BaseModel):
 
 class AbuseStatusResponse(BaseModel):
     turnstile_enabled: bool
-    site_key: str
+    site_key: str | None = None
     burst_threshold_anonymous: int
     burst_threshold_authenticated: int
     hard_rate_limit: int

@@ -49,7 +49,9 @@ def list_beta_codes(
         )
         for i in items
     ]
-    return BetaCodeListResponse(items=responses, total=total, limit=limit, offset=offset)
+    return BetaCodeListResponse(
+        items=responses, total=total, limit=limit, offset=offset
+    )
 
 
 @router.post("", response_model=BetaCodeResponse)
@@ -63,7 +65,9 @@ def create_beta_code(
     """Create a new beta invitation code with audit trail."""
     expires_at = None
     if payload.expires_days:
-        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=payload.expires_days)
+        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+            days=payload.expires_days
+        )
 
     code_item = beta_svc.create_code(
         code=payload.code,

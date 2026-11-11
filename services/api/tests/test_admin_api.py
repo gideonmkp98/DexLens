@@ -5,12 +5,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.api.deps import (
+    get_beta_service,
+    get_optional_quota_service,
+    get_quota_service,
+)
 from app.main import app
 from app.models.user import User
 from app.services.auth import (
     SESSION_COOKIE_NAME,
     AuthService,
 )
+from tests.fakes import FakeBetaService, FakeQuotaService
 
 
 @pytest.fixture
@@ -86,7 +92,11 @@ def test_admin_user_lookup_and_details(
         assert "password" not in item
         assert "raw_token" not in item
         assert item["status"] in ("active", "suspended", "blocked")
-        assert item["verification_status"] in ("verified", "unverified", "pending")
+        assert item["verification_status"] in (
+            "verified",
+            "unverified",
+            "pending",
+        )
 
     # Filter by search
     res_filter = aclient.get(f"/api/v1/admin/users?q={user.email}")
@@ -151,6 +161,33 @@ def test_admin_cannot_suspend_self(admin_client: tuple[TestClient, User]):
     assert res.json()["detail"]["code"] == "CANNOT_MODIFY_SELF"
 
 
+def test_unconfigured_quota_and_beta_returns_503(
+    admin_client: tuple[TestClient, User],
+    user_client: tuple[TestClient, User],
+):
+    """Unconfigured beta and quota services return 503."""
+    aclient, _ = admin_client
+    _, user = user_client
+
+    # Global quota returns 503
+    res_gquota = aclient.get("/api/v1/admin/settings/quota")
+    assert res_gquota.status_code == 503
+    assert res_gquota.json()["detail"]["code"] == "FEATURE_NOT_CONFIGURED"
+
+    # User quota override returns 503
+    res_uquota = aclient.patch(
+        f"/api/v1/admin/users/{user.id}/quota",
+        json={"scan_quota_override": 250, "reason": "Unconfigured test"},
+    )
+    assert res_uquota.status_code == 503
+    assert res_uquota.json()["detail"]["code"] == "FEATURE_NOT_CONFIGURED"
+
+    # Beta code list returns 503
+    res_beta = aclient.get("/api/v1/admin/beta/codes")
+    assert res_beta.status_code == 503
+    assert res_beta.json()["detail"]["code"] == "FEATURE_NOT_CONFIGURED"
+
+
 def test_admin_quota_override_and_global_settings(
     admin_client: tuple[TestClient, User],
     user_client: tuple[TestClient, User],
@@ -158,59 +195,79 @@ def test_admin_quota_override_and_global_settings(
     aclient, admin = admin_client
     _, user = user_client
 
-    # Set user quota override
-    res_quota = aclient.patch(
-        f"/api/v1/admin/users/{user.id}/quota",
-        json={"scan_quota_override": 250, "reason": "VIP tournament participant"},
-    )
-    assert res_quota.status_code == 200
-    assert res_quota.json()["scan_quota_override"] == 250
+    fake_quota = FakeQuotaService()
+    app.dependency_overrides[get_quota_service] = lambda: fake_quota
+    app.dependency_overrides[get_optional_quota_service] = lambda: fake_quota
 
-    # View global quota
-    res_gquota = aclient.get("/api/v1/admin/settings/quota")
-    assert res_gquota.status_code == 200
-    assert res_gquota.json()["daily_scan_limit"] > 0
+    try:
+        # Set user quota override
+        res_quota = aclient.patch(
+            f"/api/v1/admin/users/{user.id}/quota",
+            json={
+                "scan_quota_override": 250,
+                "reason": "VIP tournament participant",
+            },
+        )
+        assert res_quota.status_code == 200
 
-    # Update global quota
-    res_upd_gquota = aclient.patch(
-        "/api/v1/admin/settings/quota",
-        json={"daily_scan_limit": 300, "hourly_scan_limit": 60, "reason": "Server scale-up"},
-    )
-    assert res_upd_gquota.status_code == 200
-    assert res_upd_gquota.json()["daily_scan_limit"] == 300
+        # View global quota
+        res_gquota = aclient.get("/api/v1/admin/settings/quota")
+        assert res_gquota.status_code == 200
+        assert res_gquota.json()["daily_scan_limit"] > 0
+
+        # Update global quota
+        res_upd_gquota = aclient.patch(
+            "/api/v1/admin/settings/quota",
+            json={
+                "daily_scan_limit": 300,
+                "hourly_scan_limit": 60,
+                "reason": "Server scale-up",
+            },
+        )
+        assert res_upd_gquota.status_code == 200
+        assert res_upd_gquota.json()["daily_scan_limit"] == 300
+    finally:
+        app.dependency_overrides.pop(get_quota_service, None)
+        app.dependency_overrides.pop(get_optional_quota_service, None)
 
 
 def test_admin_beta_codes_management(admin_client: tuple[TestClient, User]):
     aclient, admin = admin_client
 
-    # Create code
-    res_create = aclient.post(
-        "/api/v1/admin/beta/codes",
-        json={
-            "label": "Beta Wave 1",
-            "invitation_email": "pilot_tester@example.com",
-            "max_uses": 3,
-            "expires_days": 14,
-        },
-    )
-    assert res_create.status_code == 200
-    code_data = res_create.json()
-    assert code_data["label"] == "Beta Wave 1"
-    assert code_data["status"] == "active"
-    code_id = code_data["id"]
+    fake_beta = FakeBetaService()
+    app.dependency_overrides[get_beta_service] = lambda: fake_beta
 
-    # List codes
-    res_list = aclient.get("/api/v1/admin/beta/codes")
-    assert res_list.status_code == 200
-    assert res_list.json()["total"] >= 1
+    try:
+        # Create code
+        res_create = aclient.post(
+            "/api/v1/admin/beta/codes",
+            json={
+                "label": "Beta Wave 1",
+                "invitation_email": "pilot_tester@example.com",
+                "max_uses": 3,
+                "expires_days": 14,
+            },
+        )
+        assert res_create.status_code == 200
+        code_data = res_create.json()
+        assert code_data["label"] == "Beta Wave 1"
+        assert code_data["status"] == "active"
+        code_id = code_data["id"]
 
-    # Revoke code
-    res_revoke = aclient.patch(
-        f"/api/v1/admin/beta/codes/{code_id}/revoke",
-        json={"reason": "Revoking pilot wave"},
-    )
-    assert res_revoke.status_code == 200
-    assert res_revoke.json()["status"] == "revoked"
+        # List codes
+        res_list = aclient.get("/api/v1/admin/beta/codes")
+        assert res_list.status_code == 200
+        assert res_list.json()["total"] >= 1
+
+        # Revoke code
+        res_revoke = aclient.patch(
+            f"/api/v1/admin/beta/codes/{code_id}/revoke",
+            json={"reason": "Revoking pilot wave"},
+        )
+        assert res_revoke.status_code == 200
+        assert res_revoke.json()["status"] == "revoked"
+    finally:
+        app.dependency_overrides.pop(get_beta_service, None)
 
 
 def test_admin_abuse_status(admin_client: tuple[TestClient, User]):

@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -53,18 +53,23 @@ class User(Base):
         nullable=False,
         default="active",
         server_default="active",
+        index=True,
     )
-    verification_status: Mapped[str] = mapped_column(
-        String(32),
-        nullable=False,
-        default="verified",
-        server_default="verified",
-    )
-    scan_quota_override: Mapped[int | None] = mapped_column(
-        Integer,
-        nullable=True,
-        default=None,
-    )
+
+    @property
+    def verification_status(self) -> str:
+        """Derived verification status reconciled with account state."""
+        return "verified" if self.is_active else "unverified"
+
+    @property
+    def scan_quota_override(self) -> int | None:
+        """Scan quota overrides are managed externally via QuotaService."""
+        return getattr(self, "_scan_quota_override", None)
+
+    @scan_quota_override.setter
+    def scan_quota_override(self, value: int | None) -> None:
+        self._scan_quota_override = value
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

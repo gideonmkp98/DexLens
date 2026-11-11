@@ -8,6 +8,7 @@ Create Date: 2026-11-11 18:00:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0015_provisional"
@@ -17,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 1. Extend users table with admin/account state fields
+    # 1. Extend users table with administrative status column
     conn = op.get_bind()
     insp = sa.inspect(conn)
     existing_user_cols = {c["name"] for c in insp.get_columns("users")}
@@ -32,25 +33,7 @@ def upgrade() -> None:
                 server_default="active",
             ),
         )
-    if "verification_status" not in existing_user_cols:
-        op.add_column(
-            "users",
-            sa.Column(
-                "verification_status",
-                sa.String(length=32),
-                nullable=False,
-                server_default="verified",
-            ),
-        )
-    if "scan_quota_override" not in existing_user_cols:
-        op.add_column(
-            "users",
-            sa.Column(
-                "scan_quota_override",
-                sa.Integer(),
-                nullable=True,
-            ),
-        )
+        op.create_index("ix_users_status", "users", ["status"])
 
     # 2. Create append-only admin_audit_logs table
     existing_tables = set(insp.get_table_names())
@@ -80,9 +63,7 @@ def upgrade() -> None:
         op.create_index(
             "ix_admin_audit_logs_actor_id", "admin_audit_logs", ["actor_id"]
         )
-        op.create_index(
-            "ix_admin_audit_logs_action", "admin_audit_logs", ["action"]
-        )
+        op.create_index("ix_admin_audit_logs_action", "admin_audit_logs", ["action"])
         op.create_index(
             "ix_admin_audit_logs_target",
             "admin_audit_logs",
@@ -103,9 +84,13 @@ def downgrade() -> None:
 
     if "users" in existing_tables:
         existing_user_cols = {c["name"] for c in insp.get_columns("users")}
+        existing_indexes = {ix["name"] for ix in insp.get_indexes("users")}
+        if "ix_users_status" in existing_indexes:
+            op.drop_index("ix_users_status", table_name="users")
+        if "status" in existing_user_cols:
+            op.drop_column("users", "status")
+        # Clean up legacy provisional columns if left behind
         if "scan_quota_override" in existing_user_cols:
             op.drop_column("users", "scan_quota_override")
         if "verification_status" in existing_user_cols:
             op.drop_column("users", "verification_status")
-        if "status" in existing_user_cols:
-            op.drop_column("users", "status")

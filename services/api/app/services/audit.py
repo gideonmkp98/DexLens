@@ -25,7 +25,7 @@ SENSITIVE_KEY_SUBSTRINGS = (
 
 
 def sanitize_audit_metadata(data: Any) -> Any:
-    """Recursively scrub secrets, tokens, password hashes, and credentials from metadata."""
+    """Recursively scrub secrets, tokens, and credentials from metadata."""
     if isinstance(data, dict):
         cleaned: dict[str, Any] = {}
         for k, v in data.items():

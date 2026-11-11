@@ -375,11 +375,14 @@ async def upload_scan(
 ) -> ScanResponse:
     """Upload a single image, validate and normalize it, and store metadata."""
     form = await request.form()
-    raw_turnstile = request.headers.get("x-turnstile-token") or form.get("turnstile_token")
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get(
+        "turnstile_token"
+    )
     turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
 
     from app.services.abuse import ScanAbuseService
-    ScanAbuseService.check_and_record_scan(
+
+    ScanAbuseService.check_scan_permission(
         request=request,
         user_id=session_ctx.user_id,
         turnstile_token=turnstile_token,
@@ -429,7 +432,7 @@ async def upload_scan(
         if temp_path is not None:
             await run_in_threadpool(temp_path.unlink, missing_ok=True)
 
-    return await run_in_threadpool(
+    scan_response = await run_in_threadpool(
         _persist_scan,
         db,
         scan_id,
@@ -440,6 +443,13 @@ async def upload_scan(
         session_ctx.user_id,
         session_ctx.anonymous_session_id,
     )
+
+    ScanAbuseService.record_scan_activity(
+        request=request,
+        user_id=session_ctx.user_id,
+    )
+
+    return scan_response
 
 
 def _persist_scan(

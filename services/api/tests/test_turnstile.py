@@ -1,7 +1,8 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from app.core.config import settings
 from app.services.abuse import (
@@ -14,7 +15,8 @@ from app.services.turnstile import TurnstileService
 
 
 @pytest.fixture(autouse=True)
-def reset_services():
+def reset_services(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "TURNSTILE_TEST_MODE", True)
     TurnstileService.reset_replay_cache()
     ScanAbuseService.reset()
     yield
@@ -193,3 +195,83 @@ def test_independent_hard_rate_limit():
         )
     assert exc_info.value.status_code == 429
     assert exc_info.value.detail["code"] == "RATE_LIMIT_EXCEEDED"
+
+
+def test_turnstile_production_never_accepts_test_token_locally(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """In production, test tokens must never bypass verification."""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "TURNSTILE_TEST_MODE", False)
+    monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", None)
+
+    # Calling verify with a test token in production without secret key fails closed
+    result = TurnstileService.verify(
+        token="test-pass-token-123",
+        expected_action="register",
+    )
+    assert not result.success
+    assert result.error_code == "VERIFY_SERVICE_UNAVAILABLE"
+
+
+def test_turnstile_production_calls_siteverify_and_handles_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """In production, live siteverify is invoked and timeouts fail closed."""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "TURNSTILE_TEST_MODE", False)
+    monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", "0x4AAAAAAtestkeyforprod")
+
+    with patch("httpx.Client.post") as mock_post:
+        mock_post.side_effect = httpx.TimeoutException("Connection timed out")
+
+        result = TurnstileService.verify(
+            token="test-pass-token-123",
+            expected_action="register",
+        )
+        assert not result.success
+        assert result.error_code == "VERIFY_TIMEOUT"
+        mock_post.assert_called_once()
+
+
+def test_turnstile_production_calls_siteverify_and_validates_payload(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """In production, live siteverify response is validated strictly."""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "TURNSTILE_TEST_MODE", False)
+    monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", "0x4AAAAAAtestkeyforprod")
+
+    # Successful siteverify
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "success": True,
+        "action": "register",
+        "hostname": "example.com",
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp):
+        result = TurnstileService.verify(
+            token="live-turnstile-token-xyz",
+            expected_action="register",
+        )
+        assert result.success
+        assert result.action == "register"
+
+    # Action mismatch from siteverify
+    mock_resp_mismatch = MagicMock()
+    mock_resp_mismatch.status_code = 200
+    mock_resp_mismatch.json.return_value = {
+        "success": True,
+        "action": "scan",
+        "hostname": "example.com",
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp_mismatch):
+        result_mismatch = TurnstileService.verify(
+            token="live-turnstile-token-mismatch",
+            expected_action="register",
+        )
+        assert not result_mismatch.success
+        assert result_mismatch.error_code == "ACTION_MISMATCH"

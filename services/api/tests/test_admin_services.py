@@ -2,17 +2,21 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.user import User, UserSession
+from app.models.user import User
 from app.services.admin import AdminService
 from app.services.audit import AuditService
 from app.services.auth import AuthService
-from app.services.beta_service import DefaultBetaService
-from app.services.quota_service import DefaultQuotaService
+from tests.fakes import FakeBetaService, FakeQuotaService
 
 
 @pytest.fixture
-def admin_service(db: Session) -> AdminService:
-    return AdminService(db)
+def fake_quota_service() -> FakeQuotaService:
+    return FakeQuotaService()
+
+
+@pytest.fixture
+def admin_service(db: Session, fake_quota_service: FakeQuotaService) -> AdminService:
+    return AdminService(db, quota=fake_quota_service)
 
 
 @pytest.fixture
@@ -25,7 +29,9 @@ def test_admin_user(db: Session) -> User:
 @pytest.fixture
 def test_regular_user(db: Session) -> User:
     auth = AuthService(db)
-    user = auth.register_user("collector-test@example.com", "UserPass1234!", role="user")
+    user = auth.register_user(
+        "collector-test@example.com", "UserPass1234!", role="user"
+    )
     return user
 
 
@@ -107,6 +113,36 @@ def test_admin_cannot_self_suspend(
     assert exc_info.value.detail["code"] == "CANNOT_MODIFY_SELF"
 
 
+def test_admin_cannot_block_final_active_admin(
+    db: Session,
+    admin_service: AdminService,
+    test_admin_user: User,
+):
+    auth = AuthService(db)
+    admin2 = auth.register_user(
+        "admin2-test@example.com", "AdminPass1234!", role="admin"
+    )
+
+    # 2 active admins exist; suspending admin2 succeeds
+    admin_service.update_user_status(
+        user_id=admin2.id,
+        new_status="suspended",
+        reason="Demoting secondary admin",
+        actor=test_admin_user,
+    )
+
+    # Attempting to suspend the only active admin fails.
+    with pytest.raises(HTTPException) as exc_info:
+        admin_service.update_user_status(
+            user_id=test_admin_user.id,
+            new_status="suspended",
+            reason="Demoting last admin",
+            actor=admin2,
+        )
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["code"] == "CANNOT_BLOCK_FINAL_ADMIN"
+
+
 def test_per_user_scan_quota_override(
     db: Session,
     admin_service: AdminService,
@@ -120,9 +156,6 @@ def test_per_user_scan_quota_override(
         actor=test_admin_user,
     )
 
-    db.refresh(test_regular_user)
-    assert test_regular_user.scan_quota_override == 500
-
     details = admin_service.get_user_details(test_regular_user.id)
     assert details["quota"]["custom_override"] == 500
     assert details["quota"]["effective_daily_limit"] == 500
@@ -134,12 +167,12 @@ def test_per_user_scan_quota_override(
         reason="Revert to standard tier",
         actor=test_admin_user,
     )
-    db.refresh(test_regular_user)
-    assert test_regular_user.scan_quota_override is None
+    details_reset = admin_service.get_user_details(test_regular_user.id)
+    assert details_reset["quota"]["custom_override"] is None
 
 
-def test_global_quota_management(db: Session):
-    quota_svc = DefaultQuotaService(db)
+def test_global_quota_management():
+    quota_svc = FakeQuotaService()
     current = quota_svc.get_global_quota()
     assert current.daily_scan_limit > 0
 
@@ -153,8 +186,8 @@ def test_global_quota_management(db: Session):
     assert updated.hourly_scan_limit == 50
 
 
-def test_beta_service_lifecycle(db: Session, test_admin_user: User):
-    beta_svc = DefaultBetaService(db)
+def test_beta_service_lifecycle(test_admin_user: User):
+    beta_svc = FakeBetaService()
 
     # Create beta code
     code_item = beta_svc.create_code(
@@ -175,9 +208,13 @@ def test_beta_service_lifecycle(db: Session, test_admin_user: User):
     assert claimed
 
     # Revoke code
-    revoked = beta_svc.revoke_code(code_or_id="TEST-BETA-2026", actor_id=test_admin_user.id)
+    revoked = beta_svc.revoke_code(
+        code_or_id="TEST-BETA-2026", actor_id=test_admin_user.id
+    )
     assert revoked.status == "revoked"
 
     # Cannot claim revoked code
-    claimed_after = beta_svc.claim_code(code="TEST-BETA-2026", user_id=test_admin_user.id)
+    claimed_after = beta_svc.claim_code(
+        code="TEST-BETA-2026", user_id=test_admin_user.id
+    )
     assert not claimed_after

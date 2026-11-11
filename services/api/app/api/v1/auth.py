@@ -38,11 +38,16 @@ def register(
     turnstile_token = data.turnstile_token or request.headers.get("x-turnstile-token")
     client_ip = TurnstileService.get_trusted_client_ip(request)
 
-    # In production, Turnstile verification is mandatory
+    # When in production or TURNSTILE_ENABLED, verification is mandatory
     is_prod = settings.ENVIRONMENT.lower() in {"production", "prod"}
     force_turnstile = bool(request.headers.get("x-enforce-turnstile"))
 
-    if is_prod or force_turnstile or turnstile_token is not None:
+    if (
+        is_prod
+        or settings.TURNSTILE_ENABLED
+        or force_turnstile
+        or turnstile_token is not None
+    ):
         t_result = TurnstileService.verify(
             token=turnstile_token,
             expected_action="register",
@@ -53,7 +58,8 @@ def register(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
                     "code": t_result.error_code or "TURNSTILE_FAILED",
-                    "message": t_result.error_message or "Veiligheidscontrole mislukt. Probeer het opnieuw.",
+                    "message": t_result.error_message
+                    or "Veiligheidscontrole mislukt. Probeer het opnieuw.",
                 },
             )
 

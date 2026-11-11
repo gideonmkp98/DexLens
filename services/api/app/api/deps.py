@@ -179,20 +179,24 @@ def require_admin_or_pilot_secret(
 def require_admin_user(
     session_ctx: SessionContext = Depends(get_session_context),
 ) -> User:
-    """Verify admin privileges strictly via authenticated database-backed user record."""
+    """Verify admin privileges strictly via authenticated database user record."""
     if not session_ctx.is_authenticated or not session_ctx.user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "UNAUTHENTICATED", "message": "Inloggen als beheerder vereist."},
+            detail={
+                "code": "UNAUTHENTICATED",
+                "message": "Inloggen als beheerder vereist.",
+            },
         )
 
     user = session_ctx.user
-    if user.role != "admin" or not user.is_active or getattr(user, "status", "active") != "active":
+    user_status = getattr(user, "status", "active")
+    if user.role != "admin" or not user.is_active or user_status != "active":
         logger.warning(
             "Unauthorized admin access attempt by user_id=%s, role=%s, status=%s",
             user.id,
             user.role,
-            getattr(user, "status", None),
+            user_status,
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -208,22 +212,51 @@ def get_audit_service(db: Session = Depends(get_db)):
     return AuditService(db)
 
 
-def get_quota_service(db: Session = Depends(get_db)):
-    from app.services.quota_service import DefaultQuotaService
+def get_optional_quota_service():
+    """Optional quota service injection point."""
+    return None
 
-    return DefaultQuotaService(db)
+
+def get_quota_service():
+    """Concrete QuotaServiceInterface.
+
+    Raises 503 FEATURE_NOT_CONFIGURED if specialized quota service is not yet
+    wired by the integration agent.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={
+            "code": "FEATURE_NOT_CONFIGURED",
+            "message": (
+                "Quota management service is not configured or unavailable "
+                "before integration."
+            ),
+        },
+    )
 
 
-def get_beta_service(db: Session = Depends(get_db)):
-    from app.services.beta_service import DefaultBetaService
+def get_beta_service():
+    """Concrete BetaServiceInterface.
 
-    return DefaultBetaService(db)
+    Raises 503 FEATURE_NOT_CONFIGURED if specialized beta service is not yet
+    wired by the integration agent.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={
+            "code": "FEATURE_NOT_CONFIGURED",
+            "message": (
+                "Beta management service is not configured or unavailable "
+                "before integration."
+            ),
+        },
+    )
 
 
 def get_admin_service(
     db: Session = Depends(get_db),
     audit=Depends(get_audit_service),
-    quota=Depends(get_quota_service),
+    quota=Depends(get_optional_quota_service),
 ):
     from app.services.admin import AdminService
 

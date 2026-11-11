@@ -90,8 +90,12 @@ def setup_test_database():
 def clean_test_database():
     """Safeguard: clean all tables in the test database between tests."""
     from app.core.middleware import RateLimitMiddleware
+    from app.services.abuse import ScanAbuseService
+    from app.services.turnstile import TurnstileService
 
     RateLimitMiddleware.reset()
+    ScanAbuseService.reset()
+    TurnstileService.reset_replay_cache()
     with test_engine.connect() as conn:
         with conn.begin():
             if test_engine.url.get_backend_name() != "sqlite":
@@ -114,6 +118,8 @@ def clean_test_database():
                 conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
     yield
     RateLimitMiddleware.reset()
+    ScanAbuseService.reset()
+    TurnstileService.reset_replay_cache()
 
 
 @pytest.fixture

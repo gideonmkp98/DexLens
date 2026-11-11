@@ -13,7 +13,9 @@ router = APIRouter(prefix="/audit-logs", tags=["Admin Audit Logs"])
 @router.get("", response_model=AuditLogListResponse)
 def list_audit_logs(
     action: Annotated[str | None, Query(description="Filter by action")] = None,
-    target_type: Annotated[str | None, Query(description="Filter by target type")] = None,
+    target_type: Annotated[
+        str | None, Query(description="Filter by target type")
+    ] = None,
     target_id: Annotated[str | None, Query(description="Filter by target ID")] = None,
     actor_id: Annotated[str | None, Query(description="Filter by actor ID")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -31,4 +33,6 @@ def list_audit_logs(
         offset=offset,
     )
     responses = [AuditLogResponse.model_validate(log) for log in items]
-    return AuditLogListResponse(items=responses, total=total, limit=limit, offset=offset)
+    return AuditLogListResponse(
+        items=responses, total=total, limit=limit, offset=offset
+    )

@@ -21,7 +21,9 @@ def list_users(
     q: Annotated[str | None, Query(description="Search email or ID")] = None,
     status: Annotated[str | None, Query(description="Status filter")] = None,
     role: Annotated[str | None, Query(description="Role filter")] = None,
-    verification_status: Annotated[str | None, Query(description="Verification status")] = None,
+    verification_status: Annotated[
+        str | None, Query(description="Verification status")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     service: AdminService = Depends(get_admin_service),

@@ -21,6 +21,7 @@ from app.schemas.scan_session import (
     ScanSessionDetailResponse,
     ScanSessionResponse,
 )
+from app.services.abuse import ScanAbuseService
 from app.services.scan_session import (
     ScanSessionError,
     ScanSessionService,
@@ -35,21 +36,13 @@ router = APIRouter(prefix="/scan-sessions", tags=["Scan Sessions"])
 def _validate_uuid(val: str) -> str:
     """Validate that val is a valid UUID string to prevent path traversal."""
     try:
-        uuid_obj = uuid.UUID(val)
-        return str(uuid_obj)
+        parsed = uuid.UUID(val)
+        return str(parsed)
     except (ValueError, AttributeError):
         raise HTTPException(
-            status_code=400,
-            detail={"code": "INVALID_UUID", "message": f"Invalid UUID: '{val}'"},
-        )
-
-
-@router.get("", response_model=list[ScanSessionResponse])
-def list_sessions(
-    service: ScanSessionService = Depends(get_scan_session_service),
-) -> list[ScanSessionResponse]:
-    """List recent scan sessions."""
-    return service.list_sessions()
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "SESSION_NOT_FOUND", "message": "Scan session not found."},
+        ) from None
 
 
 @router.post(
@@ -61,9 +54,14 @@ def create_session(
     body: ScanSessionCreateRequest | None = None,
     service: ScanSessionService = Depends(get_scan_session_service),
 ) -> ScanSessionResponse:
-    """Initialize a new scanning session."""
-    device_info = body.device_info if body else None
-    return service.create_session(device_info=device_info)
+    """Create a new active scan session for continuous card scanning."""
+    try:
+        return service.create_session()
+    except ScanSessionError as err:
+        raise HTTPException(
+            status_code=err.status_code,
+            detail={"code": err.code, "message": err.message},
+        ) from err
 
 
 @router.get(
@@ -71,14 +69,16 @@ def create_session(
     response_model=ScanSessionDetailResponse,
     status_code=status.HTTP_200_OK,
 )
-def get_session(
+async def get_session(
     id: str,
+    response: Response,
     service: ScanSessionService = Depends(get_scan_session_service),
 ) -> ScanSessionDetailResponse:
-    """Get active session state with all associated scans."""
+    """Retrieve scan session details and ordered list of scanned cards."""
+    response.headers["Cache-Control"] = "no-store"
     session_id = _validate_uuid(id)
     try:
-        return service.get_session(session_id)
+        return await service.get_session(session_id)
     except ScanSessionError as err:
         raise HTTPException(
             status_code=err.status_code,
@@ -114,17 +114,6 @@ async def capture_frame(
     session_id = _validate_uuid(id)
 
     form = await request.form()
-    raw_turnstile = request.headers.get("x-turnstile-token") or form.get("turnstile_token")
-    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
-
-    from app.services.abuse import ScanAbuseService
-
-    ScanAbuseService.check_and_record_scan(
-        request=request,
-        user_id=session_ctx.user_id,
-        turnstile_token=turnstile_token,
-    )
-
     if (
         sum(isinstance(value, StarletteUploadFile) for _, value in form.multi_items())
         != 1
@@ -137,8 +126,20 @@ async def capture_frame(
             },
         )
 
+    # Adaptive abuse protection check
+    raw_turnstile = request.headers.get("x-turnstile-token") or form.get(
+        "turnstile_token"
+    )
+    turnstile_token = str(raw_turnstile).strip() if raw_turnstile else None
+
+    ScanAbuseService.check_scan_permission(
+        request=request,
+        user_id=session_ctx.user_id,
+        turnstile_token=turnstile_token,
+    )
+
     try:
-        return await service.capture_frame(
+        result = await service.capture_frame(
             session_id=session_id,
             image_input=file,
             idempotency_key=idempotency_key,
@@ -148,6 +149,14 @@ async def capture_frame(
             status_code=err.status_code,
             detail={"code": err.code, "message": err.message},
         ) from err
+
+    # Record scan activity only after successful capture/processing
+    ScanAbuseService.record_scan_activity(
+        request=request,
+        user_id=session_ctx.user_id,
+    )
+
+    return result
 
 
 @router.post(
