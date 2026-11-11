@@ -82,6 +82,16 @@ class Settings(BaseSettings):
     # Phase 9: Beta Access & Invitation Configuration
     REGISTRATION_MODE: str = "open"  # "open", "beta_code_required", "invite_only"
     EMAIL_PROVIDER: str = "memory"  # "memory", "console"
+    EMAIL_FROM: str = "DexLens <noreply@example.com>"
+    EMAIL_PUBLIC_BASE_URL: str = "http://localhost:3000"
+    EMAIL_DELIVERY_TIMEOUT_SECONDS: float = 10.0
+    RESEND_API_KEY: str | None = None
+    RESEND_API_URL: str = "https://api.resend.com/emails"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
     INVITATION_EXPIRE_DAYS: int = 7
     DEFAULT_BETA_SCAN_QUOTA: int = 50
 
@@ -124,11 +134,19 @@ class Settings(BaseSettings):
                     "In-memory and console email providers are not permitted in "
                     "production. A production email provider must be configured."
                 )
-            valid_providers = {"resend", "sendgrid", "ses", "smtp", "postmark"}
+            valid_providers = {"resend", "smtp"}
             if provider_norm not in valid_providers:
                 raise ValueError(
                     f"Invalid EMAIL_PROVIDER '{self.EMAIL_PROVIDER}' for production. "
                     f"Must be one of: {', '.join(sorted(valid_providers))}."
+                )
+            if provider_norm == "resend" and not self.RESEND_API_KEY:
+                raise ValueError(
+                    "RESEND_API_KEY must be configured when EMAIL_PROVIDER=resend"
+                )
+            if provider_norm == "smtp" and not self.SMTP_HOST:
+                raise ValueError(
+                    "SMTP_HOST must be configured when EMAIL_PROVIDER=smtp"
                 )
             if self.TURNSTILE_TEST_MODE:
                 raise ValueError("TURNSTILE_TEST_MODE cannot be enabled in production")

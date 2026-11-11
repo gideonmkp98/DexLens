@@ -1,10 +1,12 @@
 import json
 import logging
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.api.deps import SessionContext, get_auth_service, get_session_context
 from app.core.config import settings
+from app.integrations.email import EmailProviderError, get_email_provider
 from app.schemas.auth import (
     AccountMessageResponse,
     ChangeUsernameRequest,
@@ -197,7 +199,7 @@ def register(
 
     # 5. Atomically create user account with beta access and session
     try:
-        user, raw_token = auth_service.register_with_beta_access(
+        registration = auth_service.register_with_beta_access(
             email=data.email,
             password=data.password,
             username=data.username,
@@ -208,6 +210,7 @@ def register(
             user_agent=user_agent,
             anonymous_session_id=old_anon_session_id,
         )
+        user, raw_token = registration
     except EmailAlreadyExistsError:
         if settings.REGISTRATION_NON_ENUMERATION:
             return Response(
@@ -258,6 +261,16 @@ def register(
         max_age=SESSION_DURATION_DAYS * 86400,
         path="/",
     )
+
+    try:
+        get_email_provider().send_verification(
+            to_email=user.email,
+            verification_token=registration.verification_token,
+            expires_at=datetime.now(UTC).replace(tzinfo=None)
+            + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
+        )
+    except EmailProviderError:
+        logger.exception("Could not deliver verification email for user %s", user.id)
 
     return UserResponse.model_validate(user)
 
@@ -404,7 +417,9 @@ def resend_verification(
             },
         )
 
-    success, msg, _, remaining = auth_service.resend_verification_token(target_email)
+    success, msg, raw_token, remaining = auth_service.resend_verification_token(
+        target_email
+    )
     if not success:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -414,6 +429,24 @@ def resend_verification(
                 "retry_after": remaining,
             },
         )
+
+    if raw_token:
+        try:
+            get_email_provider().send_verification(
+                to_email=target_email,
+                verification_token=raw_token,
+                expires_at=datetime.now(UTC).replace(tzinfo=None)
+                + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
+            )
+        except EmailProviderError as exc:
+            logger.exception("Could not resend verification email")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "code": "EMAIL_DELIVERY_FAILED",
+                    "message": "Verificatiemail kon niet worden verstuurd.",
+                },
+            ) from exc
 
     return AccountMessageResponse(message=msg)
 

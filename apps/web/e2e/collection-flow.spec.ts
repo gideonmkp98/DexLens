@@ -445,12 +445,14 @@ test.describe("Phase 6 End-to-End Collection & Hardened Workflows (Isolated _tes
   test("Database Safety Guard: Refuses destructive reset on non-test databases and allows on test database", async ({
     request,
   }) => {
-    // 1. Verify reset is allowed on the current isolated test stack (tcg_test)
+    // 1. Verify reset is allowed on the current isolated test stack. The
+    // exact database name is deployment-specific, but the API safety guard
+    // requires the `_test` suffix.
     const testResetRes = await request.post("/api/v1/testing/reset");
     expect(testResetRes.status()).toBe(200);
     const testResetBody = await testResetRes.json();
     expect(testResetBody.status).toBe("success");
-    expect(testResetBody.database).toBe("tcg_test");
+    expect(testResetBody.database).toMatch(/_test$/);
 
     // 2. Verify that if a destructive reset is attempted against the dev API on port 8000 (tcg),
     // it is STRICTLY REFUSED with HTTP 403 Forbidden.

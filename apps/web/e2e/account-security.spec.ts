@@ -54,7 +54,7 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
 
     await modal.locator('button[type="submit"]').click();
 
-    const alert = modal.locator('[role="alert"]');
+    const alert = modal.locator('[role="alert"][aria-live="assertive"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText(
       "Wachtwoord moet minimaal 15 tekens bevatten."
@@ -76,7 +76,7 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
 
     await modal.locator('button[type="submit"]').click();
 
-    const alert = modal.locator('[role="alert"]');
+    const alert = modal.locator('[role="alert"][aria-live="assertive"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText("Wachtwoorden komen niet overeen.");
   });
@@ -100,7 +100,7 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
 
     await modal.locator('button[type="submit"]').click();
 
-    const alert = modal.locator('[role="alert"]');
+    const alert = modal.locator('[role="alert"][aria-live="assertive"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText(
       "gebruiksvoorwaarden en het privacybeleid"
@@ -121,7 +121,7 @@ test.describe("Phase 9 Account Security & Modern Password Policy E2E", () => {
 
     await modal.locator('button[type="submit"]').click();
 
-    const alert = modal.locator('[role="alert"]');
+    const alert = modal.locator('[role="alert"][aria-live="assertive"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText("tussen 3 en 30 tekens");
   });

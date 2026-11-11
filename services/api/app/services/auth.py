@@ -183,6 +183,29 @@ class RegistrationResult(tuple):
         return getattr(self[0], name)
 
 
+class BetaRegistrationResult(tuple):
+    """Registration result retaining both session and verification secrets.
+
+    Iteration intentionally exposes only ``(user, session_token)`` for backward
+    compatibility. The verification token is available as a named property and
+    must only be passed directly to the configured email provider.
+    """
+
+    def __new__(
+        cls,
+        user: User,
+        session_token: str,
+        verification_token: str,
+    ):
+        instance = super().__new__(cls, (user, session_token))
+        instance._verification_token = verification_token
+        return instance
+
+    @property
+    def verification_token(self) -> str:
+        return self._verification_token
+
+
 class AuthService:
     """Service for user authentication, session tokens, and session claiming."""
 
@@ -473,7 +496,7 @@ class AuthService:
         ip: str | None = None,
         user_agent: str | None = None,
         anonymous_session_id: str | None = None,
-    ) -> tuple[User, str]:
+    ) -> BetaRegistrationResult:
         """Atomically register a user with beta-code or invitation redemption,
         account security fields (username, email verification, policy acceptance),
         and authenticated session.
@@ -614,7 +637,11 @@ class AuthService:
             # 8. Single atomic commit for the entire unit of work
             self.db.commit()
             self.db.refresh(user)
-            return user, raw_token
+            return BetaRegistrationResult(
+                user,
+                raw_token,
+                raw_verification_token,
+            )
 
         except IntegrityError as exc:
             self.db.rollback()

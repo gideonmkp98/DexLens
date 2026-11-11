@@ -564,7 +564,8 @@ test.describe("Phase 7: Live Scan & Go End-to-End Test Suite", () => {
 
     // Click retake button
     const retakeBtn = modal.getByRole("button", {
-      name: /Opnieuw scannen/i,
+      name: "← Opnieuw scannen",
+      exact: true,
     });
     await expect(retakeBtn).toBeVisible();
     await retakeBtn.click();
