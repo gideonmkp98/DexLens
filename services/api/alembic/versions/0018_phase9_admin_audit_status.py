@@ -1,42 +1,44 @@
-"""Phase 9 provisional migration: admin audit logging and user account status.
+"""Phase 9 migration: Admin audit logging and user account status.
 
-Revision ID: 0015_provisional
-Revises: 0014
-Create Date: 2026-11-11 18:00:00.000000
+Revision ID: 0018_phase9_admin_audit_status
+Revises: 0017_phase9_scan_quotas
+Create Date: 2026-11-11 18:15:00.000000
 """
 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
 
-revision: str = "0015_provisional"
-down_revision: str | None = "0014"
+revision: str = "0018_phase9_admin_audit_status"
+down_revision: str | None = "0017_phase9_scan_quotas"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 1. Extend users table with administrative status column
-    conn = op.get_bind()
-    insp = sa.inspect(conn)
-    existing_user_cols = {c["name"] for c in insp.get_columns("users")}
+    bind = op.get_bind()
+    insp = inspect(bind)
+    existing_tables = set(insp.get_table_names())
 
-    if "status" not in existing_user_cols:
-        op.add_column(
-            "users",
-            sa.Column(
-                "status",
-                sa.String(length=32),
-                nullable=False,
-                server_default="active",
-            ),
-        )
-        op.create_index("ix_users_status", "users", ["status"])
+    # 1. Extend users table with administrative status column
+    if "users" in existing_tables:
+        existing_user_cols = {c["name"] for c in insp.get_columns("users")}
+        if "status" not in existing_user_cols:
+            op.add_column(
+                "users",
+                sa.Column(
+                    "status",
+                    sa.String(length=32),
+                    nullable=False,
+                    server_default="active",
+                ),
+            )
+            op.create_index("ix_users_status", "users", ["status"])
 
     # 2. Create append-only admin_audit_logs table
-    existing_tables = set(insp.get_table_names())
     if "admin_audit_logs" not in existing_tables:
         op.create_table(
             "admin_audit_logs",
@@ -75,8 +77,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    conn = op.get_bind()
-    insp = sa.inspect(conn)
+    bind = op.get_bind()
+    insp = inspect(bind)
     existing_tables = set(insp.get_table_names())
 
     if "admin_audit_logs" in existing_tables:
@@ -89,8 +91,3 @@ def downgrade() -> None:
             op.drop_index("ix_users_status", table_name="users")
         if "status" in existing_user_cols:
             op.drop_column("users", "status")
-        # Clean up legacy provisional columns if left behind
-        if "scan_quota_override" in existing_user_cols:
-            op.drop_column("users", "scan_quota_override")
-        if "verification_status" in existing_user_cols:
-            op.drop_column("users", "verification_status")

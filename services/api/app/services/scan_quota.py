@@ -2,8 +2,7 @@ import logging
 import uuid
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import func, select, text
-from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,7 +39,7 @@ class QuotaExhaustedError(Exception):
 
 
 class ScanQuotaService:
-    """Domain service for managing daily scan limits, metering, per-user overrides, and idempotency."""
+    """Manage scan limits, metering, overrides, and idempotency."""
 
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -104,7 +103,11 @@ class ScanQuotaService:
             .first()
         )
         if setting:
-            val = int(setting.value) if setting.value.isdigit() else settings.DEFAULT_DAILY_SCAN_LIMIT
+            val = (
+                int(setting.value)
+                if setting.value.isdigit()
+                else settings.DEFAULT_DAILY_SCAN_LIMIT
+            )
             return val, setting.updated_at.replace(tzinfo=UTC)
         return settings.DEFAULT_DAILY_SCAN_LIMIT, None
 
@@ -141,7 +144,11 @@ class ScanQuotaService:
 
     def get_user_override(self, user_id: str) -> UserScanQuota | None:
         """Retrieve user override record if present."""
-        return self.db.query(UserScanQuota).filter(UserScanQuota.user_id == user_id).first()
+        return (
+            self.db.query(UserScanQuota)
+            .filter(UserScanQuota.user_id == user_id)
+            .first()
+        )
 
     def set_user_override(
         self,
@@ -153,11 +160,15 @@ class ScanQuotaService:
         """Set or update quota override for a specific user."""
         valid_modes = {"inherit", "custom", "unlimited", "blocked"}
         if override_mode not in valid_modes:
-            raise ValueError(f"Invalid override_mode '{override_mode}'. Must be one of {valid_modes}")
+            raise ValueError(
+                f"Invalid override_mode '{override_mode}'. Must be one of {valid_modes}"
+            )
 
         if override_mode == "custom":
             if custom_limit is None or custom_limit < 0:
-                raise ValueError("custom_limit must be a non-negative integer when override_mode is 'custom'")
+                raise ValueError(
+                    "custom_limit must be non-negative when override_mode is 'custom'"
+                )
         else:
             custom_limit = None
 
@@ -321,7 +332,9 @@ class ScanQuotaService:
             )
             if existing_record is not None and existing_record.scan_id is not None:
                 # Existing scan completed: return without consuming additional quota
-                quota_status = self.get_quota_status(user_id, anonymous_session_id, at_time)
+                quota_status = self.get_quota_status(
+                    user_id, anonymous_session_id, at_time
+                )
                 return True, quota_status, existing_record.scan_id
 
         # 2. Check effective policy
@@ -353,9 +366,11 @@ class ScanQuotaService:
             ensure_sql = text(
                 """
                 INSERT INTO daily_scan_usage
-                    (id, owner_key, user_id, anonymous_session_id, usage_date, used_count, created_at, updated_at)
+                    (id, owner_key, user_id, anonymous_session_id,
+                     usage_date, used_count, created_at, updated_at)
                 VALUES
-                    (:id, :owner_key, :user_id, :anon_id, :usage_date, 0, :created_at, :updated_at)
+                    (:id, :owner_key, :user_id, :anon_id,
+                     :usage_date, 0, :created_at, :updated_at)
                 ON DUPLICATE KEY UPDATE updated_at = updated_at
                 """
             )
@@ -387,7 +402,9 @@ class ScanQuotaService:
                         id=str(uuid.uuid4()),
                         owner_key=owner_key,
                         user_id=user_id,
-                        anonymous_session_id=anonymous_session_id if not user_id else None,
+                        anonymous_session_id=anonymous_session_id
+                        if not user_id
+                        else None,
                         usage_date=current_date,
                         used_count=0,
                         created_at=now_utc,
@@ -398,7 +415,7 @@ class ScanQuotaService:
                 except IntegrityError:
                     self.db.rollback()
 
-        # 4. Acquire exclusive row lock on daily_scan_usage for (owner_key, current_date)
+        # 4. Lock the usage row for this owner and UTC date.
         usage_row = (
             self.db.query(DailyScanUsage)
             .filter(
@@ -470,9 +487,7 @@ class ScanQuotaService:
 
         new_used = usage_row.used_count
         new_remaining = (
-            max(0, effective_limit - new_used)
-            if effective_limit is not None
-            else None
+            max(0, effective_limit - new_used) if effective_limit is not None else None
         )
 
         quota_status = ScanQuotaInfo(

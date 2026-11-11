@@ -36,12 +36,12 @@ from app.services.auth import (
     UsernameCooldownError,
     dummy_verify_password,
 )
-from app.services.hibp import check_password_pwned
 from app.services.beta_access import (
     BetaAccessError,
     BetaAccessService,
     mask_email,
 )
+from app.services.hibp import check_password_pwned
 from app.services.turnstile import TurnstileService
 
 logger = logging.getLogger(__name__)
@@ -207,7 +207,6 @@ def register(
             ip=client_ip,
             user_agent=user_agent,
             anonymous_session_id=old_anon_session_id,
-        )
         )
     except EmailAlreadyExistsError:
         if settings.REGISTRATION_NON_ENUMERATION:

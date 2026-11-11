@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ScanQuotaInfo(BaseModel):
-    """Structured daily scan quota metadata returned with scan operations and quota checks."""
+    """Daily scan quota metadata returned by scan operations."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -25,21 +25,25 @@ class ScanQuotaInfo(BaseModel):
         description="ISO 8601 UTC timestamp when daily quota resets (00:00:00 UTC)",
     )
     effective_source: str = Field(
-        description="Source of effective quota policy: 'global_default' or 'user_override'",
+        description=(
+            "Source of the effective policy: 'global_default' or 'user_override'"
+        ),
     )
 
 
 class ScanQuotaExceededDetail(BaseModel):
-    """Structured error detail returned when daily scan quota is exhausted or blocked."""
+    """Error detail returned when a scan quota is exhausted or blocked."""
 
     code: str = Field(
-        description="Machine-readable error code: 'DAILY_SCAN_QUOTA_EXCEEDED' or 'SCAN_QUOTA_BLOCKED'",
+        description=(
+            "Machine-readable code: 'DAILY_SCAN_QUOTA_EXCEEDED' or 'SCAN_QUOTA_BLOCKED'"
+        ),
     )
     message: str = Field(
         description="Human-readable explanation of the quota restriction",
     )
     quota: ScanQuotaInfo = Field(
-        description="Accompanying quota metadata indicating current limit, usage, and reset time",
+        description="Quota metadata with the current limit, usage, and reset time",
     )
 
 
@@ -64,7 +68,9 @@ class UserScanQuotaOverrideRequest(BaseModel):
     def validate_custom_limit(self) -> "UserScanQuotaOverrideRequest":
         if self.override_mode == "custom":
             if self.custom_limit is None or self.custom_limit < 0:
-                raise ValueError("custom_limit must be a non-negative integer when override_mode is 'custom'")
+                raise ValueError(
+                    "custom_limit must be non-negative when override_mode is 'custom'"
+                )
         elif self.custom_limit is not None and self.override_mode != "custom":
             # Normalize custom_limit to None when mode is not custom
             self.custom_limit = None
@@ -100,7 +106,9 @@ class UserScanQuotaResponse(BaseModel):
         description="UTC timestamp when quota window resets",
     )
     effective_source: str = Field(
-        description="Effective configuration source: 'global_default' or 'user_override'",
+        description=(
+            "Effective configuration source: 'global_default' or 'user_override'"
+        ),
     )
     reason: str | None = Field(
         default=None,

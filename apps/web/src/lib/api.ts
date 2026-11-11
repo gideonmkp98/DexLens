@@ -499,23 +499,18 @@ export async function parseApiError(
   }
   let errorMsg = `${fallbackMsg}: HTTP ${res.status}`;
   let errorCode: string | undefined;
-<<<<<<< HEAD
   let quotaInfo: ScanQuotaInfo | undefined;
-=======
   let siteKey: string | undefined;
->>>>>>> admin_experience_abuse_protection
   try {
     const err = await res.json();
     if (err?.detail && typeof err.detail === "object") {
       errorMsg = err.detail.message || errorMsg;
       errorCode = err.detail.code;
-<<<<<<< HEAD
       if (err.detail.quota) {
         quotaInfo = err.detail.quota as ScanQuotaInfo;
-=======
+      }
       if (err.detail.site_key) {
         siteKey = String(err.detail.site_key);
->>>>>>> admin_experience_abuse_protection
       }
     } else if (typeof err?.detail === "string") {
       errorMsg = err.detail;
@@ -525,15 +520,14 @@ export async function parseApiError(
       if (err.quota) {
         quotaInfo = err.quota as ScanQuotaInfo;
       }
+      if (err.site_key) {
+        siteKey = String(err.site_key);
+      }
     }
   } catch {
     // Non-JSON response
   }
-<<<<<<< HEAD
-  return new ApiError(errorMsg, res.status, errorCode, quotaInfo);
-=======
-  return new ApiError(errorMsg, res.status, errorCode, siteKey);
->>>>>>> admin_experience_abuse_protection
+  return new ApiError(errorMsg, res.status, errorCode, quotaInfo, siteKey);
 }
 
 /**

@@ -1,13 +1,8 @@
-"""PROVISIONAL: Add daily scan quota and metering tables.
+"""Phase 9 migration: Daily scan quotas and usage metering tables.
 
-Revision ID: 0015_provisional_quota
-Revises: 0014
-Create Date: 2026-11-11 18:00:00.000000
-
-NOTE FOR INTEGRATION AGENT:
-This is a provisional migration created on feature branch 'daily_scan_quota_system'.
-Dependency: 0014 (enforce owner uniqueness).
-The integration agent will renumber and link this to the final linear migration chain.
+Revision ID: 0017_phase9_scan_quotas
+Revises: 0016_phase9_beta_access
+Create Date: 2026-11-11 18:10:00.000000
 """
 
 from collections.abc import Sequence
@@ -17,8 +12,8 @@ from sqlalchemy import inspect
 
 from alembic import op
 
-revision: str = "0015_provisional_quota"
-down_revision: str | None = "0014"
+revision: str = "0017_phase9_scan_quotas"
+down_revision: str | None = "0016_phase9_beta_access"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -41,14 +36,6 @@ def upgrade() -> None:
                 nullable=False,
                 server_default=sa.func.now(),
             ),
-        )
-
-        # Seed global default
-        bind.execute(
-            sa.text(
-                "INSERT INTO scan_quota_settings (`key`, `value`, `description`, `updated_at`) "
-                "VALUES ('default_daily_limit', '50', 'Global default daily scans allowed per user', NOW())"
-            )
         )
 
     # 2. user_scan_quotas
@@ -101,7 +88,7 @@ def upgrade() -> None:
                 "used_count",
                 sa.Integer(),
                 nullable=False,
-                server_default="0",
+                server_default=sa.text("0"),
             ),
             sa.Column(
                 "created_at",
@@ -116,30 +103,25 @@ def upgrade() -> None:
                 server_default=sa.func.now(),
             ),
             sa.UniqueConstraint(
-                "owner_key",
-                "usage_date",
-                name="uq_daily_scan_usage_owner_date",
+                "owner_key", "usage_date", name="uq_daily_scan_usage_owner_date"
             ),
+        )
+        op.create_index(
+            "ix_daily_scan_usage_owner_key", "daily_scan_usage", ["owner_key"]
+        )
+        op.create_index(
+            "ix_daily_scan_usage_usage_date", "daily_scan_usage", ["usage_date"]
         )
         op.create_index(
             "ix_daily_scan_usage_lookup",
             "daily_scan_usage",
             ["owner_key", "usage_date"],
         )
-        op.create_index(
-            "ix_daily_scan_usage_user_id",
-            "daily_scan_usage",
-            ["user_id"],
-        )
+        op.create_index("ix_daily_scan_usage_user_id", "daily_scan_usage", ["user_id"])
         op.create_index(
             "ix_daily_scan_usage_anon_id",
             "daily_scan_usage",
             ["anonymous_session_id"],
-        )
-        op.create_index(
-            "ix_daily_scan_usage_date",
-            "daily_scan_usage",
-            ["usage_date"],
         )
 
     # 4. scan_idempotency_records
@@ -174,23 +156,24 @@ def upgrade() -> None:
             ["owner_key"],
         )
         op.create_index(
-            "ix_scan_idempotency_date",
-            "scan_idempotency_records",
-            ["usage_date"],
-        )
-        op.create_index(
             "ix_scan_idempotency_scan_id",
             "scan_idempotency_records",
             ["scan_id"],
         )
+        op.create_index(
+            "ix_scan_idempotency_date",
+            "scan_idempotency_records",
+            ["usage_date"],
+        )
 
     # 5. scans.upload_idempotency_key column
-    scans_columns = {c["name"] for c in insp.get_columns("scans")}
-    if "upload_idempotency_key" not in scans_columns:
-        op.add_column(
-            "scans",
-            sa.Column("upload_idempotency_key", sa.String(64), nullable=True),
-        )
+    if "scans" in existing_tables:
+        scans_columns = {c["name"] for c in insp.get_columns("scans")}
+        if "upload_idempotency_key" not in scans_columns:
+            op.add_column(
+                "scans",
+                sa.Column("upload_idempotency_key", sa.String(64), nullable=True),
+            )
 
 
 def downgrade() -> None:
@@ -198,9 +181,10 @@ def downgrade() -> None:
     insp = inspect(bind)
     existing_tables = set(insp.get_table_names())
 
-    scans_columns = {c["name"] for c in insp.get_columns("scans")}
-    if "upload_idempotency_key" in scans_columns:
-        op.drop_column("scans", "upload_idempotency_key")
+    if "scans" in existing_tables:
+        scans_columns = {c["name"] for c in insp.get_columns("scans")}
+        if "upload_idempotency_key" in scans_columns:
+            op.drop_column("scans", "upload_idempotency_key")
 
     if "scan_idempotency_records" in existing_tables:
         op.drop_table("scan_idempotency_records")

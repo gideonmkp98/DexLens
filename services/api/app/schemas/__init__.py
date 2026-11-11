@@ -15,6 +15,7 @@ from app.schemas.collection import (
     CollectionUpdateRequest,
 )
 from app.schemas.health import HealthResponse
+from app.schemas.scan import ErrorDetail, ErrorResponse, ScanResponse
 from app.schemas.scan_quota import (
     ScanQuotaExceededDetail,
     ScanQuotaInfo,
@@ -23,7 +24,6 @@ from app.schemas.scan_quota import (
     UserScanQuotaOverrideRequest,
     UserScanQuotaResponse,
 )
-from app.schemas.scan import ErrorDetail, ErrorResponse, ScanResponse
 from app.schemas.set import (
     PaginatedSetsResponse,
     SetDetailResponse,

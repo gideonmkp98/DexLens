@@ -431,6 +431,7 @@ class BetaAccessService:
 
         if code.scan_quota_allocated is not None:
             from app.services.scan_quota import ScanQuotaService
+
             quota_service = ScanQuotaService(self.db)
             override = quota_service.get_user_override(user.id)
             current_limit = (
@@ -621,6 +622,7 @@ class BetaAccessService:
 
         if invitation.scan_quota_allocated is not None:
             from app.services.scan_quota import ScanQuotaService
+
             quota_service = ScanQuotaService(self.db)
             override = quota_service.get_user_override(user.id)
             current_limit = (

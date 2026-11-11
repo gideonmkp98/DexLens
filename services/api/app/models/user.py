@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -108,6 +108,7 @@ class User(Base):
         if self.scan_quota and self.scan_quota.override_mode == "custom":
             return self.scan_quota.custom_limit
         return None
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

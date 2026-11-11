@@ -161,6 +161,28 @@ class InvalidPasswordError(Exception):
     """Raised when password verification fails during sensitive actions."""
 
 
+class RegistrationResult(tuple):
+    """Backward-compatible result tuple for register_user.
+
+    Unpacks as (user, verification_token) while delegating attribute access
+    directly to the User instance.
+    """
+
+    def __new__(cls, user: User, token: str):
+        return super().__new__(cls, (user, token))
+
+    @property
+    def user(self) -> User:
+        return self[0]
+
+    @property
+    def verification_token(self) -> str:
+        return self[1]
+
+    def __getattr__(self, name: str):
+        return getattr(self[0], name)
+
+
 class AuthService:
     """Service for user authentication, session tokens, and session claiming."""
 
@@ -221,6 +243,7 @@ class AuthService:
         )
         if scan_quota is not None:
             from app.models.scan_quota import UserScanQuota
+
             user_quota = UserScanQuota(
                 user_id=user.id,
                 override_mode="custom",
@@ -262,7 +285,7 @@ class AuthService:
             user.email,
             user.username,
         )
-        return user, raw_verification_token
+        return RegistrationResult(user, raw_verification_token)
 
     def create_email_verification(
         self,
@@ -375,7 +398,7 @@ class AuthService:
         _, raw_token = self.create_email_verification(
             user_id=user.id, token_type="email_verification"
         )
-        logger.info("Resent verification token for %s: %s", user.email, raw_token)
+        logger.info("Generated a replacement verification token for %s", user.email)
         return (True, msg, raw_token, None)
 
     def change_username(self, user: User, new_username: str) -> User:
@@ -525,6 +548,7 @@ class AuthService:
             )
             if quota is not None:
                 from app.models.scan_quota import UserScanQuota
+
                 user_quota = UserScanQuota(
                     user_id=user.id,
                     override_mode="custom",
@@ -542,7 +566,8 @@ class AuthService:
                 user_id=user.id,
                 token_hash=hash_token(raw_verification_token),
                 token_type="email_verification",
-                expires_at=now + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
+                expires_at=now
+                + timedelta(hours=settings.EMAIL_VERIFICATION_EXPIRE_HOURS),
                 created_at=now,
             )
             self.db.add(verification)
@@ -603,7 +628,9 @@ class AuthService:
             ):
                 raise EmailAlreadyExistsError("E-mailadres is al in gebruik") from exc
             if "username" in err_msg:
-                raise UsernameAlreadyExistsError("Deze gebruikersnaam is al in gebruik") from exc
+                raise UsernameAlreadyExistsError(
+                    "Deze gebruikersnaam is al in gebruik"
+                ) from exc
             raise
         except (BetaAccessError, Exception):
             self.db.rollback()

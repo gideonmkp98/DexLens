@@ -62,12 +62,18 @@ async def handle_scan_session_error(
         quota_dict = exc.quota.model_dump(mode="json")
         content["quota"] = quota_dict
         content["detail"]["quota"] = quota_dict
-        reset_secs = max(0, int((exc.quota.reset_at - datetime.now(UTC)).total_seconds()))
+        reset_secs = max(
+            0, int((exc.quota.reset_at - datetime.now(UTC)).total_seconds())
+        )
         headers = {
             "Retry-After": str(reset_secs),
-            "X-Quota-Limit": str(exc.quota.limit) if exc.quota.limit is not None else "unlimited",
+            "X-Quota-Limit": str(exc.quota.limit)
+            if exc.quota.limit is not None
+            else "unlimited",
             "X-Quota-Used": str(exc.quota.used),
-            "X-Quota-Remaining": str(exc.quota.remaining) if exc.quota.remaining is not None else "unlimited",
+            "X-Quota-Remaining": str(exc.quota.remaining)
+            if exc.quota.remaining is not None
+            else "unlimited",
             "X-Quota-Reset": exc.quota.reset_at.isoformat(),
             "X-Quota-Source": exc.quota.effective_source,
         }
@@ -86,9 +92,13 @@ async def handle_quota_exhausted_error(
     reset_secs = max(0, int((exc.quota.reset_at - datetime.now(UTC)).total_seconds()))
     headers = {
         "Retry-After": str(reset_secs),
-        "X-Quota-Limit": str(exc.quota.limit) if exc.quota.limit is not None else "unlimited",
+        "X-Quota-Limit": str(exc.quota.limit)
+        if exc.quota.limit is not None
+        else "unlimited",
         "X-Quota-Used": str(exc.quota.used),
-        "X-Quota-Remaining": str(exc.quota.remaining) if exc.quota.remaining is not None else "unlimited",
+        "X-Quota-Remaining": str(exc.quota.remaining)
+        if exc.quota.remaining is not None
+        else "unlimited",
         "X-Quota-Reset": exc.quota.reset_at.isoformat(),
         "X-Quota-Source": exc.quota.effective_source,
     }

@@ -17,7 +17,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.scan import Scan
     from app.models.user import User
 
 
@@ -99,11 +98,13 @@ class UserScanQuota(Base):
 
 
 class DailyScanUsage(Base):
-    """Daily scan consumption counter per owner (user or anonymous session) and UTC date."""
+    """Daily scan consumption per owner and UTC date."""
 
     __tablename__ = "daily_scan_usage"
     __table_args__ = (
-        UniqueConstraint("owner_key", "usage_date", name="uq_daily_scan_usage_owner_date"),
+        UniqueConstraint(
+            "owner_key", "usage_date", name="uq_daily_scan_usage_owner_date"
+        ),
         Index("ix_daily_scan_usage_lookup", "owner_key", "usage_date"),
         Index("ix_daily_scan_usage_user_id", "user_id"),
         Index("ix_daily_scan_usage_anon_id", "anonymous_session_id"),
@@ -155,11 +156,13 @@ class DailyScanUsage(Base):
 
 
 class ScanIdempotencyRecord(Base):
-    """Durable idempotency registry preventing multiple quota charges for identical requests."""
+    """Prevent duplicate quota charges for identical requests."""
 
     __tablename__ = "scan_idempotency_records"
     __table_args__ = (
-        UniqueConstraint("owner_key", "idempotency_key", name="uq_scan_idempotency_owner_key"),
+        UniqueConstraint(
+            "owner_key", "idempotency_key", name="uq_scan_idempotency_owner_key"
+        ),
         Index("ix_scan_idempotency_date", "usage_date"),
     )
 

@@ -22,7 +22,6 @@ from app.schemas.scan import (
     ConfirmedCardInfo,
 )
 from app.schemas.scan_quota import ScanQuotaInfo
-from app.services.scan_quota import QuotaExhaustedError, ScanQuotaService
 from app.schemas.scan_session import (
     LiveCaptureResponse,
     ScanSessionDetailResponse,
@@ -57,6 +56,7 @@ from app.services.ocr import (
     get_ocr_engine,
 )
 from app.services.ocr.pipeline import recognize_card_image
+from app.services.scan_quota import QuotaExhaustedError, ScanQuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -423,9 +423,11 @@ class ScanSessionService:
                 quota_status = quota_service.get_quota_status(
                     self.user_id, self.anonymous_session_id
                 )
-                return self._build_live_capture_response(existing, session, quota_info=quota_status)
+                return self._build_live_capture_response(
+                    existing, session, quota_info=quota_status
+                )
 
-        # Fast-path quota check: fail fast before image normalization if quota is exhausted
+        # Fail before image normalization if quota is already exhausted.
         current_status = quota_service.get_quota_status(
             self.user_id, self.anonymous_session_id
         )
@@ -444,7 +446,7 @@ class ScanSessionService:
                     code=err.code,
                     status_code=err.status_code,
                     quota=err.quota,
-                )
+                ) from err
 
         scan_id = str(uuid.uuid4())
         storage_dir = Path(settings.UPLOAD_DIRECTORY).resolve()
@@ -488,10 +490,12 @@ class ScanSessionService:
 
         # Image is normalized: atomically reserve and consume quota now
         try:
-            is_replay, quota_info, existing_scan_id = quota_service.reserve_and_consume_quota(
-                self.user_id,
-                self.anonymous_session_id,
-                idempotency_key=idempotency_key,
+            is_replay, quota_info, existing_scan_id = (
+                quota_service.reserve_and_consume_quota(
+                    self.user_id,
+                    self.anonymous_session_id,
+                    idempotency_key=idempotency_key,
+                )
             )
         except QuotaExhaustedError as err:
             target_path.unlink(missing_ok=True)
@@ -500,13 +504,15 @@ class ScanSessionService:
                 code=err.code,
                 status_code=err.status_code,
                 quota=err.quota,
-            )
+            ) from err
 
         if is_replay and existing_scan_id:
             target_path.unlink(missing_ok=True)
             existing = self.db.query(Scan).filter(Scan.id == existing_scan_id).first()
             if existing:
-                return self._build_live_capture_response(existing, session, quota_info=quota_info)
+                return self._build_live_capture_response(
+                    existing, session, quota_info=quota_info
+                )
 
         now_utc = datetime.now(UTC)
         expires_at_utc = now_utc + timedelta(hours=settings.UPLOAD_RETENTION_HOURS)
@@ -539,7 +545,11 @@ class ScanSessionService:
             self.db.rollback()
             target_path.unlink(missing_ok=True)
             if not idempotency_key:
-                quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
+                quota_service.rollback_consumption(
+                    owner_key,
+                    quota_service.get_utc_date(),
+                    idempotency_key=idempotency_key,
+                )
                 raise
             existing = (
                 self.db.query(Scan)
@@ -550,13 +560,21 @@ class ScanSessionService:
                 .first()
             )
             if existing is None:
-                quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
+                quota_service.rollback_consumption(
+                    owner_key,
+                    quota_service.get_utc_date(),
+                    idempotency_key=idempotency_key,
+                )
                 raise
-            return self._build_live_capture_response(existing, session, quota_info=quota_info)
+            return self._build_live_capture_response(
+                existing, session, quota_info=quota_info
+            )
         except Exception:
             self.db.rollback()
             target_path.unlink(missing_ok=True)
-            quota_service.rollback_consumption(owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key)
+            quota_service.rollback_consumption(
+                owner_key, quota_service.get_utc_date(), idempotency_key=idempotency_key
+            )
             raise
 
         self.db.refresh(scan)

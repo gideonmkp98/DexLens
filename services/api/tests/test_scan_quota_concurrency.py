@@ -3,7 +3,6 @@ import io
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -24,7 +23,9 @@ def _make_jpeg_bytes(width: int = 120, height: int = 160) -> bytes:
     return buf.getvalue()
 
 
-def _create_user(db: Session, email: str = "concurrency_user@example.com") -> tuple[User, str]:
+def _create_user(
+    db: Session, email: str = "concurrency_user@example.com"
+) -> tuple[User, str]:
     user = User(
         id=str(uuid.uuid4()),
         email=email,
@@ -49,7 +50,7 @@ def _create_user(db: Session, email: str = "concurrency_user@example.com") -> tu
 
 
 def test_concurrent_reserve_and_consume_exact_limit(db: Session):
-    """Verify that under high concurrency, exactly limit requests succeed and remainder raise QuotaExhaustedError."""
+    """Only the configured number of concurrent requests may succeed."""
     user, _ = _create_user(db, "racing_quota@example.com")
     user_id = str(user.id)
     quota_svc = ScanQuotaService(db)
@@ -82,9 +83,13 @@ def test_concurrent_reserve_and_consume_exact_limit(db: Session):
         futures = [executor.submit(_worker, i) for i in range(num_threads)]
         concurrent.futures.wait(futures)
 
-    assert len(other_errors) == 0, f"Unexpected errors during concurrent test: {other_errors}"
+    assert len(other_errors) == 0, (
+        f"Unexpected errors during concurrent test: {other_errors}"
+    )
     assert len(successes) == 3, f"Expected exactly 3 successes, got {len(successes)}"
-    assert len(quota_exhausted_errors) == 7, f"Expected 7 exhausted errors, got {len(quota_exhausted_errors)}"
+    assert len(quota_exhausted_errors) == 7, (
+        f"Expected 7 exhausted errors, got {len(quota_exhausted_errors)}"
+    )
 
     # Check database state
     verify_db = TestingSessionLocal()
@@ -98,7 +103,7 @@ def test_concurrent_reserve_and_consume_exact_limit(db: Session):
 
 
 def test_concurrent_idempotent_replay_consumption(db: Session):
-    """Verify that multiple concurrent requests with the SAME idempotency key consume quota only once."""
+    """Concurrent requests sharing an idempotency key consume quota once."""
     user, _ = _create_user(db, "racing_idemp@example.com")
     user_id = str(user.id)
     quota_svc = ScanQuotaService(db)
@@ -178,7 +183,7 @@ def test_concurrent_idempotent_replay_consumption(db: Session):
 
 
 def test_concurrent_api_scan_uploads_quota_exhaustion():
-    """Verify concurrent API upload calls atomically stop at quota limit and return 429."""
+    """Concurrent uploads stop atomically at the quota limit."""
     setup_db = TestingSessionLocal()
     try:
         user, token = _create_user(setup_db, "api_concurrency@example.com")
@@ -221,8 +226,13 @@ def test_concurrent_api_scan_uploads_quota_exhaustion():
     created_count = status_codes.count(201)
     exhausted_count = status_codes.count(429)
 
-    assert created_count == 2, f"Expected 2 created scans, got {created_count} (statuses: {status_codes})"
-    assert exhausted_count == 4, f"Expected 4 exhausted requests, got {exhausted_count} (statuses: {status_codes})"
+    assert created_count == 2, (
+        f"Expected 2 created scans, got {created_count} (statuses: {status_codes})"
+    )
+    assert exhausted_count == 4, (
+        "Expected 4 exhausted requests, got "
+        f"{exhausted_count} (statuses: {status_codes})"
+    )
 
     # Verify usage in DB is 2
     verify_db = TestingSessionLocal()

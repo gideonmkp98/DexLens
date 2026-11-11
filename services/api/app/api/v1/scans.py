@@ -41,9 +41,9 @@ from app.schemas.scan import (
     RecognitionEvidenceModel,
     RecognizeResponse,
     ResetCardConfirmationRequest,
+    ScanQuotaInfo,
     ScanResponse,
     SearchCandidatesRequest,
-    ScanQuotaInfo,
     SearchCandidatesResponse,
 )
 from app.services.card_catalog import (
@@ -105,9 +105,13 @@ def _get_storage_dir() -> Path:
 
 
 def set_quota_headers(response: Response, quota: ScanQuotaInfo) -> None:
-    response.headers["X-Quota-Limit"] = str(quota.limit) if quota.limit is not None else "unlimited"
+    response.headers["X-Quota-Limit"] = (
+        str(quota.limit) if quota.limit is not None else "unlimited"
+    )
     response.headers["X-Quota-Used"] = str(quota.used)
-    response.headers["X-Quota-Remaining"] = str(quota.remaining) if quota.remaining is not None else "unlimited"
+    response.headers["X-Quota-Remaining"] = (
+        str(quota.remaining) if quota.remaining is not None else "unlimited"
+    )
     response.headers["X-Quota-Reset"] = quota.reset_at.isoformat()
     response.headers["X-Quota-Source"] = quota.effective_source
 
@@ -389,7 +393,7 @@ def get_current_scan_quota(
     db: Session = Depends(get_db),
     session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanQuotaInfo:
-    """Retrieve current daily scan quota status and remaining scans for the active session."""
+    """Return daily scan quota status for the active session."""
     response.headers["Cache-Control"] = "no-store"
     service = ScanQuotaService(db)
     status_info = service.get_quota_status(
@@ -504,7 +508,7 @@ async def upload_scan(
     db: Session = Depends(get_db),
     session_ctx: SessionContext = Depends(get_session_context),
 ) -> ScanResponse:
-    """Upload a single image, validate and normalize it, meter quota, and store metadata."""
+    """Validate, normalize, meter, and store one uploaded image."""
     response.headers["Cache-Control"] = "no-store"
     form = await request.form()
     raw_turnstile = request.headers.get("x-turnstile-token") or form.get(
@@ -532,7 +536,9 @@ async def upload_scan(
         )
 
     quota_service = ScanQuotaService(db)
-    owner_key = quota_service.get_owner_key(session_ctx.user_id, session_ctx.anonymous_session_id)
+    owner_key = quota_service.get_owner_key(
+        session_ctx.user_id, session_ctx.anonymous_session_id
+    )
 
     # 1. Check for durable idempotent replay before doing any work
     if idempotency_key:
@@ -596,22 +602,24 @@ async def upload_scan(
 
     # 3. Image is normalized and accepted: atomically consume quota now
     try:
-        is_replay, quota_info, existing_scan_id = quota_service.reserve_and_consume_quota(
-            session_ctx.user_id,
-            session_ctx.anonymous_session_id,
-            idempotency_key=idempotency_key,
+        is_replay, quota_info, existing_scan_id = (
+            quota_service.reserve_and_consume_quota(
+                session_ctx.user_id,
+                session_ctx.anonymous_session_id,
+                idempotency_key=idempotency_key,
+            )
         )
     except QuotaExhaustedError as err:
         await run_in_threadpool(target_path.unlink, missing_ok=True)
         raise_quota_error(err)
     except Exception as exc:
         await run_in_threadpool(target_path.unlink, missing_ok=True)
-        logger.exception('Failed to reserve quota for scan %s: %s', scan_id, exc)
+        logger.exception("Failed to reserve quota for scan %s: %s", scan_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
-                'code': 'DATABASE_ERROR',
-                'message': 'Failed to persist scan record.',
+                "code": "DATABASE_ERROR",
+                "message": "Failed to persist scan record.",
             },
         ) from exc
 
@@ -651,6 +659,7 @@ async def upload_scan(
             idempotency_key=idempotency_key,
         )
         raise
+
 
 @router.get("/{id}", response_model=ScanResponse)
 def get_scan(

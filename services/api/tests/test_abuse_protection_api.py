@@ -36,7 +36,7 @@ def test_register_turnstile_success(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": "test-pass-token",
         },
     )
@@ -50,7 +50,7 @@ def test_register_turnstile_invalid_token(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": "test-fail-token",
         },
     )
@@ -64,7 +64,7 @@ def test_register_turnstile_expired_token(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": "test-expired-token",
         },
     )
@@ -78,7 +78,7 @@ def test_register_turnstile_action_mismatch(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": "test-action-scan",
         },
     )
@@ -96,7 +96,7 @@ def test_register_turnstile_token_replay_rejected(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email1,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": token,
         },
     )
@@ -107,7 +107,7 @@ def test_register_turnstile_token_replay_rejected(client: TestClient):
         "/api/v1/auth/register",
         json={
             "email": email2,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
             "turnstile_token": token,
         },
     )
@@ -125,7 +125,7 @@ def test_register_turnstile_missing_when_enabled(
         "/api/v1/auth/register",
         json={
             "email": email,
-            "password": "ValidPassword123!",
+            "password": "MyUnpwnedPassword2026!Valid",
         },
     )
     assert res.status_code == 403
@@ -137,7 +137,7 @@ def test_beta_claim_turnstile_protection(client: TestClient):
     email = f"beta_claimer_{uuid.uuid4().hex[:6]}@example.com"
     reg_res = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "Password123!"},
+        json={"email": email, "password": "MyUnpwnedPassword2026!Valid"},
     )
     assert reg_res.status_code == 201
 
@@ -215,7 +215,7 @@ def test_scan_authenticated_user_low_friction(client: TestClient):
     email = f"scanner_{uuid.uuid4().hex[:6]}@example.com"
     reg_res = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "Password123!"},
+        json={"email": email, "password": "MyUnpwnedPassword2026!Valid"},
     )
     assert reg_res.status_code == 201
 

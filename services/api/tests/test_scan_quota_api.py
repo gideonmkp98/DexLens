@@ -2,7 +2,6 @@ import io
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -20,7 +19,9 @@ def _make_jpeg_bytes(width: int = 300, height: int = 420) -> bytes:
     return buf.getvalue()
 
 
-def _create_authenticated_client(db: Session, email: str, role: str = "user") -> tuple[TestClient, User]:
+def _create_authenticated_client(
+    db: Session, email: str, role: str = "user"
+) -> tuple[TestClient, User]:
     from app.main import app
 
     user = User(
@@ -62,7 +63,9 @@ def test_get_scan_quota_anonymous(client: TestClient):
 
     assert res.headers.get("X-Quota-Limit") == str(settings.DEFAULT_DAILY_SCAN_LIMIT)
     assert res.headers.get("X-Quota-Used") == "0"
-    assert res.headers.get("X-Quota-Remaining") == str(settings.DEFAULT_DAILY_SCAN_LIMIT)
+    assert res.headers.get("X-Quota-Remaining") == str(
+        settings.DEFAULT_DAILY_SCAN_LIMIT
+    )
     assert res.headers.get("X-Quota-Source") == "global_default"
 
 
@@ -180,7 +183,9 @@ def test_live_capture_consumes_quota_and_idempotency(client: TestClient):
 
 
 def test_quota_exhausted_structured_error_and_headers(db: Session):
-    auth_client, user = _create_authenticated_client(db, "quota_exhaust_api@example.com")
+    auth_client, user = _create_authenticated_client(
+        db, "quota_exhaust_api@example.com"
+    )
     service = ScanQuotaService(db)
     # Set limit to 2 for this user
     service.set_user_override(user.id, "custom", custom_limit=2)
@@ -188,17 +193,23 @@ def test_quota_exhausted_structured_error_and_headers(db: Session):
     image_bytes = _make_jpeg_bytes()
 
     # Upload 1
-    r1 = auth_client.post("/api/v1/scans", files={"file": ("c1.jpg", image_bytes, "image/jpeg")})
+    r1 = auth_client.post(
+        "/api/v1/scans", files={"file": ("c1.jpg", image_bytes, "image/jpeg")}
+    )
     assert r1.status_code == 201
     assert r1.headers.get("X-Quota-Remaining") == "1"
 
     # Upload 2
-    r2 = auth_client.post("/api/v1/scans", files={"file": ("c2.jpg", image_bytes, "image/jpeg")})
+    r2 = auth_client.post(
+        "/api/v1/scans", files={"file": ("c2.jpg", image_bytes, "image/jpeg")}
+    )
     assert r2.status_code == 201
     assert r2.headers.get("X-Quota-Remaining") == "0"
 
     # Upload 3 -> Quota exhausted
-    r3 = auth_client.post("/api/v1/scans", files={"file": ("c3.jpg", image_bytes, "image/jpeg")})
+    r3 = auth_client.post(
+        "/api/v1/scans", files={"file": ("c3.jpg", image_bytes, "image/jpeg")}
+    )
     assert r3.status_code == 429
     err = r3.json()
 
@@ -220,7 +231,9 @@ def test_blocked_user_api_error(db: Session):
     service.set_user_override(user.id, "blocked")
 
     image_bytes = _make_jpeg_bytes()
-    res = auth_client.post("/api/v1/scans", files={"file": ("blocked.jpg", image_bytes, "image/jpeg")})
+    res = auth_client.post(
+        "/api/v1/scans", files={"file": ("blocked.jpg", image_bytes, "image/jpeg")}
+    )
     assert res.status_code == 429
     err = res.json()
 
@@ -237,7 +250,9 @@ def test_unlimited_user_can_exceed_limits(db: Session):
 
     image_bytes = _make_jpeg_bytes()
     for i in range(1, 4):
-        res = auth_client.post("/api/v1/scans", files={"file": (f"c{i}.jpg", image_bytes, "image/jpeg")})
+        res = auth_client.post(
+            "/api/v1/scans", files={"file": (f"c{i}.jpg", image_bytes, "image/jpeg")}
+        )
         assert res.status_code == 201
         assert res.headers.get("X-Quota-Limit") == "unlimited"
         assert res.headers.get("X-Quota-Remaining") == "unlimited"
@@ -245,7 +260,9 @@ def test_unlimited_user_can_exceed_limits(db: Session):
 
 
 def test_admin_scan_quota_authorization(db: Session, client: TestClient):
-    auth_client, regular_user = _create_authenticated_client(db, "regular@example.com", role="user")
+    auth_client, regular_user = _create_authenticated_client(
+        db, "regular@example.com", role="user"
+    )
 
     # Anonymous -> 403 Forbidden
     res_anon = client.get("/api/v1/admin/scan-quota/settings")
@@ -263,14 +280,20 @@ def test_admin_scan_quota_authorization(db: Session, client: TestClient):
     assert res_pilot.status_code == 200
 
     # Pilot user session -> 200 OK
-    admin_client, _ = _create_authenticated_client(db, "admin@example.com", role="admin")
+    admin_client, _ = _create_authenticated_client(
+        db, "admin@example.com", role="admin"
+    )
     res_admin = admin_client.get("/api/v1/admin/scan-quota/settings")
     assert res_admin.status_code == 200
 
 
 def test_admin_scan_quota_crud_flow(db: Session):
-    admin_client, _ = _create_authenticated_client(db, "admin_crud@example.com", role="admin")
-    _, target_user = _create_authenticated_client(db, "target_user@example.com", role="user")
+    admin_client, _ = _create_authenticated_client(
+        db, "admin_crud@example.com", role="admin"
+    )
+    _, target_user = _create_authenticated_client(
+        db, "target_user@example.com", role="user"
+    )
 
     # 1. Get global settings
     get_sett = admin_client.get("/api/v1/admin/scan-quota/settings")
@@ -294,7 +317,11 @@ def test_admin_scan_quota_crud_flow(db: Session):
     # 4. Put user override
     put_user = admin_client.put(
         f"/api/v1/admin/scan-quota/users/{target_user.id}",
-        json={"override_mode": "custom", "custom_limit": 100, "reason": "Power collector"},
+        json={
+            "override_mode": "custom",
+            "custom_limit": 100,
+            "reason": "Power collector",
+        },
     )
     assert put_user.status_code == 200
     assert put_user.json()["override_mode"] == "custom"

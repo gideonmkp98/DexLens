@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.models.scan import Scan
 from app.models.user import User
 from app.services.scan_quota import (
-    GLOBAL_SETTING_DAILY_LIMIT_KEY,
     QuotaExhaustedError,
     ScanQuotaService,
 )
@@ -88,7 +87,9 @@ def test_per_user_overrides_lifecycle(db: Session):
     assert effective_limit == service.get_global_default_limit()
 
     # Set custom finite limit
-    service.set_user_override(user.id, "custom", custom_limit=25, reason="VIP beta tester")
+    service.set_user_override(
+        user.id, "custom", custom_limit=25, reason="VIP beta tester"
+    )
     effective_limit, mode, source = service.resolve_effective_policy(user.id)
     assert mode == "custom"
     assert source == "user_override"
@@ -218,7 +219,9 @@ def test_boundary_day_rollover(db: Session):
     day2_start = datetime(2026, 11, 12, 0, 0, 1, tzinfo=UTC)
 
     # Day 1: consume quota (reaches limit)
-    is_replay, q1, _ = service.reserve_and_consume_quota(user.id, None, at_time=day1_end)
+    is_replay, q1, _ = service.reserve_and_consume_quota(
+        user.id, None, at_time=day1_end
+    )
     assert q1.used == 1
     assert q1.remaining == 0
 
@@ -227,7 +230,9 @@ def test_boundary_day_rollover(db: Session):
         service.reserve_and_consume_quota(user.id, None, at_time=day1_end)
 
     # Day 2: fresh quota window!
-    is_replay2, q2, _ = service.reserve_and_consume_quota(user.id, None, at_time=day2_start)
+    is_replay2, q2, _ = service.reserve_and_consume_quota(
+        user.id, None, at_time=day2_start
+    )
     assert is_replay2 is False
     assert q2.used == 1
     assert q2.remaining == 0
@@ -240,11 +245,15 @@ def test_rollback_consumption(db: Session):
     service.set_user_override(user.id, "custom", custom_limit=5)
 
     idemp_key = "test-rollback-key-99"
-    _, q, _ = service.reserve_and_consume_quota(user.id, None, idempotency_key=idemp_key)
+    _, q, _ = service.reserve_and_consume_quota(
+        user.id, None, idempotency_key=idemp_key
+    )
     assert q.used == 1
 
     # Roll back
-    service.rollback_consumption(f"user:{user.id}", service.get_utc_date(), idempotency_key=idemp_key)
+    service.rollback_consumption(
+        f"user:{user.id}", service.get_utc_date(), idempotency_key=idemp_key
+    )
 
     # Usage is back to 0
     status = service.get_quota_status(user.id, None)

@@ -1,6 +1,6 @@
-from datetime import UTC, datetime
 import logging
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -147,11 +147,15 @@ async def capture_frame(
         )
         if result.scan.quota is not None:
             response.headers["X-Quota-Limit"] = (
-                str(result.scan.quota.limit) if result.scan.quota.limit is not None else "unlimited"
+                str(result.scan.quota.limit)
+                if result.scan.quota.limit is not None
+                else "unlimited"
             )
             response.headers["X-Quota-Used"] = str(result.scan.quota.used)
             response.headers["X-Quota-Remaining"] = (
-                str(result.scan.quota.remaining) if result.scan.quota.remaining is not None else "unlimited"
+                str(result.scan.quota.remaining)
+                if result.scan.quota.remaining is not None
+                else "unlimited"
             )
             response.headers["X-Quota-Reset"] = result.scan.quota.reset_at.isoformat()
             response.headers["X-Quota-Source"] = result.scan.quota.effective_source
@@ -159,12 +163,18 @@ async def capture_frame(
     except ScanSessionError as err:
         headers = {}
         if err.quota is not None:
-            reset_secs = max(0, int((err.quota.reset_at - datetime.now(UTC)).total_seconds()))
+            reset_secs = max(
+                0, int((err.quota.reset_at - datetime.now(UTC)).total_seconds())
+            )
             headers = {
                 "Retry-After": str(reset_secs),
-                "X-Quota-Limit": str(err.quota.limit) if err.quota.limit is not None else "unlimited",
+                "X-Quota-Limit": str(err.quota.limit)
+                if err.quota.limit is not None
+                else "unlimited",
                 "X-Quota-Used": str(err.quota.used),
-                "X-Quota-Remaining": str(err.quota.remaining) if err.quota.remaining is not None else "unlimited",
+                "X-Quota-Remaining": str(err.quota.remaining)
+                if err.quota.remaining is not None
+                else "unlimited",
                 "X-Quota-Reset": err.quota.reset_at.isoformat(),
                 "X-Quota-Source": err.quota.effective_source,
             }
